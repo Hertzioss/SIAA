@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from "react"
+import { useState, Suspense } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -17,7 +17,7 @@ import { useContracts } from "@/hooks/use-contracts"
 
 import { useRouter, useSearchParams } from "next/navigation"
 
-export default function ContractsPage() {
+function ContractsContent() {
     const { contracts, isLoading, fetchContracts, createContract, updateContract } = useContracts()
     const { properties } = useProperties()
     const { tenants } = useTenants()
@@ -366,5 +366,13 @@ export default function ContractsPage() {
                 onSubmit={handleSaveContract}
             />
         </div>
+    )
+}
+
+export default function ContractsPage() {
+    return (
+        <Suspense fallback={<div>Cargando...</div>}>
+            <ContractsContent />
+        </Suspense>
     )
 }

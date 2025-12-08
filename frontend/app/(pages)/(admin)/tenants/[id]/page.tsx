@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -12,30 +12,100 @@ import { Textarea } from "@/components/ui/textarea"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { User, Phone, Mail, FileText, MessageSquare, PhoneOutgoing, Download, Plus, Clock, DollarSign, Send, Printer as PrinterIcon, ArrowLeft, Building } from "lucide-react"
+import { User, Phone, Mail, FileText, MessageSquare, PhoneOutgoing, Download, Plus, Clock, DollarSign, Send, Printer as PrinterIcon, ArrowLeft, Building, Loader2 } from "lucide-react"
 import { toast } from "sonner"
-import { TENANTS_DATA } from "../mock-data"
+import { supabase } from "@/lib/supabase"
+import { Tenant } from "@/types/tenant"
+import { Contract } from "@/hooks/use-contracts"
+
+// Extended type for state, including joined data
+interface TenantDetail extends Tenant {
+    contracts?: Contract[]
+    payments?: any[]
+    // Temporary/Derived fields
+    property?: string
+    contractType?: string
+}
 
 export default function TenantDetailPage() {
     const params = useParams()
     const router = useRouter()
     const id = params.id as string
-    const tenant = TENANTS_DATA.find(t => t.id === id)
+
+    const [tenant, setTenant] = useState<TenantDetail | null>(null)
+    const [loading, setLoading] = useState(true)
+    const [error, setError] = useState<string | null>(null)
 
     const [newCallNote, setNewCallNote] = useState("")
+    const [callLog, setCallLog] = useState<any[]>([]) // Local state for now
     const [isReceiptOpen, setIsReceiptOpen] = useState(false)
     const [selectedPayment, setSelectedPayment] = useState<any>(null)
 
-    if (!tenant) {
-        return (
-            <div className="container mx-auto p-6 flex flex-col items-center justify-center h-[50vh]">
-                <h1 className="text-2xl font-bold mb-4">Inquilino no encontrado</h1>
-                <Button onClick={() => router.back()}>
-                    <ArrowLeft className="mr-2 h-4 w-4" /> Volver
-                </Button>
-            </div>
-        )
-    }
+    const fetchTenantData = useCallback(async () => {
+        setLoading(true)
+        try {
+            // 1. Fetch Tenant
+            const { data: tenantData, error: tenantError } = await supabase
+                .from('tenants')
+                .select('*')
+                .eq('id', id)
+                .single()
+
+            if (tenantError) throw tenantError
+
+            // 2. Fetch Contracts (with units and properties)
+            const { data: contractsData, error: contractsError } = await supabase
+                .from('contracts')
+                .select(`
+                    *,
+                    units (
+                        name,
+                        properties (
+                            name
+                        )
+                    )
+                `)
+                .eq('tenant_id', id)
+                .order('start_date', { ascending: false })
+
+            if (contractsError) throw contractsError
+
+            // 3. Fetch Payments
+            const { data: paymentsData, error: paymentsError } = await supabase
+                .from('payments')
+                .select('*')
+                .eq('tenant_id', id)
+                .order('date', { ascending: false })
+
+            if (paymentsError) throw paymentsError
+
+            // Derive info from active contract
+            const activeContract = contractsData?.find((c: any) => c.status === 'active')
+            const propertyName = activeContract?.units?.properties?.name || "Sin Propiedad Asignada"
+            const contractType = activeContract?.type === 'residential' ? 'Residencial' : 'Comercial'
+
+            setTenant({
+                ...tenantData,
+                contracts: contractsData,
+                payments: paymentsData,
+                property: propertyName,
+                contractType: contractType || 'Sin contrato'
+            })
+
+        } catch (err: any) {
+            console.error("Error fetching tenant details:", err)
+            setError(err.message)
+            toast.error("Error al cargar detalles del inquilino")
+        } finally {
+            setLoading(false)
+        }
+    }, [id])
+
+    useEffect(() => {
+        if (id) {
+            fetchTenantData()
+        }
+    }, [id, fetchTenantData])
 
     const handleSendEmail = (type: string) => {
         toast.success(`Correo enviado: ${type}`)
@@ -50,15 +120,35 @@ export default function TenantDetailPage() {
             user: "Admin"
         }
 
-        // Optimistic update
-        tenant.callLog.unshift(newLog)
+        // Local state update only for now
+        setCallLog(prev => [newLog, ...prev])
         setNewCallNote("")
-        toast.success("Llamada registrada")
+        toast.success("Nota registrada (Local)")
     }
 
     const handleViewReceipt = (payment: any) => {
         setSelectedPayment(payment)
         setIsReceiptOpen(true)
+    }
+
+    if (loading) {
+        return (
+            <div className="container mx-auto p-6 flex flex-col items-center justify-center h-[50vh]">
+                <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
+                <p className="text-muted-foreground">Cargando información del inquilino...</p>
+            </div>
+        )
+    }
+
+    if (!tenant) {
+        return (
+            <div className="container mx-auto p-6 flex flex-col items-center justify-center h-[50vh]">
+                <h1 className="text-2xl font-bold mb-4">Inquilino no encontrado</h1>
+                <Button onClick={() => router.back()}>
+                    <ArrowLeft className="mr-2 h-4 w-4" /> Volver
+                </Button>
+            </div>
+        )
     }
 
     return (
@@ -71,8 +161,8 @@ export default function TenantDetailPage() {
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
                         {tenant.name}
-                        <Badge variant={tenant.status === 'Moroso' ? 'destructive' : 'default'} className="ml-2">
-                            {tenant.status}
+                        <Badge variant={tenant.status === 'delinquent' ? 'destructive' : 'default'} className="ml-2">
+                            {tenant.status === 'solvent' ? 'Solvente' : 'Moroso'}
                         </Badge>
                     </h1>
                     <div className="flex items-center gap-4 text-muted-foreground mt-1">
@@ -114,7 +204,7 @@ export default function TenantDetailPage() {
                                 </div>
                                 <div className="grid gap-1">
                                     <Label className="text-muted-foreground">Documento de Identidad</Label>
-                                    <p className="font-medium">{tenant.docId}</p>
+                                    <p className="font-medium">{tenant.doc_id}</p>
                                 </div>
                             </CardContent>
                         </Card>
@@ -129,7 +219,7 @@ export default function TenantDetailPage() {
                                 <div className="grid gap-1">
                                     <Label className="text-muted-foreground">Teléfono</Label>
                                     <div className="flex items-center justify-between">
-                                        <p className="font-medium">{tenant.phone}</p>
+                                        <p className="font-medium">{tenant.phone || "No registrado"}</p>
                                         <div className="flex gap-2">
                                             <Button size="icon" variant="ghost" className="h-8 w-8 text-green-600">
                                                 <MessageSquare className="h-4 w-4" />
@@ -143,7 +233,7 @@ export default function TenantDetailPage() {
                                 <div className="grid gap-1">
                                     <Label className="text-muted-foreground">Correo Electrónico</Label>
                                     <div className="flex items-center justify-between">
-                                        <p className="font-medium">{tenant.email}</p>
+                                        <p className="font-medium">{tenant.email || "No registrado"}</p>
                                         <Button size="icon" variant="ghost" className="h-8 w-8">
                                             <Mail className="h-4 w-4" />
                                         </Button>
@@ -169,7 +259,11 @@ export default function TenantDetailPage() {
                                 </div>
                                 <div className="grid gap-1">
                                     <Label className="text-muted-foreground">Canon Mensual</Label>
-                                    <p className="font-medium text-green-600">$400.00</p>
+                                    <p className="font-medium text-green-600">
+                                        {tenant.contracts?.[0]?.rent_amount
+                                            ? `$${tenant.contracts[0].rent_amount.toFixed(2)}`
+                                            : "N/A"}
+                                    </p>
                                 </div>
                             </CardContent>
                         </Card>
@@ -198,25 +292,33 @@ export default function TenantDetailPage() {
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {tenant.paymentHistory?.map((payment, index) => (
-                                        <TableRow key={index}>
-                                            <TableCell>{payment.date}</TableCell>
-                                            <TableCell>{payment.concept}</TableCell>
-                                            <TableCell className="font-medium">{payment.amount}</TableCell>
-                                            <TableCell>
-                                                <Badge variant={payment.status === 'Pagado' ? 'default' : 'secondary'}>
-                                                    {payment.status}
-                                                </Badge>
-                                            </TableCell>
-                                            <TableCell className="text-right">
-                                                {payment.status === 'Pagado' && (
-                                                    <Button variant="ghost" size="sm" onClick={() => handleViewReceipt(payment)}>
-                                                        <FileText className="h-4 w-4 mr-2" /> Recibo
-                                                    </Button>
-                                                )}
+                                    {tenant.payments && tenant.payments.length > 0 ? (
+                                        tenant.payments.map((payment, index) => (
+                                            <TableRow key={index}>
+                                                <TableCell>{new Date(payment.date).toLocaleDateString()}</TableCell>
+                                                <TableCell>{payment.concept}</TableCell>
+                                                <TableCell className="font-medium">${payment.amount}</TableCell>
+                                                <TableCell>
+                                                    <Badge variant={payment.status === 'completed' || payment.status === 'paid' ? 'default' : 'secondary'}>
+                                                        {payment.status}
+                                                    </Badge>
+                                                </TableCell>
+                                                <TableCell className="text-right">
+                                                    {(payment.status === 'completed' || payment.status === 'paid') && (
+                                                        <Button variant="ghost" size="sm" onClick={() => handleViewReceipt(payment)}>
+                                                            <FileText className="h-4 w-4 mr-2" /> Recibo
+                                                        </Button>
+                                                    )}
+                                                </TableCell>
+                                            </TableRow>
+                                        ))
+                                    ) : (
+                                        <TableRow>
+                                            <TableCell colSpan={5} className="text-center text-muted-foreground py-4">
+                                                No hay pagos registrados
                                             </TableCell>
                                         </TableRow>
-                                    ))}
+                                    )}
                                 </TableBody>
                             </Table>
                         </CardContent>
@@ -246,30 +348,32 @@ export default function TenantDetailPage() {
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    <TableRow>
-                                        <TableCell className="font-medium">CNT-2024-001</TableCell>
-                                        <TableCell>{tenant.property}</TableCell>
-                                        <TableCell>01/01/2024</TableCell>
-                                        <TableCell>31/12/2024</TableCell>
-                                        <TableCell><Badge>Vigente</Badge></TableCell>
-                                        <TableCell className="text-right">
-                                            <Button variant="ghost" size="icon">
-                                                <FileText className="h-4 w-4" />
-                                            </Button>
-                                        </TableCell>
-                                    </TableRow>
-                                    <TableRow className="opacity-60">
-                                        <TableCell className="font-medium">CNT-2023-089</TableCell>
-                                        <TableCell>{tenant.property}</TableCell>
-                                        <TableCell>01/01/2023</TableCell>
-                                        <TableCell>31/12/2023</TableCell>
-                                        <TableCell><Badge variant="outline">Vencido</Badge></TableCell>
-                                        <TableCell className="text-right">
-                                            <Button variant="ghost" size="icon">
-                                                <FileText className="h-4 w-4" />
-                                            </Button>
-                                        </TableCell>
-                                    </TableRow>
+                                    {tenant.contracts && tenant.contracts.length > 0 ? (
+                                        tenant.contracts.map((contract: any, index) => (
+                                            <TableRow key={index} className={contract.status === 'expired' ? 'opacity-60' : ''}>
+                                                <TableCell className="font-medium">{contract.contract_number || `CNT-${contract.id.slice(0, 8)}`}</TableCell>
+                                                <TableCell>{contract.units?.properties?.name || contract.unit_id}</TableCell>
+                                                <TableCell>{new Date(contract.start_date).toLocaleDateString()}</TableCell>
+                                                <TableCell>{new Date(contract.end_date).toLocaleDateString()}</TableCell>
+                                                <TableCell>
+                                                    <Badge variant={contract.status === 'active' ? 'default' : 'outline'}>
+                                                        {contract.status === 'active' ? 'Vigente' : contract.status === 'expired' ? 'Vencido' : contract.status}
+                                                    </Badge>
+                                                </TableCell>
+                                                <TableCell className="text-right">
+                                                    <Button variant="ghost" size="icon">
+                                                        <FileText className="h-4 w-4" />
+                                                    </Button>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))
+                                    ) : (
+                                        <TableRow>
+                                            <TableCell colSpan={6} className="text-center text-muted-foreground py-4">
+                                                No hay contratos registrados
+                                            </TableCell>
+                                        </TableRow>
+                                    )}
                                 </TableBody>
                             </Table>
                         </CardContent>
@@ -315,8 +419,8 @@ export default function TenantDetailPage() {
                                             <Mail className="h-4 w-4 text-blue-600" />
                                         </div>
                                         <div>
-                                            <p className="font-medium">Correo Enviado: {tenant.lastEmail?.type}</p>
-                                            <p className="text-sm text-muted-foreground">{tenant.lastEmail?.date}</p>
+                                            <p className="font-medium">Correo Enviado: Recordatorio (Simulado)</p>
+                                            <p className="text-sm text-muted-foreground">Hace 2 días</p>
                                         </div>
                                     </div>
                                     <Separator />
@@ -327,7 +431,7 @@ export default function TenantDetailPage() {
                                         <div>
                                             <p className="font-medium">Última Llamada</p>
                                             <p className="text-sm text-muted-foreground">
-                                                {tenant.callLog?.[0]?.date || "No registrada"}
+                                                {callLog?.[0]?.date || "No registrada"}
                                             </p>
                                         </div>
                                     </div>
@@ -342,7 +446,7 @@ export default function TenantDetailPage() {
                             <CardTitle className="text-lg flex items-center justify-between">
                                 <span>Bitácora de Llamadas y Notas</span>
                                 <Badge variant="outline" className="font-normal">
-                                    {tenant.callLog?.length || 0} registros
+                                    {callLog.length} registros
                                 </Badge>
                             </CardTitle>
                         </CardHeader>
@@ -361,22 +465,26 @@ export default function TenantDetailPage() {
 
                             <ScrollArea className="h-[200px] pr-4">
                                 <div className="space-y-4">
-                                    {tenant.callLog?.map((log, index) => (
-                                        <div key={index} className="flex gap-4 p-3 border rounded-lg bg-muted/30">
-                                            <div className="mt-1">
-                                                <Clock className="h-4 w-4 text-muted-foreground" />
-                                            </div>
-                                            <div className="flex-1 space-y-1">
-                                                <div className="flex items-center justify-between">
-                                                    <p className="text-sm font-medium text-foreground">{log.user}</p>
-                                                    <span className="text-xs text-muted-foreground">{log.date}</span>
+                                    {callLog.length > 0 ? (
+                                        callLog.map((log, index) => (
+                                            <div key={index} className="flex gap-4 p-3 border rounded-lg bg-muted/30">
+                                                <div className="mt-1">
+                                                    <Clock className="h-4 w-4 text-muted-foreground" />
                                                 </div>
-                                                <p className="text-sm text-muted-foreground">
-                                                    {log.note}
-                                                </p>
+                                                <div className="flex-1 space-y-1">
+                                                    <div className="flex items-center justify-between">
+                                                        <p className="text-sm font-medium text-foreground">{log.user}</p>
+                                                        <span className="text-xs text-muted-foreground">{log.date}</span>
+                                                    </div>
+                                                    <p className="text-sm text-muted-foreground">
+                                                        {log.note}
+                                                    </p>
+                                                </div>
                                             </div>
-                                        </div>
-                                    ))}
+                                        ))
+                                    ) : (
+                                        <div className="text-center text-muted-foreground py-4">No hay notas registradas</div>
+                                    )}
                                 </div>
                             </ScrollArea>
                         </CardContent>
@@ -392,7 +500,7 @@ export default function TenantDetailPage() {
                     </DialogHeader>
                     {/* Placeholder for receipt content */}
                     <div className="p-4 border rounded-md bg-muted/20 min-h-[300px] flex items-center justify-center text-muted-foreground">
-                        Vista previa del recibo
+                        Vista previa del recibo para el pago de ${selectedPayment?.amount}
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setIsReceiptOpen(false)}>Cerrar</Button>
@@ -405,3 +513,4 @@ export default function TenantDetailPage() {
         </div>
     )
 }
+

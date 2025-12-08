@@ -69,7 +69,7 @@ const ALL_MONTHS = [
 
 export default function ReportsPage() {
     const { fetchIncomeExpense, fetchOccupancy, fetchDelinquency, fetchMaintenance, fetchPropertyPerformance, isLoading } = useReports()
-    const { properties, isLoading: isLoadingProperties } = useProperties()
+    const { properties, loading: isLoadingProperties } = useProperties()
 
     // State for Report Data
     const [incomeExpenseData, setIncomeExpenseData] = useState<IncomeExpenseData | null>(null)

@@ -189,7 +189,7 @@ export function ContractDialog({
                                     value={formData.unit_id}
                                     onValueChange={(val) => {
                                         const unit = units.find(u => u.id === val);
-                                        setFormData(prev => ({
+                                        setFormData((prev: any) => ({
                                             ...prev,
                                             unit_id: val,
                                             amount: unit?.default_rent ? String(unit.default_rent) : prev.amount
@@ -212,7 +212,7 @@ export function ContractDialog({
                                 <Label htmlFor="tenant">Inquilino</Label>
                                 <Select
                                     value={formData.tenant_id}
-                                    onValueChange={(val) => setFormData(prev => ({ ...prev, tenant_id: val }))}
+                                    onValueChange={(val) => setFormData((prev: any) => ({ ...prev, tenant_id: val }))}
                                 >
                                     <SelectTrigger id="tenant">
                                         <SelectValue placeholder="Seleccionar Inquilino" />
@@ -234,7 +234,7 @@ export function ContractDialog({
                                 id="start-date"
                                 type="date"
                                 value={formData.start_date}
-                                onChange={(e) => setFormData(prev => ({ ...prev, start_date: e.target.value }))}
+                                onChange={(e) => setFormData((prev: any) => ({ ...prev, start_date: e.target.value }))}
                             />
                         </div>
                         <div className="space-y-2">
@@ -243,7 +243,7 @@ export function ContractDialog({
                                 id="end-date"
                                 type="date"
                                 value={formData.end_date}
-                                onChange={(e) => setFormData(prev => ({ ...prev, end_date: e.target.value }))}
+                                onChange={(e) => setFormData((prev: any) => ({ ...prev, end_date: e.target.value }))}
                             />
                         </div>
 
@@ -254,7 +254,7 @@ export function ContractDialog({
                                 type="number"
                                 placeholder="0.00"
                                 value={formData.amount}
-                                onChange={(e) => setFormData(prev => ({ ...prev, amount: e.target.value }))}
+                                onChange={(e) => setFormData((prev: any) => ({ ...prev, amount: e.target.value }))}
                             />
                         </div>
 
@@ -262,7 +262,7 @@ export function ContractDialog({
                             <Label htmlFor="type">Tipo de Contrato</Label>
                             <Select
                                 value={formData.type}
-                                onValueChange={(val) => setFormData(prev => ({ ...prev, type: val as any }))}
+                                onValueChange={(val) => setFormData((prev: any) => ({ ...prev, type: val as any }))}
                             >
                                 <SelectTrigger id="type">
                                     <SelectValue placeholder="Seleccionar tipo" />
