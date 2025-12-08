@@ -1,13 +1,33 @@
 'use client'
 
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
+import { useEffect, useState } from "react"
+import { supabase } from "@/lib/supabase"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { CreditCard, History } from "lucide-react"
+import { CreditCard, History, Bell } from "lucide-react"
 
 export default function TenantLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname()
+    const [loading, setLoading] = useState(true)
+    const router = useRouter()
+
+    useEffect(() => {
+        const checkUser = async () => {
+            const { data: { session } } = await supabase.auth.getSession()
+            if (!session) {
+                router.push('/signin')
+            } else {
+                // Optional: Check if role is tenant? 
+                // For now, let's just ensure they are logged in.
+                setLoading(false)
+            }
+        }
+        checkUser()
+    }, [router])
+
+    if (loading) return null // Or a spinner
 
     return (
         <div className="min-h-screen bg-background flex flex-col">
@@ -38,6 +58,16 @@ export default function TenantLayout({ children }: { children: React.ReactNode }
                             <Link href="/payment-history">
                                 <History className="h-4 w-4" />
                                 Ver Histórico
+                            </Link>
+                        </Button>
+                        <Button
+                            variant={pathname === "/t_notifications" ? "default" : "ghost"}
+                            asChild
+                            className="gap-2"
+                        >
+                            <Link href="/t_notifications">
+                                <Bell className="h-4 w-4" />
+                                Notificaciones
                             </Link>
                         </Button>
                         <Button

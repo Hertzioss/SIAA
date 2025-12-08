@@ -1,3 +1,8 @@
+'use client'
+
+import { supabase } from "@/lib/supabase"
+import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -13,10 +18,43 @@ import { ModeToggle } from "./mode-togle"
 import { Container } from "lucide-react"
 import { AppLogo } from "./appLogo"
 
-export function LoginForm({
-  className,
-  ...props
-}: React.ComponentProps<"div">) {
+export function LoginForm({ className, ...props }: React.ComponentProps<"div">) {
+
+  const router = useRouter()
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [errorMsg, setErrorMsg] = useState<string | null>(null)
+
+  const handleLogin = async (e: any) => {
+    e.preventDefault()
+    setLoading(true)
+    setErrorMsg(null)
+    try {
+      const { data: response, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
+
+      console.log(response)
+
+      if (error) throw error
+
+
+      // setLoading(false)
+      router.push('/dashboard')
+      router.refresh()
+
+    }
+    catch (error: any) {
+      console.error('Error al iniciar sesión:', error)
+      setErrorMsg("Usuario o contraseña incorrectos")
+      // setLoading(false)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
       <div className="flex justify-center gap-6" style={{ width: "100%" }}>
@@ -26,7 +64,7 @@ export function LoginForm({
       </div>
       <Card className="overflow-hidden p-0">
         <CardContent className="grid p-0 md:grid-cols-2">
-          <form className="p-6 md:p-8">
+          <form className="p-6 md:p-8" onSubmit={handleLogin}>
             <FieldGroup>
               <div className="flex flex-col items-center gap-2 text-center">
                 <h1 className="text-2xl font-bold">Bienvenido</h1>
@@ -41,6 +79,8 @@ export function LoginForm({
                   // type="email"
                   placeholder="m@example.com"
                   required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                 />
               </Field>
               <Field>
@@ -53,11 +93,17 @@ export function LoginForm({
                     ¿Olvidaste tu contraseña?
                   </a> */}
                 </div>
-                <Input id="password" type="password" required />
+                <Input
+                  id="password"
+                  type="password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)} />
               </Field>
               <Field>
                 <Button type="submit">Iniciar sesión</Button>
               </Field>
+              {errorMsg && <p className="text-red-500">{errorMsg}</p>}
               <FieldSeparator className="*:data-[slot=field-separator-content]:bg-card"> </FieldSeparator>
 
               <FieldDescription className="text-center">

@@ -9,21 +9,80 @@ import { Input } from "@/components/ui/input"
 import { FileText, Download, Mail, Plus, MoreHorizontal, Search, Edit, Trash, ChevronLeft, ChevronRight, AlertCircle, CheckCircle2, Clock } from "lucide-react"
 import { toast } from "sonner"
 import { ContractDialog } from "@/components/contracts/contract-dialog"
-import { CONTRACTS_DATA } from "./mock-data"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { useProperties } from "@/hooks/use-properties"
+import { useTenants } from "@/hooks/use-tenants"
+import { useContracts } from "@/hooks/use-contracts"
+
+import { useRouter, useSearchParams } from "next/navigation"
 
 export default function ContractsPage() {
+    const { contracts, isLoading, fetchContracts, createContract, updateContract } = useContracts()
+    const { properties } = useProperties()
+    const { tenants } = useTenants()
+    const searchParams = useSearchParams()
+
     const [isDialogOpen, setIsDialogOpen] = useState(false)
     const [dialogMode, setDialogMode] = useState<"create" | "view" | "edit">("create")
     const [selectedContract, setSelectedContract] = useState<any>(null)
-    const [searchTerm, setSearchTerm] = useState("")
+    const [searchTerm, setSearchTerm] = useState(searchParams.get("q") || "")
     const [statusFilter, setStatusFilter] = useState("all")
     const [currentPage, setCurrentPage] = useState(1)
     const ITEMS_PER_PAGE = 5
 
+    // Helper to format contract for display
+    const formatContractData = (c: any) => {
+        const propertyName = c.units?.properties?.name || "Propiedad Desconocida"
+        const unitName = c.units?.name || "Unidad"
+        const tenantName = c.tenants?.name || "Inquilino Desconocido"
+
+        // Calculate duration approx
+        const start = new Date(c.start_date)
+        const end = new Date(c.end_date)
+        const diffMonths = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth())
+        const duration = `${diffMonths} Meses`
+
+        // Check status based on date
+        const now = new Date()
+        const thirtyDaysFromNow = new Date()
+        thirtyDaysFromNow.setDate(now.getDate() + 30)
+
+        const endDate = new Date(c.end_date)
+        let displayStatus = "Activo"
+
+        if (c.status === 'expired' || endDate < now) {
+            displayStatus = "Vencido"
+        } else if (c.status === 'active' && endDate <= thirtyDaysFromNow) {
+            displayStatus = "Por Vencer"
+        } else if (c.status !== 'active') {
+            displayStatus = c.status // e.g. cancelled
+        }
+
+        return {
+            id: c.id,
+            property: `${propertyName} - ${unitName}`,
+            tenant: tenantName,
+            startDate: c.start_date,
+            endDate: c.end_date,
+            duration: duration,
+            status: displayStatus,
+            amount: c.rent_amount,
+            type: c.type,
+            // Raw data for edit
+            unit_id: c.unit_id,
+            tenant_id: c.tenant_id,
+            rent_amount: c.rent_amount,
+            start_date: c.start_date,
+            end_date: c.end_date,
+            statusRaw: c.status
+        }
+    }
+
+    const displayedContracts = contracts.map(formatContractData)
+
     // Derived Data
-    const filteredContracts = CONTRACTS_DATA.filter(contract => {
+    const filteredContracts = displayedContracts.filter(contract => {
         const matchesSearch =
             contract.property.toLowerCase().includes(searchTerm.toLowerCase()) ||
             contract.tenant.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -34,17 +93,33 @@ export default function ContractsPage() {
         return matchesSearch && matchesStatus
     })
 
-    const totalPages = Math.ceil(filteredContracts.length / ITEMS_PER_PAGE)
+    const totalPages = Math.ceil(filteredContracts.length / ITEMS_PER_PAGE) || 1
     const currentContracts = filteredContracts.slice(
         (currentPage - 1) * ITEMS_PER_PAGE,
         currentPage * ITEMS_PER_PAGE
     )
 
     // Stats
-    const totalContracts = CONTRACTS_DATA.length
-    const activeContracts = CONTRACTS_DATA.filter(c => c.status === "Activo").length
-    const expiringContracts = CONTRACTS_DATA.filter(c => c.status === "Por Vencer").length
-    const expiredContracts = CONTRACTS_DATA.filter(c => c.status === "Vencido").length
+    const totalContracts = contracts.length
+    const now = new Date()
+    const thirtyDaysFromNow = new Date()
+    thirtyDaysFromNow.setDate(now.getDate() + 30)
+
+    const expiringContracts = contracts.filter(c => {
+        if (c.status !== 'active') return false
+        const end = new Date(c.end_date)
+        return end >= now && end <= thirtyDaysFromNow
+    }).length
+
+    const expiredContracts = contracts.filter(c => {
+        const end = new Date(c.end_date)
+        return c.status === 'expired' || end < now
+    }).length
+
+    const activeContracts = contracts.filter(c => {
+        const end = new Date(c.end_date)
+        return c.status === 'active' && end > now
+    }).length
 
     const handleDownload = (id: string) => {
         toast.success(`Descargando contrato ${id} en PDF...`)
@@ -70,6 +145,24 @@ export default function ContractsPage() {
         setDialogMode("edit")
         setSelectedContract(contract)
         setIsDialogOpen(true)
+    }
+
+    const handleSaveContract = async (data: any) => {
+        try {
+            if (dialogMode === "create") {
+                await createContract(data)
+            } else if (dialogMode === "edit" && selectedContract) {
+                await updateContract(selectedContract.id, data)
+            }
+            setIsDialogOpen(false)
+        } catch (error) {
+            console.error("Error saving contract:", error)
+            // Toast handled in hook
+        }
+    }
+
+    if (isLoading) {
+        return <div className="p-6">Cargando contratos...</div>
     }
 
     return (
@@ -174,57 +267,67 @@ export default function ContractsPage() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {currentContracts.map((contract) => (
-                                <TableRow key={contract.id}>
-                                    <TableCell className="font-medium">{contract.id}</TableCell>
-                                    <TableCell>
-                                        <div className="font-medium">{contract.property.split(" - ")[0]}</div>
-                                        <div className="text-xs text-muted-foreground">{contract.property.split(" - ")[1]}</div>
-                                    </TableCell>
-                                    <TableCell>{contract.tenant}</TableCell>
-                                    <TableCell>
-                                        <div className="text-sm">{contract.duration}</div>
-                                        <div className="text-xs text-muted-foreground">{contract.startDate} - {contract.endDate}</div>
-                                    </TableCell>
-                                    <TableCell>
-                                        <Badge
-                                            variant={contract.status === "Activo" ? "default" : contract.status === "Vencido" ? "destructive" : "secondary"}
-                                            className={contract.status === "Activo" ? "bg-green-600 hover:bg-green-700" : contract.status === "Por Vencer" ? "bg-yellow-600 hover:bg-yellow-700 text-white" : ""}
-                                        >
-                                            {contract.status}
-                                        </Badge>
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                                <Button variant="ghost" className="h-8 w-8 p-0">
-                                                    <span className="sr-only">Abrir menú</span>
-                                                    <MoreHorizontal className="h-4 w-4" />
-                                                </Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end">
-                                                <DropdownMenuLabel>Acciones</DropdownMenuLabel>
-                                                <DropdownMenuItem onClick={() => handleViewDetail(contract)}>
-                                                    <FileText className="mr-2 h-4 w-4" /> Ver Detalle
-                                                </DropdownMenuItem>
-                                                <DropdownMenuItem onClick={() => handleEdit(contract)}>
-                                                    <Edit className="mr-2 h-4 w-4" /> Editar
-                                                </DropdownMenuItem>
-                                                <DropdownMenuItem onClick={() => navigator.clipboard.writeText(contract.id)}>
-                                                    Copiar ID
-                                                </DropdownMenuItem>
-                                                <DropdownMenuSeparator />
-                                                <DropdownMenuItem onClick={() => handleDownload(contract.id)}>
-                                                    <Download className="mr-2 h-4 w-4" /> Descargar PDF
-                                                </DropdownMenuItem>
-                                                <DropdownMenuItem onClick={() => handleEmail(contract.id)}>
-                                                    <Mail className="mr-2 h-4 w-4" /> Enviar por Correo
-                                                </DropdownMenuItem>
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
+                            {currentContracts.length > 0 ? (
+                                currentContracts.map((contract) => (
+                                    <TableRow key={contract.id}>
+                                        <TableCell className="font-medium text-xs truncate max-w-[100px]" title={contract.id}>
+                                            {contract.id.slice(0, 8)}...
+                                        </TableCell>
+                                        <TableCell>
+                                            <div className="font-medium">{contract.property.split(" - ")[0]}</div>
+                                            <div className="text-xs text-muted-foreground">{contract.property.split(" - ")[1]}</div>
+                                        </TableCell>
+                                        <TableCell>{contract.tenant}</TableCell>
+                                        <TableCell>
+                                            <div className="text-sm">{contract.duration}</div>
+                                            <div className="text-xs text-muted-foreground">{contract.startDate} - {contract.endDate}</div>
+                                        </TableCell>
+                                        <TableCell>
+                                            <Badge
+                                                variant={contract.status === "Activo" ? "default" : contract.status === "Vencido" ? "destructive" : "secondary"}
+                                                className={contract.status === "Activo" ? "bg-green-600 hover:bg-green-700" : contract.status === "Por Vencer" ? "bg-yellow-600 hover:bg-yellow-700 text-white" : ""}
+                                            >
+                                                {contract.status}
+                                            </Badge>
+                                        </TableCell>
+                                        <TableCell className="text-right">
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button variant="ghost" className="h-8 w-8 p-0">
+                                                        <span className="sr-only">Abrir menú</span>
+                                                        <MoreHorizontal className="h-4 w-4" />
+                                                    </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end">
+                                                    <DropdownMenuLabel>Acciones</DropdownMenuLabel>
+                                                    <DropdownMenuItem onClick={() => handleViewDetail(contract)}>
+                                                        <FileText className="mr-2 h-4 w-4" /> Ver Detalle
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem onClick={() => handleEdit(contract)}>
+                                                        <Edit className="mr-2 h-4 w-4" /> Editar
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem onClick={() => navigator.clipboard.writeText(contract.id)}>
+                                                        Copiar ID
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuSeparator />
+                                                    <DropdownMenuItem onClick={() => handleDownload(contract.id)}>
+                                                        <Download className="mr-2 h-4 w-4" /> Descargar PDF
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem onClick={() => handleEmail(contract.id)}>
+                                                        <Mail className="mr-2 h-4 w-4" /> Enviar por Correo
+                                                    </DropdownMenuItem>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                        </TableCell>
+                                    </TableRow>
+                                ))
+                            ) : (
+                                <TableRow>
+                                    <TableCell colSpan={6} className="h-24 text-center">
+                                        No se encontraron contratos.
                                     </TableCell>
                                 </TableRow>
-                            ))}
+                            )}
                         </TableBody>
                     </Table>
 
@@ -258,6 +361,9 @@ export default function ContractsPage() {
                 onOpenChange={setIsDialogOpen}
                 mode={dialogMode}
                 contract={selectedContract}
+                properties={properties}
+                tenants={tenants}
+                onSubmit={handleSaveContract}
             />
         </div>
     )

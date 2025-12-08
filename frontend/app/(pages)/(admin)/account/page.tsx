@@ -20,7 +20,7 @@ const BANK_ACCOUNTS_DATA = [
         id: "1",
         bank: "Banco Mercantil",
         accountNumber: "0105-****-****-1234",
-        holder: "Inmobiliaria SIAA C.A.",
+        holder: "Escritorio Legal C.A.",
         currency: "Bs",
         type: "Corriente"
     },
@@ -28,7 +28,7 @@ const BANK_ACCOUNTS_DATA = [
         id: "2",
         bank: "Banesco",
         accountNumber: "0134-****-****-5678",
-        holder: "Inmobiliaria SIAA C.A.",
+        holder: "Escritorio Legal C.A.",
         currency: "USD",
         type: "Custodia"
     },
@@ -36,7 +36,7 @@ const BANK_ACCOUNTS_DATA = [
         id: "3",
         bank: "Zelle",
         accountNumber: "pagos@siaa.com",
-        holder: "Inmobiliaria SIAA",
+        holder: "Escritorio Legal",
         currency: "USD",
         type: "Digital"
     }
@@ -93,7 +93,7 @@ export default function AccountPage() {
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
                                     <Label>Nombre / Razón Social</Label>
-                                    <Input defaultValue="Inmobiliaria SIAA C.A." />
+                                    <Input defaultValue="Escritorio Legal C.A." />
                                 </div>
                                 <div className="space-y-2">
                                     <Label>RIF / NIT / ID Fiscal</Label>

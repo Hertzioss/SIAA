@@ -1,6 +1,9 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
-import { ThemeProvider } from "next-themes";
+'use client'
+
+import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { supabase } from '@/lib/supabase'
+
 import { AppSidebar } from "@/components/app-sidebar"
 import { ChartAreaInteractive } from "@/components/chart-area-interactive"
 import { DataTable } from "@/components/data-table"
@@ -12,55 +15,58 @@ import {
 } from "@/components/ui/sidebar"
 
 
-const geistSans = Geist({
-    variable: "--font-geist-sans",
-    subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-    variable: "--font-geist-mono",
-    subsets: ["latin"],
-});
-
-export default function RootLayout({
+export default function AdminLayout({
     children,
 }: Readonly<{
     children: React.ReactNode;
 }>) {
+    const router = useRouter()
+    const [loading, setLoading] = useState(true)
+
+    useEffect(() => {
+        const checkUser = async () => {
+            // 1. Preguntamos a Supabase si hay alguien logueado
+            const { data: { session } } = await supabase.auth.getSession()
+
+            // 2. Si no hay sesión, lo mandamos fuera
+            if (!session) {
+                console.log('No hay sesión')
+                router.push('/signin') // Changed from '/' to '/signin' for clarity
+            } else {
+                // 3. Check Role
+                const role = session.user.user_metadata.role
+                if (role === 'tenant') {
+                    // Tenants should not be here
+                    router.push('/payment-form')
+                } else {
+                    setLoading(false)
+                }
+            }
+        }
+
+        checkUser()
+    }, [router])
+
     return (
-        <html lang="en">
-            <head>
-                <link rel="icon" href="/favicon.ico" />
-            </head>
-            <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-                <ThemeProvider
-                    attribute="class"
-                    defaultTheme="system"
-                    enableSystem
-                    disableTransitionOnChange
-                >
-                    <SidebarProvider
-                        style={
-                            {
-                                "--sidebar-width": "calc(var(--spacing) * 72)",
-                                "--header-height": "calc(var(--spacing) * 12)",
-                            } as React.CSSProperties
-                        }
-                    >
-                        <AppSidebar variant="inset" />
-                        <SidebarInset>
-                            <SiteHeader />
-                            <div className="flex flex-1 flex-col">
-                                <div className="@container/main flex flex-1 flex-col gap-2">
-                                    <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
-                                        {children}
-                                    </div>
-                                </div>
-                            </div>
-                        </SidebarInset>
-                    </SidebarProvider>
-                </ThemeProvider>
-            </body>
-        </html>
+        <SidebarProvider
+            style={
+                {
+                    "--sidebar-width": "calc(var(--spacing) * 72)",
+                    "--header-height": "calc(var(--spacing) * 12)",
+                } as React.CSSProperties
+            }
+        >
+            <AppSidebar variant="inset" />
+            <SidebarInset>
+                <SiteHeader />
+                <div className="flex flex-1 flex-col">
+                    <div className="@container/main flex flex-1 flex-col gap-2">
+                        <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
+                            {children}
+                        </div>
+                    </div>
+                </div>
+            </SidebarInset>
+        </SidebarProvider>
     );
 }

@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import {
+
   IconBuilding,
   IconCamera,
   IconChartBar,
@@ -9,11 +10,13 @@ import {
   IconDatabase,
   IconFileAi,
   IconFileDescription,
+  IconFileText,
   IconFileWord,
   IconFolder,
   IconHelp,
   IconHome,
   IconInnerShadowTop,
+  IconKey,
   IconListDetails,
   IconMail,
   IconNotification,
@@ -24,8 +27,10 @@ import {
   IconUsers,
   IconUserSquareRounded,
   IconUserX,
+  IconBriefcase,
+  IconCash,
 } from "@tabler/icons-react"
-
+import { supabase } from "@/lib/supabase"
 import { NavDocuments } from "@/components/nav-documents"
 import { NavMain } from "@/components/nav-main"
 import { NavSecondary } from "@/components/nav-secondary"
@@ -45,7 +50,7 @@ const data = {
   user: {
     name: "shadcn",
     email: "m@example.com",
-    avatar: "/avatars/shadcn.jpg",
+    avatar: "https://github.com/shadcn.png",
   },
   navMain: [
     {
@@ -61,22 +66,27 @@ const data = {
     {
       title: "Inmuebles",
       url: "/properties",
-      icon: IconHome,
+      icon: IconBuilding,
     },
     {
       title: "Inquilinos",
       url: "/tenants",
-      icon: IconUsers,
+      icon: IconKey,
+    },
+    {
+      title: "Pagos",
+      url: "/payments",
+      icon: IconCash,
     },
     {
       title: "Reportes",
       url: "/reports",
-      icon: IconReport,
+      icon: IconChartBar,
     },
     {
       title: "Contratos",
       url: "/contracts",
-      icon: IconReport,
+      icon: IconFileText,
     },
   ],
   navClouds: [
@@ -138,11 +148,11 @@ const data = {
       url: "/communications",
       icon: IconMail,
     },
-    {
-      title: "Empresa",
-      url: "/account",
-      icon: IconBuilding,
-    },
+    // {
+    //   title: "Empresa",
+    //   url: "/account",
+    //   icon: IconBriefcase,
+    // },
   ],
   documents: [
     {
@@ -164,6 +174,22 @@ const data = {
 }
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const [user, setUser] = React.useState(data.user)
+
+  React.useEffect(() => {
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        setUser({
+          name: user.user_metadata?.name || user.email?.split('@')[0] || "Usuario",
+          email: user.email || "",
+          avatar: user.user_metadata?.avatar || "https://github.com/shadcn.png" // Fallback avatar
+        })
+      }
+    }
+    getUser()
+  }, [])
+
   return (
     <Sidebar collapsible="offcanvas" {...props}>
       <SidebarHeader>
@@ -176,7 +202,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               <a href="/dashboard">
                 <AppLogo />
                 {/* <IconInnerShadowTop className="!size-5" />
-                <span className="text-base font-semibold">SIAA.</span> */}
+                <span className="text-base font-semibold">Escritorio Legal.</span> */}
               </a>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -188,10 +214,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         {/* <hr /> */}
         {/* <NavDocuments items={data.documents} /> */}
         {/* <hr /> */}
-        {/* <NavSecondary items={data.navSecondary} className="mt-auto" /> */}
+        <NavSecondary items={data.navSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={data.user} />
+        <NavUser user={user} />
       </SidebarFooter>
     </Sidebar>
   )

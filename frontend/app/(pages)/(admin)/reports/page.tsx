@@ -1,59 +1,23 @@
 'use client'
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { FileSpreadsheet, Printer as PrinterIcon, ArrowLeft, FileText, PieChart, BarChart3, Filter, ChevronsUpDown, Check } from "lucide-react"
+import { FileSpreadsheet, Printer as PrinterIcon, ArrowLeft, FileText, PieChart, BarChart3, Filter, ChevronsUpDown, Check, Wrench, TrendingUp } from "lucide-react"
 import { IncomeExpenseReport } from "@/components/reports/income-expense-report"
 import { OperationalReport } from "@/components/reports/operational-report"
+import { MaintenanceReport } from "@/components/reports/maintenance-report"
+import { PropertyPerformanceReport } from "@/components/reports/property-performance-report"
 import * as XLSX from 'xlsx'
 import { toast } from "sonner"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 import { cn } from "@/lib/utils"
 import { useReactToPrint } from "react-to-print"
-
-// Mock Data
-const MOCK_DATA_USD = [
-    { date: "07/03/2024", concept: "ANA DEL CARMEN 22 MARCO AURELIO", credit: 40.00, debit: 0, balance: 40.00 },
-    { date: "08/03/2024", concept: "DOMINGO COLETTA DI GIACOMO", credit: 20.00, debit: 0, balance: 60.00 },
-    { date: "08/03/2024", concept: "MARINA ESTHER MELENDEZ 12 ITALIA", credit: 20.00, debit: 0, balance: 80.00 },
-    { date: "11/03/2024", concept: "JEANNETTE MARIA HURTADO 2 ROMANO", credit: 200.00, debit: 0, balance: 280.00 },
-    { date: "11/03/2024", concept: "MALEK JOUBAS PB TIBERIO", credit: 500.00, debit: 0, balance: 780.00 },
-]
-
-const MOCK_DATA_BS = [
-    { date: "01/03/2024", concept: "LUZ MARGOT SALAS 19 DANTE 53328339", credit: 362.00, debit: 0, balance: 362.00, rate: 36.20, incomeUsd: 10.00, balanceUsd: 10.00 },
-    { date: "01/03/2024", concept: "53342664 INGRESO NO REPORTADO", credit: 903.75, debit: 0, balance: 1265.75, rate: 36.15, incomeUsd: 25.00, balanceUsd: 35.00 },
-    { date: "01/03/2024", concept: "FERNANDO FERNANDEZ 18 MARCO AURELIO 42105629", credit: 723.00, debit: 0, balance: 1988.75, rate: 36.15, incomeUsd: 20.00, balanceUsd: 55.00 },
-]
-
-const MOCK_EXPENSES_DATA = [
-    { date: "05/03/2024", category: "Mantenimiento", description: "Reparación Ascensor Torre A", amount: 450.00, status: "Pagado" },
-    { date: "10/03/2024", category: "Servicios", description: "Pago Electricidad Áreas Comunes", amount: 120.00, status: "Pagado" },
-    { date: "15/03/2024", category: "Limpieza", description: "Insumos de Limpieza General", amount: 85.00, status: "Pagado" },
-]
-
-const MOCK_OCCUPANCY_DATA = [
-    { property: "Res. El Valle", unit: "Apto 101", status: "Ocupado" },
-    { property: "Res. El Valle", unit: "Apto 102", status: "Vacante" },
-    { property: "Res. El Valle", unit: "Apto 103", status: "Ocupado" },
-    { property: "Torre Empresarial", unit: "Oficina 500", status: "Ocupado" },
-    { property: "Torre Empresarial", unit: "Oficina 501", status: "Vacante" },
-]
-
-const MOCK_DELINQUENCY_DATA = [
-    { tenant: "Pedro Sanchez", unit: "REV-204", months: 2, debt: 800.00 },
-    { tenant: "Comercializadora Norte", unit: "TE-201", months: 1, debt: 1200.00 },
-    { tenant: "Juan Perez", unit: "REV-101", months: 3, debt: 1500.00 },
-]
-
-const MOCK_DISTRIBUTION_DATA = [
-    { owner: "Juan Pérez", percentage: 60, amount: 1200.00 },
-    { owner: "Maria Rodriguez", percentage: 40, amount: 800.00 },
-]
+import { useReports, IncomeExpenseData, OperationalData } from "@/hooks/use-reports"
+import { useProperties } from "@/hooks/use-properties"
 
 const REPORT_TYPES = [
     {
@@ -79,47 +43,102 @@ const REPORT_TYPES = [
         icon: BarChart3,
         color: 'text-red-600',
         bgColor: 'bg-red-100'
+    },
+    {
+        id: 'maintenance',
+        title: 'Reporte de Mantenimiento',
+        description: 'Gestión de solicitudes y estado de reparaciones.',
+        icon: Wrench,
+        color: 'text-orange-600',
+        bgColor: 'bg-orange-100'
+    },
+    {
+        id: 'performance',
+        title: 'Rendimiento por Propiedad',
+        description: 'Comparativa financiera de ingresos vs egresos.',
+        icon: TrendingUp,
+        color: 'text-purple-600',
+        bgColor: 'bg-purple-100'
     }
 ]
 
-const PROPERTIES = [
-    { value: "res_el_valle", label: "Residencias El Valle" },
-    { value: "torre_emp", label: "Torre Empresarial" },
+const ALL_MONTHS = [
+    "ENERO", "FEBRERO", "MARZO", "ABRIL", "MAYO", "JUNIO",
+    "JULIO", "AGOSTO", "SEPTIEMBRE", "OCTUBRE", "NOVIEMBRE", "DICIEMBRE"
 ]
 
 export default function ReportsPage() {
+    const { fetchIncomeExpense, fetchOccupancy, fetchDelinquency, fetchMaintenance, fetchPropertyPerformance, isLoading } = useReports()
+    const { properties, isLoading: isLoadingProperties } = useProperties()
+
+    // State for Report Data
+    const [incomeExpenseData, setIncomeExpenseData] = useState<IncomeExpenseData | null>(null)
+    const [operationalData, setOperationalData] = useState<any[] | null>(null)
+    const [maintenanceData, setMaintenanceData] = useState<any[] | null>(null)
+    const [performanceData, setPerformanceData] = useState<any[] | null>(null)
+
     const [selectedReportId, setSelectedReportId] = useState<string | null>(null)
     const [isGenerated, setIsGenerated] = useState(false)
     const [filters, setFilters] = useState({
-        month: 'MARZO',
+        months: ['MARZO'] as string[],
         year: '2024',
         properties: [] as string[]
     })
     const [openPropertySelect, setOpenPropertySelect] = useState(false)
+    const [openMonthSelect, setOpenMonthSelect] = useState(false)
 
     const componentRef = useRef<HTMLDivElement>(null)
 
     const handlePrintReport = useReactToPrint({
         contentRef: componentRef,
-        documentTitle: `Reporte_${selectedReportId}_${filters.month}_${filters.year}`,
+        documentTitle: `Reporte_${selectedReportId}_${filters.year}`,
     })
 
     const handleSelectReport = (id: string) => {
         setSelectedReportId(id)
         setIsGenerated(false)
+        setIncomeExpenseData(null)
+        setOperationalData(null)
+        setMaintenanceData(null)
+        setPerformanceData(null)
+        // Default to current month if needed or keep default
     }
 
-    const handleGenerate = () => {
+    const handleGenerate = async () => {
         setIsGenerated(true)
+        if (selectedReportId === 'income-expense') {
+            const data = await fetchIncomeExpense(filters.months, filters.year, filters.properties)
+            setIncomeExpenseData(data)
+        } else if (selectedReportId === 'occupancy') {
+            const data = await fetchOccupancy(filters.properties)
+            setOperationalData(data)
+        } else if (selectedReportId === 'delinquency') {
+            const data = await fetchDelinquency(filters.properties)
+            setOperationalData(data)
+        } else if (selectedReportId === 'maintenance') {
+            const data = await fetchMaintenance(filters.properties)
+            setMaintenanceData(data)
+        } else if (selectedReportId === 'performance') {
+            const data = await fetchPropertyPerformance(filters.properties)
+            setPerformanceData(data)
+        }
     }
 
     const handleBackToSelection = () => {
         setSelectedReportId(null)
         setIsGenerated(false)
+        setIncomeExpenseData(null)
+        setOperationalData(null)
+        setMaintenanceData(null)
+        setPerformanceData(null)
     }
 
     const handleBackToFilters = () => {
         setIsGenerated(false)
+        setIncomeExpenseData(null)
+        setOperationalData(null)
+        setMaintenanceData(null)
+        setPerformanceData(null)
     }
 
     const handleDownloadExcel = () => {
@@ -139,10 +158,32 @@ export default function ReportsPage() {
 
     const toggleAllProperties = () => {
         setFilters(prev => {
-            if (prev.properties.length === PROPERTIES.length) {
+            if (prev.properties.length === properties.length) {
                 return { ...prev, properties: [] }
             } else {
-                return { ...prev, properties: PROPERTIES.map(p => p.value) }
+                return { ...prev, properties: properties.map(p => p.id) }
+            }
+        })
+    }
+
+    const toggleMonth = (value: string) => {
+        setFilters(prev => {
+            const current = prev.months
+            if (current.includes(value)) {
+                // Prevent deselecting all? Let's verify logic in hook handles empty array gracefully or alert
+                return { ...prev, months: current.filter(m => m !== value) }
+            } else {
+                return { ...prev, months: [...current, value] }
+            }
+        })
+    }
+
+    const toggleAllMonths = () => {
+        setFilters(prev => {
+            if (prev.months.length === ALL_MONTHS.length) {
+                return { ...prev, months: [] }
+            } else {
+                return { ...prev, months: [...ALL_MONTHS] }
             }
         })
     }
@@ -210,18 +251,65 @@ export default function ReportsPage() {
                         <CardContent className="space-y-6">
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
-                                    <Label>Mes</Label>
-                                    <Select value={filters.month} onValueChange={(v) => setFilters({ ...filters, month: v })}>
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Seleccione mes" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="ENERO">Enero</SelectItem>
-                                            <SelectItem value="FEBRERO">Febrero</SelectItem>
-                                            <SelectItem value="MARZO">Marzo</SelectItem>
-                                            <SelectItem value="ABRIL">Abril</SelectItem>
-                                        </SelectContent>
-                                    </Select>
+                                    <Label>Meses</Label>
+                                    <Popover open={openMonthSelect} onOpenChange={setOpenMonthSelect}>
+                                        <PopoverTrigger asChild>
+                                            <Button
+                                                variant="outline"
+                                                role="combobox"
+                                                aria-expanded={openMonthSelect}
+                                                className="w-full justify-between"
+                                            >
+                                                {filters.months.length === 0
+                                                    ? "Seleccionar mes(es)..."
+                                                    : filters.months.length === ALL_MONTHS.length
+                                                        ? "Todo el Año"
+                                                        : `${filters.months.length} mes(es)`}
+                                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                            </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-full p-0">
+                                            <Command>
+                                                <CommandInput placeholder="Buscar mes..." />
+                                                <CommandList>
+                                                    <CommandEmpty>No encontrado.</CommandEmpty>
+                                                    <CommandGroup>
+                                                        <CommandItem
+                                                            onSelect={toggleAllMonths}
+                                                            className="font-medium"
+                                                        >
+                                                            <Check
+                                                                className={cn(
+                                                                    "mr-2 h-4 w-4",
+                                                                    filters.months.length === ALL_MONTHS.length
+                                                                        ? "opacity-100"
+                                                                        : "opacity-0"
+                                                                )}
+                                                            />
+                                                            Todo el Año
+                                                        </CommandItem>
+                                                        {ALL_MONTHS.map((month) => (
+                                                            <CommandItem
+                                                                key={month}
+                                                                value={month}
+                                                                onSelect={() => toggleMonth(month)}
+                                                            >
+                                                                <Check
+                                                                    className={cn(
+                                                                        "mr-2 h-4 w-4",
+                                                                        filters.months.includes(month)
+                                                                            ? "opacity-100"
+                                                                            : "opacity-0"
+                                                                    )}
+                                                                />
+                                                                {month}
+                                                            </CommandItem>
+                                                        ))}
+                                                    </CommandGroup>
+                                                </CommandList>
+                                            </Command>
+                                        </PopoverContent>
+                                    </Popover>
                                 </div>
                                 <div className="space-y-2">
                                     <Label>Año</Label>
@@ -250,7 +338,7 @@ export default function ReportsPage() {
                                         >
                                             {filters.properties.length === 0
                                                 ? "Seleccionar propiedades..."
-                                                : filters.properties.length === PROPERTIES.length
+                                                : filters.properties.length === properties.length
                                                     ? "Todas las Propiedades"
                                                     : `${filters.properties.length} seleccionada(s)`}
                                             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -269,28 +357,28 @@ export default function ReportsPage() {
                                                         <Check
                                                             className={cn(
                                                                 "mr-2 h-4 w-4",
-                                                                filters.properties.length === PROPERTIES.length
+                                                                filters.properties.length === properties.length
                                                                     ? "opacity-100"
                                                                     : "opacity-0"
                                                             )}
                                                         />
                                                         Todas las Propiedades
                                                     </CommandItem>
-                                                    {PROPERTIES.map((property) => (
+                                                    {properties.map((property) => (
                                                         <CommandItem
-                                                            key={property.value}
-                                                            value={property.value}
-                                                            onSelect={() => toggleProperty(property.value)}
+                                                            key={property.id}
+                                                            value={property.id}
+                                                            onSelect={() => toggleProperty(property.id)}
                                                         >
                                                             <Check
                                                                 className={cn(
                                                                     "mr-2 h-4 w-4",
-                                                                    filters.properties.includes(property.value)
+                                                                    filters.properties.includes(property.id)
                                                                         ? "opacity-100"
                                                                         : "opacity-0"
                                                                 )}
                                                             />
-                                                            {property.label}
+                                                            {property.name}
                                                         </CommandItem>
                                                     ))}
                                                 </CommandGroup>
@@ -305,13 +393,18 @@ export default function ReportsPage() {
                                 <div className="text-sm text-muted-foreground">
                                     <p>Se generará el reporte con los siguientes criterios:</p>
                                     <ul className="list-disc list-inside mt-1">
-                                        <li>Periodo: <strong>{filters.month} {filters.year}</strong></li>
+                                        <li>Periodo: <strong>
+                                            {filters.months.length === ALL_MONTHS.length
+                                                ? "Todo el Año"
+                                                : filters.months.join(", ")}
+                                            {` ${filters.year}`}
+                                        </strong></li>
                                         <li>Alcance: <strong>
                                             {filters.properties.length === 0
                                                 ? "Ninguna seleccionada"
-                                                : filters.properties.length === PROPERTIES.length
+                                                : filters.properties.length === properties.length
                                                     ? "Todas las Propiedades"
-                                                    : filters.properties.map(p => PROPERTIES.find(prop => prop.value === p)?.label).join(", ")}
+                                                    : `${filters.properties.length} propiedades seleccionadas`}
                                         </strong></li>
                                     </ul>
                                 </div>
@@ -319,8 +412,8 @@ export default function ReportsPage() {
                         </CardContent>
                         <CardFooter className="flex justify-between">
                             <Button variant="ghost" onClick={handleBackToSelection}>Cancelar</Button>
-                            <Button onClick={handleGenerate} className="w-1/3" disabled={filters.properties.length === 0}>
-                                <FileText className="mr-2 h-4 w-4" /> Generar Reporte
+                            <Button onClick={handleGenerate} className="w-1/3" disabled={isLoading}>
+                                {isLoading ? "Generando..." : <><FileText className="mr-2 h-4 w-4" /> Generar Reporte</>}
                             </Button>
                         </CardFooter>
                     </Card>
@@ -339,7 +432,7 @@ export default function ReportsPage() {
                             <div className="text-sm">
                                 <span className="text-muted-foreground">Reporte:</span> <strong>{selectedReport?.title}</strong>
                                 <span className="mx-2 text-muted-foreground">|</span>
-                                <span className="text-muted-foreground">Periodo:</span> <strong>{filters.month} {filters.year}</strong>
+                                <span className="text-muted-foreground">Periodo:</span> <strong>{filters.months.join(", ")} {filters.year}</strong>
                             </div>
                         </div>
                         <div className="flex gap-2">
@@ -354,29 +447,43 @@ export default function ReportsPage() {
 
                     <div className="border rounded-md overflow-auto bg-white shadow-sm min-h-[600px]">
                         <div className="min-w-[800px]">
-                            {selectedReportId === 'income-expense' && (
+                            {selectedReportId === 'income-expense' && incomeExpenseData && (
                                 <IncomeExpenseReport
                                     ref={componentRef}
-                                    month={filters.month}
+                                    month={filters.months.join("-")} // Prop rename? Or update component to handle string?
+                                    // Component expects string, join is fine for now for title mostly
                                     year={filters.year}
-                                    dataUsd={MOCK_DATA_USD}
-                                    dataBs={MOCK_DATA_BS}
-                                    dataExpenses={MOCK_EXPENSES_DATA}
-                                    dataDistribution={MOCK_DISTRIBUTION_DATA}
+                                    dataUsd={incomeExpenseData.dataUsd}
+                                    dataBs={incomeExpenseData.dataBs}
+                                    dataExpenses={incomeExpenseData.dataExpenses}
+                                    dataDistribution={incomeExpenseData.dataDistribution}
                                 />
                             )}
-                            {selectedReportId === 'occupancy' && (
+                            {selectedReportId === 'occupancy' && operationalData && (
                                 <OperationalReport
                                     ref={componentRef}
                                     type="occupancy"
-                                    data={MOCK_OCCUPANCY_DATA}
+                                    data={operationalData}
+                                // We might want to pass context (filters)?
                                 />
                             )}
-                            {selectedReportId === 'delinquency' && (
+                            {selectedReportId === 'delinquency' && operationalData && (
                                 <OperationalReport
                                     ref={componentRef}
                                     type="delinquency"
-                                    data={MOCK_DELINQUENCY_DATA}
+                                    data={operationalData}
+                                />
+                            )}
+                            {selectedReportId === 'maintenance' && maintenanceData && (
+                                <MaintenanceReport
+                                    ref={componentRef}
+                                    data={maintenanceData}
+                                />
+                            )}
+                            {selectedReportId === 'performance' && performanceData && (
+                                <PropertyPerformanceReport
+                                    ref={componentRef}
+                                    data={performanceData}
                                 />
                             )}
                         </div>

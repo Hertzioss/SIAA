@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Building, Home, Plus, Edit, Trash, MapPin, User, X, Search, MoreHorizontal, FileText, Briefcase, Warehouse, ChevronLeft, ChevronRight } from "lucide-react"
+import { Building, Home, Plus, Edit, Trash, MapPin, User, X, Search, MoreHorizontal, FileText, Briefcase, Warehouse, ChevronLeft, ChevronRight, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import { PropertyDialog } from "@/components/properties/property-dialog"
 import {
@@ -25,122 +25,33 @@ import {
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { ExportButtons } from "@/components/export-buttons"
-
-// Mock data
-const PROPERTIES_DATA = [
-    {
-        id: "1",
-        name: "Torre Empresarial Norte",
-        type: "Edificio",
-        address: "Av. Principal, Urb. El Valle",
-        units: 12,
-        occupancy: "85%",
-        owners: ["Inversiones Los Andes C.A."],
-        status: "Activo"
-    },
-    {
-        id: "2",
-        name: "C.C. Plaza - Local 5",
-        type: "Local Comercial",
-        address: "Calle Real, Centro",
-        units: 1,
-        occupancy: "0%",
-        owners: ["Juan Pérez"],
-        status: "Vacante"
-    },
-    {
-        id: "3",
-        name: "Residencias El Parque",
-        type: "Conjunto Residencial",
-        address: "Av. Los Próceres",
-        units: 24,
-        occupancy: "95%",
-        owners: ["Inversiones Los Andes C.A.", "Maria Rodriguez"],
-        status: "Activo"
-    },
-    {
-        id: "4",
-        name: "Oficinas Centro Financiero",
-        type: "Oficina",
-        address: "Av. Francisco de Miranda",
-        units: 5,
-        occupancy: "100%",
-        owners: ["Grupo Financiero X"],
-        status: "Activo"
-    },
-    {
-        id: "5",
-        name: "Galpón Industrial Zona 1",
-        type: "Galpón",
-        address: "Zona Industrial II",
-        units: 1,
-        occupancy: "0%",
-        owners: ["Logística Express"],
-        status: "En Remodelación"
-    },
-    {
-        id: "6",
-        name: "Torre B - Oficina 204",
-        type: "Oficina",
-        address: "Calle 54, Obarrio",
-        units: 1,
-        occupancy: "100%",
-        owners: ["Consultores Asociados"],
-        status: "Activo"
-    },
-    {
-        id: "7",
-        name: "Depósito Central",
-        type: "Galpón",
-        address: "Carretera Nacional Km 5",
-        units: 3,
-        occupancy: "66%",
-        owners: ["Almacenes Unidos"],
-        status: "Activo"
-    },
-    {
-        id: "8",
-        name: "Residencias Vista Mar",
-        type: "Edificio",
-        address: "Av. Costanera",
-        units: 40,
-        occupancy: "90%",
-        owners: ["Desarrollos Costeros"],
-        status: "Activo"
-    },
-    {
-        id: "9",
-        name: "Local 12 - Feria de Comida",
-        type: "Local Comercial",
-        address: "C.C. Metrópolis",
-        units: 1,
-        occupancy: "100%",
-        owners: ["Inversiones Gastronómicas"],
-        status: "Activo"
-    },
-    {
-        id: "10",
-        name: "Anexo Residencial",
-        type: "Casa",
-        address: "Urb. La Viña",
-        units: 1,
-        occupancy: "0%",
-        owners: ["Pedro Castillo"],
-        status: "Vacante"
-    }
-]
+import { useProperties } from "@/hooks/use-properties"
+import { Property } from "@/types/property"
 
 const ITEMS_PER_PAGE = 5
 
 export default function PropertiesPage() {
+    const { properties, propertyTypes, loading, createProperty, updateProperty, deleteProperty, createUnit, updateUnit, deleteUnit } = useProperties()
+
     // Property Dialog State
     const [isDialogOpen, setIsDialogOpen] = useState(false)
     const [dialogMode, setDialogMode] = useState<"create" | "view" | "edit">("create")
-    const [selectedProperty, setSelectedProperty] = useState<any>(null)
+    const [selectedProperty, setSelectedProperty] = useState<Property | undefined>(undefined)
 
-    // Unit Dialog State (Keeping inline for now as it's specific)
+    // Unit Dialog State
     const [isUnitDialogOpen, setIsUnitDialogOpen] = useState(false)
-    const [selectedBuilding, setSelectedBuilding] = useState("")
+    const [unitDialogMode, setUnitDialogMode] = useState<"create" | "edit">("create")
+    const [selectedPropertyId, setSelectedPropertyId] = useState("")
+    const [selectedBuildingName, setSelectedBuildingName] = useState("")
+    const [selectedUnit, setSelectedUnit] = useState<any>(null)
+
+    // Unit Form State
+    const [unitName, setUnitName] = useState("")
+    const [unitType, setUnitType] = useState("apartment")
+    const [unitStatus, setUnitStatus] = useState("vacant")
+    const [unitRent, setUnitRent] = useState("")
+    const [unitArea, setUnitArea] = useState("")
+    const [unitFloor, setUnitFloor] = useState("")
 
     // Delete Confirmation State
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
@@ -151,10 +62,10 @@ export default function PropertiesPage() {
     const [searchTerm, setSearchTerm] = useState("")
 
     // Filtered Data
-    const filteredProperties = PROPERTIES_DATA.filter(property =>
+    const filteredProperties = properties.filter(property =>
         property.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        property.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        property.owners.some(owner => owner.toLowerCase().includes(searchTerm.toLowerCase()))
+        property.property_type?.label.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        property.address.toLowerCase().includes(searchTerm.toLowerCase())
     )
 
     const totalPages = Math.ceil(filteredProperties.length / ITEMS_PER_PAGE)
@@ -168,28 +79,96 @@ export default function PropertiesPage() {
     // Handlers
     const handleCreate = () => {
         setDialogMode("create")
-        setSelectedProperty(null)
+        setSelectedProperty(undefined)
         setIsDialogOpen(true)
     }
 
-    const handleViewDetails = (property: any) => {
-        router.push(`/properties/${property.id}`)
+    const handleViewDetails = (property: Property) => {
+        setDialogMode("view")
+        setSelectedProperty(property)
+        setIsDialogOpen(true)
     }
 
-    const handleEdit = (property: any) => {
+    const handleEdit = (property: Property) => {
         setDialogMode("edit")
         setSelectedProperty(property)
         setIsDialogOpen(true)
     }
 
-    const handleOpenUnitDialog = (buildingName: string) => {
-        setSelectedBuilding(buildingName)
+    const handleFormSubmit = async (data: any) => {
+        try {
+            if (dialogMode === 'create') {
+                await createProperty(data)
+            } else if (dialogMode === 'edit' && selectedProperty) {
+                await updateProperty(selectedProperty.id, data)
+            }
+        } catch (error) {
+            console.error(error)
+            // Error is handled in the hook
+        }
+    }
+
+    const handleOpenCreateUnit = (propertyId: string, propertyName: string) => {
+        setUnitDialogMode("create")
+        setSelectedPropertyId(propertyId)
+        setSelectedBuildingName(propertyName)
+        setSelectedUnit(null)
+        // Reset form
+        setUnitName("")
+        setUnitType("apartment")
+        setUnitStatus("vacant")
+        setUnitRent("")
+        setUnitArea("")
+        setUnitFloor("")
+
         setIsUnitDialogOpen(true)
     }
 
-    const handleAddUnit = () => {
-        setIsUnitDialogOpen(false)
-        toast.success(`Unidad agregada a ${selectedBuilding}`)
+    const handleOpenEditUnit = (unit: any, propertyName: string) => {
+        setUnitDialogMode("edit")
+        setSelectedPropertyId(unit.property_id) // Ensure property_id is set for edit
+        setSelectedBuildingName(propertyName)
+        setSelectedUnit(unit)
+        // Populate form
+        setUnitName(unit.name)
+        setUnitType(unit.type)
+        setUnitStatus(unit.status)
+        setUnitRent(unit.default_rent_amount?.toString() || "")
+        setUnitArea(unit.area?.toString() || "")
+        setUnitFloor(unit.floor || "")
+
+        setIsUnitDialogOpen(true)
+    }
+
+    const handleUnitSubmit = async () => {
+        if (!unitName || (!selectedPropertyId && unitDialogMode === 'create')) {
+            toast.error("El nombre de la unidad y la propiedad son obligatorios.")
+            return
+        }
+
+        const payload = {
+            name: unitName,
+            type: unitType,
+            status: unitStatus,
+            default_rent_amount: unitRent ? parseFloat(unitRent) : null,
+            area: unitArea ? parseFloat(unitArea) : null,
+            floor: unitFloor,
+            ...(unitDialogMode === 'create' ? { property_id: selectedPropertyId } : {})
+        }
+
+        try {
+            if (unitDialogMode === 'create') {
+                await createUnit(payload)
+                toast.success("Unidad creada exitosamente.")
+            } else if (selectedUnit) {
+                await updateUnit(selectedUnit.id, payload)
+                toast.success("Unidad actualizada exitosamente.")
+            }
+            setIsUnitDialogOpen(false)
+        } catch (error) {
+            console.error("Error submitting unit:", error)
+            toast.error("Error al guardar la unidad.")
+        }
     }
 
     const confirmDelete = (id: string, name: string, type: 'property' | 'unit') => {
@@ -197,19 +176,28 @@ export default function PropertiesPage() {
         setIsDeleteDialogOpen(true)
     }
 
-    const handleDelete = () => {
+    const handleDelete = async () => {
         if (itemToDelete) {
-            toast.success(`${itemToDelete.type === 'property' ? 'Propiedad' : 'Unidad'} "${itemToDelete.name}" eliminada.`)
-            setIsDeleteDialogOpen(false)
-            setItemToDelete(null)
+            try {
+                if (itemToDelete.type === 'property') {
+                    await deleteProperty(itemToDelete.id)
+                    toast.success("Propiedad eliminada exitosamente.")
+                } else {
+                    await deleteUnit(itemToDelete.id)
+                    toast.success("Unidad eliminada exitosamente.")
+                }
+                setIsDeleteDialogOpen(false)
+                setItemToDelete(null)
+            } catch (error) {
+                console.error("Error deleting item:", error)
+                toast.error("Error al eliminar el elemento.")
+            }
         }
     }
 
-    const getPropertyIcon = (type: string) => {
-        if (type.includes("Edificio") || type.includes("Conjunto")) return <Building className="h-5 w-5 text-primary" />
-        if (type.includes("Oficina")) return <Briefcase className="h-5 w-5 text-primary" />
-        if (type.includes("Galpón") || type.includes("Depósito")) return <Warehouse className="h-5 w-5 text-primary" />
-        if (type.includes("Local")) return <Home className="h-5 w-5 text-primary" /> // Using Home as generic for Local for now, or Store if available
+    const getPropertyIcon = (typeName?: string) => {
+        if (typeName === 'building' || typeName === 'commercial_center') return <Building className="h-5 w-5 text-primary" />
+        if (typeName === 'standalone') return <Home className="h-5 w-5 text-primary" />
         return <Home className="h-5 w-5 text-primary" />
     }
 
@@ -224,15 +212,14 @@ export default function PropertiesPage() {
                 </div>
                 <div className="flex gap-2">
                     <ExportButtons
-                        data={PROPERTIES_DATA}
+                        data={properties}
                         filename="propiedades"
                         columns={[
                             { header: "Nombre", key: "name" },
-                            { header: "Tipo", key: "type" },
+                            { header: "Tipo", key: "property_type.label" }, // Updated key
                             { header: "Dirección", key: "address" },
-                            { header: "Unidades", key: "units" },
-                            { header: "Ocupación", key: "occupancy" },
-                            { header: "Estado", key: "status" },
+                            { header: "Niveles", key: "floors" },
+                            { header: "Unidades", key: "units", transform: (u: any[]) => u?.length || 0 },
                         ]}
                         title="Reporte de Propiedades"
                     />
@@ -247,7 +234,7 @@ export default function PropertiesPage() {
                     <div className="flex items-center justify-between">
                         <div>
                             <CardTitle>Portafolio de Inmuebles</CardTitle>
-                            <CardDescription>Vista general de propiedades y ocupación.</CardDescription>
+                            <CardDescription>Vista general de propiedades.</CardDescription>
                         </div>
                         <div className="relative w-64">
                             <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -257,157 +244,172 @@ export default function PropertiesPage() {
                                 value={searchTerm}
                                 onChange={(e) => {
                                     setSearchTerm(e.target.value)
-                                    setCurrentPage(1) // Reset to first page on search
+                                    setCurrentPage(1)
                                 }}
                             />
                         </div>
                     </div>
                 </CardHeader>
                 <CardContent>
-                    <Accordion type="single" collapsible className="w-full">
-                        {currentProperties.map((property) => (
-                            <AccordionItem key={property.id} value={property.id}>
-                                <AccordionTrigger className="hover:no-underline">
-                                    <div className="flex items-center justify-between w-full pr-4">
-                                        <div className="flex items-center gap-4">
-                                            <div className="bg-primary/10 p-2 rounded-lg">
-                                                {getPropertyIcon(property.type)}
-                                            </div>
-                                            <div className="text-left">
-                                                <div className="font-semibold text-lg">{property.name}</div>
-                                                <div className="text-sm text-muted-foreground flex items-center gap-1">
-                                                    <MapPin className="h-3 w-3" /> {property.address}
-                                                </div>
-                                                <div className="text-xs text-muted-foreground mt-1">
-                                                    {property.type}
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div className="flex items-center gap-6 text-sm">
-                                            <div className="flex flex-col items-end">
-                                                <span className="text-muted-foreground">Unidades</span>
-                                                <span className="font-medium">{property.units}</span>
-                                            </div>
-                                            <div className="flex flex-col items-end">
-                                                <span className="text-muted-foreground">Ocupación</span>
-                                                <span className={`font-medium ${parseInt(property.occupancy) > 80 ? 'text-green-600' : 'text-yellow-600'}`}>
-                                                    {property.occupancy}
-                                                </span>
-                                            </div>
-                                            <div className="flex flex-col items-end min-w-[150px]">
-                                                <span className="text-muted-foreground">Propietarios</span>
-                                                <span className="font-medium truncate max-w-[150px]">{property.owners.join(", ")}</span>
-                                            </div>
-
-                                            {/* Actions */}
-                                            <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                                                <div
-                                                    role="button"
-                                                    className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 cursor-pointer"
-                                                    onClick={() => handleViewDetails(property)}
-                                                >
-                                                    <FileText className="h-4 w-4" />
-                                                </div>
-                                                <div
-                                                    role="button"
-                                                    className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 cursor-pointer"
-                                                    onClick={() => handleEdit(property)}
-                                                >
-                                                    <Edit className="h-4 w-4" />
-                                                </div>
-                                                <div
-                                                    role="button"
-                                                    className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 text-destructive hover:text-destructive cursor-pointer"
-                                                    onClick={() => confirmDelete(property.id, property.name, 'property')}
-                                                >
-                                                    <Trash className="h-4 w-4" />
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </AccordionTrigger>
-                                <AccordionContent className="px-4 pb-4 pt-2">
-                                    <div className="pl-14 space-y-4">
-                                        <div className="flex justify-between items-center">
-                                            <h4 className="text-sm font-semibold text-muted-foreground">Unidades / Espacios Arrendables</h4>
-                                            <Button size="sm" variant="outline" onClick={() => handleOpenUnitDialog(property.name)}>
-                                                <Plus className="mr-2 h-3 w-3" /> Agregar Unidad
-                                            </Button>
-                                        </div>
-
-                                        {/* Mock Units Table */}
-                                        <div className="border rounded-md">
-                                            <Table>
-                                                <TableHeader>
-                                                    <TableRow>
-                                                        <TableHead>Unidad</TableHead>
-                                                        <TableHead>Tipo</TableHead>
-                                                        <TableHead>Estado</TableHead>
-                                                        <TableHead>Inquilino Actual</TableHead>
-                                                        <TableHead className="text-right">Canon</TableHead>
-                                                        <TableHead className="text-right">Acciones</TableHead>
-                                                    </TableRow>
-                                                </TableHeader>
-                                                <TableBody>
-                                                    <TableRow>
-                                                        <TableCell className="font-medium">001</TableCell>
-                                                        <TableCell>{property.type === 'Oficina' ? 'Oficina' : 'Apartamento'}</TableCell>
-                                                        <TableCell><Badge>Ocupado</Badge></TableCell>
-                                                        <TableCell>Empresa ABC</TableCell>
-                                                        <TableCell className="text-right">$850.00</TableCell>
-                                                        <TableCell className="text-right">
-                                                            <Button variant="ghost" size="icon" className="h-8 w-8">
-                                                                <MoreHorizontal className="h-4 w-4" />
-                                                            </Button>
-                                                        </TableCell>
-                                                    </TableRow>
-                                                    <TableRow>
-                                                        <TableCell className="font-medium">002</TableCell>
-                                                        <TableCell>{property.type === 'Oficina' ? 'Oficina' : 'Apartamento'}</TableCell>
-                                                        <TableCell><Badge variant="secondary">Vacante</Badge></TableCell>
-                                                        <TableCell>-</TableCell>
-                                                        <TableCell className="text-right">$850.00</TableCell>
-                                                        <TableCell className="text-right">
-                                                            <Button variant="ghost" size="icon" className="h-8 w-8">
-                                                                <MoreHorizontal className="h-4 w-4" />
-                                                            </Button>
-                                                        </TableCell>
-                                                    </TableRow>
-                                                </TableBody>
-                                            </Table>
-                                        </div>
-                                    </div>
-                                </AccordionContent>
-                            </AccordionItem>
-                        ))}
-                    </Accordion>
-                </CardContent>
-                <CardFooter className="flex justify-between items-center">
-                    <div className="text-sm text-muted-foreground">
-                        Mostrando {((currentPage - 1) * ITEMS_PER_PAGE) + 1} a {Math.min(currentPage * ITEMS_PER_PAGE, filteredProperties.length)} de {filteredProperties.length} propiedades
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                            disabled={currentPage === 1}
-                        >
-                            <ChevronLeft className="h-4 w-4" />
-                        </Button>
-                        <div className="text-sm font-medium">
-                            Página {currentPage} de {totalPages}
+                    {loading ? (
+                        <div className="flex justify-center py-8">
+                            <Loader2 className="h-8 w-8 animate-spin text-primary" />
                         </div>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                            disabled={currentPage === totalPages}
-                        >
-                            <ChevronRight className="h-4 w-4" />
-                        </Button>
-                    </div>
-                </CardFooter>
+                    ) : filteredProperties.length === 0 ? (
+                        <div className="text-center py-8 text-muted-foreground">
+                            No se encontraron propiedades.
+                        </div>
+                    ) : (
+                        <Accordion type="single" collapsible className="w-full">
+                            {currentProperties.map((property) => (
+                                <AccordionItem key={property.id} value={property.id}>
+                                    <AccordionTrigger className="hover:no-underline">
+                                        <div className="flex items-center justify-between w-full pr-4">
+                                            <div className="flex items-center gap-4">
+                                                <div className="bg-primary/10 p-2 rounded-lg">
+                                                    {getPropertyIcon(property.property_type?.name)}
+                                                </div>
+                                                <div className="text-left">
+                                                    <div className="font-semibold text-lg">{property.name}</div>
+                                                    <div className="text-sm text-muted-foreground flex items-center gap-1">
+                                                        <MapPin className="h-3 w-3" /> {property.address}
+                                                    </div>
+                                                    <div className="text-xs text-muted-foreground mt-1 capitalize">
+                                                        {property.property_type?.label || 'Sin Clasificar'}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-6 text-sm">
+                                                <div className="flex flex-col items-end">
+                                                    <span className="text-muted-foreground">Unidades</span>
+                                                    <span className="font-medium">{property.units?.length || 0}</span>
+                                                </div>
+                                                <div className="flex flex-col items-end">
+                                                    <span className="text-muted-foreground">Área Total</span>
+                                                    <span className="font-medium">
+                                                        {property.total_area ? `${property.total_area} m²` : '-'}
+                                                    </span>
+                                                </div>
+
+                                                {/* Actions */}
+                                                <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                                                    <div
+                                                        role="button"
+                                                        className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 cursor-pointer"
+                                                        onClick={() => router.push(`/properties/${property.id}`)}
+                                                    >
+                                                        <FileText className="h-4 w-4" />
+                                                    </div>
+                                                    <div
+                                                        role="button"
+                                                        className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 cursor-pointer"
+                                                        onClick={() => router.push(`/properties/${property.id}`)}
+                                                    >
+                                                        <Edit className="h-4 w-4" />
+                                                    </div>
+                                                    <div
+                                                        role="button"
+                                                        className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 text-destructive hover:text-destructive cursor-pointer"
+                                                        onClick={() => confirmDelete(property.id, property.name, 'property')}
+                                                    >
+                                                        <Trash className="h-4 w-4" />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </AccordionTrigger>
+                                    <AccordionContent className="px-4 pb-4 pt-2">
+                                        <div className="pl-14 space-y-4">
+                                            <div className="flex justify-between items-center">
+                                                <h4 className="text-sm font-semibold text-muted-foreground">Unidades / Espacios Arrendables</h4>
+                                                <Button size="sm" variant="outline" onClick={() => handleOpenCreateUnit(property.id, property.name)}>
+                                                    <Plus className="mr-2 h-3 w-3" /> Agregar Unidad
+                                                </Button>
+                                            </div>
+
+                                            {/* Units Table */}
+                                            {property.units && property.units.length > 0 ? (
+                                                <div className="border rounded-md">
+                                                    <Table>
+                                                        <TableHeader>
+                                                            <TableRow>
+                                                                <TableHead>Unidad</TableHead>
+                                                                <TableHead>Tipo</TableHead>
+                                                                <TableHead>Estado</TableHead>
+                                                                <TableHead className="text-right">Canon Base</TableHead>
+                                                                <TableHead className="text-right">Acciones</TableHead>
+                                                            </TableRow>
+                                                        </TableHeader>
+                                                        <TableBody>
+                                                            {property.units.map((unit: any) => (
+                                                                <TableRow key={unit.id}>
+                                                                    <TableCell className="font-medium">{unit.name}</TableCell>
+                                                                    <TableCell className="capitalize">
+                                                                        {unit.type === 'apt' ? 'Apartamento' : unit.type === 'office' ? 'Oficina' : unit.type === 'local' ? 'Local' : 'Bodega'}
+                                                                    </TableCell>
+                                                                    <TableCell>
+                                                                        <Badge variant={unit.status === 'vacant' ? 'secondary' : 'default'} className="capitalize">
+                                                                            {unit.status === 'vacant' ? 'Vacante' : unit.status}
+                                                                        </Badge>
+                                                                    </TableCell>
+                                                                    <TableCell className="text-right">
+                                                                        {unit.default_rent_amount ? `$${unit.default_rent_amount}` : '-'}
+                                                                    </TableCell>
+                                                                    <TableCell className="text-right">
+                                                                        <div className="flex justify-end gap-2">
+                                                                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenEditUnit(unit, property.name)}>
+                                                                                <Edit className="h-4 w-4" />
+                                                                            </Button>
+                                                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => confirmDelete(unit.id, unit.name, 'unit')}>
+                                                                                <Trash className="h-4 w-4" />
+                                                                            </Button>
+                                                                        </div>
+                                                                    </TableCell>
+                                                                </TableRow>
+                                                            ))}
+                                                        </TableBody>
+                                                    </Table>
+                                                </div>
+                                            ) : (
+                                                <div className="text-sm text-muted-foreground italic">
+                                                    No hay unidades registradas.
+                                                </div>
+                                            )}
+                                        </div>
+                                    </AccordionContent>
+                                </AccordionItem>
+                            ))}
+                        </Accordion>
+                    )}
+                </CardContent>
+                {totalPages > 1 && (
+                    <CardFooter className="flex justify-between items-center">
+                        <div className="text-sm text-muted-foreground">
+                            Mostrando {((currentPage - 1) * ITEMS_PER_PAGE) + 1} a {Math.min(currentPage * ITEMS_PER_PAGE, filteredProperties.length)} de {filteredProperties.length} propiedades
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                disabled={currentPage === 1}
+                            >
+                                <ChevronLeft className="h-4 w-4" />
+                            </Button>
+                            <div className="text-sm font-medium">
+                                Página {currentPage} de {totalPages}
+                            </div>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                disabled={currentPage === totalPages}
+                            >
+                                <ChevronRight className="h-4 w-4" />
+                            </Button>
+                        </div>
+                    </CardFooter>
+                )}
             </Card>
 
             {/* Property Dialog */}
@@ -416,37 +418,64 @@ export default function PropertiesPage() {
                 onOpenChange={setIsDialogOpen}
                 mode={dialogMode}
                 property={selectedProperty}
+                propertyTypes={propertyTypes}
+                onSubmit={handleFormSubmit}
             />
 
-            {/* Unit Dialog (Simplified for now) */}
+            {/* Unit Dialog */}
             <Dialog open={isUnitDialogOpen} onOpenChange={setIsUnitDialogOpen}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Agregar Unidad a {selectedBuilding}</DialogTitle>
-                        <DialogDescription>Registre una nueva unidad arrendable.</DialogDescription>
+                        <DialogTitle>{unitDialogMode === 'create' ? 'Agregar Unidad' : 'Editar Unidad'} - {selectedBuildingName}</DialogTitle>
+                        <DialogDescription>Gestione los detalles de la unidad.</DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-4 py-4">
                         <div className="grid grid-cols-4 items-center gap-4">
                             <Label htmlFor="unit-name" className="text-right">Nombre/N°</Label>
-                            <Input id="unit-name" placeholder="Ej. Apto 101" className="col-span-3" />
+                            <Input id="unit-name" value={unitName} onChange={e => setUnitName(e.target.value)} placeholder="Ej. Apto 101" className="col-span-3" />
                         </div>
                         <div className="grid grid-cols-4 items-center gap-4">
                             <Label htmlFor="unit-type" className="text-right">Tipo</Label>
-                            <Select>
+                            <Select value={unitType} onValueChange={setUnitType}>
                                 <SelectTrigger className="col-span-3">
                                     <SelectValue placeholder="Seleccionar..." />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="apt">Apartamento</SelectItem>
+                                    <SelectItem value="apartment">Apartamento</SelectItem>
                                     <SelectItem value="office">Oficina</SelectItem>
                                     <SelectItem value="local">Local</SelectItem>
-                                    <SelectItem value="warehouse">Galpón</SelectItem>
+                                    <SelectItem value="storage">Bodega</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
+                        <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="unit-status" className="text-right">Estado</Label>
+                            <Select value={unitStatus} onValueChange={setUnitStatus}>
+                                <SelectTrigger className="col-span-3">
+                                    <SelectValue placeholder="Seleccionar..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="vacant">Vacante</SelectItem>
+                                    <SelectItem value="occupied">Ocupada</SelectItem>
+                                    <SelectItem value="maintenance">Mantenimiento</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="unit-rent" className="text-right">Canon</Label>
+                            <Input id="unit-rent" type="number" value={unitRent} onChange={e => setUnitRent(e.target.value)} placeholder="0.00" className="col-span-3" />
+                        </div>
+                        <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="unit-area" className="text-right">Área</Label>
+                            <Input id="unit-area" type="number" value={unitArea} onChange={e => setUnitArea(e.target.value)} placeholder="0.00" className="col-span-3" />
+                        </div>
+                        <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="unit-floor" className="text-right">Piso</Label>
+                            <Input id="unit-floor" value={unitFloor} onChange={e => setUnitFloor(e.target.value)} placeholder="Ej. 1" className="col-span-3" />
+                        </div>
                     </div>
                     <DialogFooter>
-                        <Button onClick={handleAddUnit}>Guardar Unidad</Button>
+                        <Button onClick={handleUnitSubmit}>{unitDialogMode === 'create' ? 'Guardar Unidad' : 'Actualizar Unidad'}</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

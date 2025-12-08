@@ -39,7 +39,7 @@ export const PaymentReceipt = React.forwardRef<HTMLDivElement, PaymentReceiptPro
             <div className="flex justify-between items-start mb-6">
                 <div className="border border-gray-400 p-2 w-1/4 text-center">
                     <p className="text-xs uppercase text-gray-500">sucesión</p>
-                    <h2 className="font-bold text-lg uppercase">{company?.name || "INMOBILIARIA SIAA"}</h2>
+                    <h2 className="font-bold text-lg uppercase">{company?.name || "Escritorio Legal"}</h2>
                     <div className="flex justify-center gap-1 mt-1">
                         {[...Array(5)].map((_, i) => <div key={i} className="w-2 h-2 border border-gray-400 rotate-45"></div>)}
                     </div>

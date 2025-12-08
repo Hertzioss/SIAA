@@ -2,17 +2,19 @@
 
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
+import { supabase } from "@/lib/supabase"
 
 export default function LogoutPage() {
     const router = useRouter()
 
     useEffect(() => {
-        // Clear any client-side auth state here if necessary
-        // localStorage.removeItem('token')
-        // sessionStorage.clear()
 
-        // Redirect to signin page
-        router.push("/")
+        const doLogout = async () => {
+            const { error } = await supabase.auth.signOut()
+            if (error) console.log('Error cerrando sesión:', error)
+        }
+        doLogout()
+        router.replace('/')
     }, [router])
 
     return (

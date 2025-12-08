@@ -10,8 +10,17 @@ import { toast } from "sonner"
 interface ExportButtonsProps {
     data: any[]
     filename?: string
-    columns: { header: string; key: string }[]
+    columns: {
+        header: string;
+        key: string;
+        transform?: (value: any) => any
+    }[]
     title?: string
+}
+
+// Helper to access nested keys
+const getNestedValue = (obj: any, path: string) => {
+    return path.split('.').reduce((acc, part) => acc && acc[part], obj);
 }
 
 export function ExportButtons({ data, filename = "export", columns, title = "Reporte" }: ExportButtonsProps) {
@@ -21,7 +30,11 @@ export function ExportButtons({ data, filename = "export", columns, title = "Rep
             const worksheet = XLSX.utils.json_to_sheet(data.map(item => {
                 const row: any = {}
                 columns.forEach(col => {
-                    row[col.header] = item[col.key]
+                    let value = getNestedValue(item, col.key);
+                    if (col.transform) {
+                        value = col.transform(value);
+                    }
+                    row[col.header] = value;
                 })
                 return row
             }))
@@ -48,7 +61,13 @@ export function ExportButtons({ data, filename = "export", columns, title = "Rep
             // Table
             const tableColumn = columns.map(col => col.header)
             const tableRows = data.map(item => {
-                return columns.map(col => item[col.key])
+                return columns.map(col => {
+                    let value = getNestedValue(item, col.key);
+                    if (col.transform) {
+                        value = col.transform(value);
+                    }
+                    return value;
+                })
             })
 
             autoTable(doc, {
@@ -64,6 +83,8 @@ export function ExportButtons({ data, filename = "export", columns, title = "Rep
             toast.error("Error al exportar a PDF")
         }
     }
+
+
 
     return (
         <div className="flex gap-2">

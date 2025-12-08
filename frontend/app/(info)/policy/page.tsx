@@ -14,7 +14,7 @@ export default function PolicyPage() {
                     <section>
                         <h2 className="text-xl font-semibold mb-2">1. Introducción</h2>
                         <p className="text-muted-foreground">
-                            Bienvenido a SIAA. Al acceder y utilizar nuestro sistema de gestión inmobiliaria, usted acepta cumplir con estos términos y condiciones.
+                            Bienvenido a Escritorio Legal. Al acceder y utilizar nuestro sistema de gestión inmobiliaria, usted acepta cumplir con estos términos y condiciones.
                             Si no está de acuerdo con alguna parte de estos términos, no podrá acceder al servicio.
                         </p>
                     </section>
@@ -40,7 +40,7 @@ export default function PolicyPage() {
                         <h2 className="text-xl font-semibold mb-2">3. Cuentas de Usuario</h2>
                         <p className="text-muted-foreground">
                             Para acceder a ciertas funciones, deberá registrarse y crear una cuenta. Usted es responsable de mantener la confidencialidad de su cuenta y contraseña.
-                            SIAA se reserva el derecho de suspender o cancelar cuentas que violen estos términos.
+                            Escritorio Legal se reserva el derecho de suspender o cancelar cuentas que violen estos términos.
                         </p>
                     </section>
 
@@ -49,7 +49,7 @@ export default function PolicyPage() {
                     <section>
                         <h2 className="text-xl font-semibold mb-2">4. Propiedad Intelectual</h2>
                         <p className="text-muted-foreground">
-                            El servicio y su contenido original, características y funcionalidad son y seguirán siendo propiedad exclusiva de SIAA y sus licenciantes.
+                            El servicio y su contenido original, características y funcionalidad son y seguirán siendo propiedad exclusiva de Escritorio Legal y sus licenciantes.
                         </p>
                     </section>
 
@@ -68,7 +68,7 @@ export default function PolicyPage() {
                     <section>
                         <h2 className="text-xl font-semibold mb-2">6. Limitación de Responsabilidad</h2>
                         <p className="text-muted-foreground">
-                            En ningún caso SIAA, ni sus directores, empleados, socios, agentes, proveedores o afiliados, serán responsables de daños indirectos, incidentales, especiales, consecuentes o punitivos,
+                            En ningún caso Escritorio Legal, ni sus directores, empleados, socios, agentes, proveedores o afiliados, serán responsables de daños indirectos, incidentales, especiales, consecuentes o punitivos,
                             incluyendo, sin limitación, pérdida de beneficios, datos, uso, buena voluntad u otras pérdidas intangibles.
                         </p>
                     </section>

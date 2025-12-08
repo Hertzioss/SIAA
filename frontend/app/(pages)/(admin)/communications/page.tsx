@@ -1,72 +1,97 @@
 'use client'
 
 import { useState } from "react"
-import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
-import { Search, Plus, FileText, Edit, Trash2, Copy } from "lucide-react"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Plus, Pencil, Trash2, Mail, Loader2, Search } from "lucide-react"
 import { toast } from "sonner"
-
-// Mock Data for Templates
-const TEMPLATES_DATA = [
-    {
-        id: "1",
-        name: "Factura Estándar",
-        type: "Factura",
-        subject: "Factura de Alquiler - {mes} {año}",
-        lastUpdated: "01/11/2024",
-        status: "Activa"
-    },
-    {
-        id: "2",
-        name: "Recordatorio de Pago (Amigable)",
-        type: "Recordatorio",
-        subject: "Recordatorio: Pago Pendiente",
-        lastUpdated: "15/10/2024",
-        status: "Activa"
-    },
-    {
-        id: "3",
-        name: "Aviso de Corte",
-        type: "Aviso",
-        subject: "URGENTE: Aviso de Suspensión de Servicios",
-        lastUpdated: "20/09/2024",
-        status: "Borrador"
-    },
-    {
-        id: "4",
-        name: "Bienvenida Nuevo Inquilino",
-        type: "Bienvenida",
-        subject: "Bienvenido a {propiedad}",
-        lastUpdated: "05/11/2024",
-        status: "Activa"
-    }
-]
+import { useTemplates, NotificationTemplate } from "@/hooks/use-templates"
+import { CreateNotificationDialog } from "@/components/notifications/create-notification-dialog"
+import { useNotifications } from "@/hooks/use-notifications" // Need this to send the actual notification
 
 export default function CommunicationsPage() {
-    const [isDialogOpen, setIsDialogOpen] = useState(false)
-    const [editingTemplate, setEditingTemplate] = useState<any>(null)
+    const { templates, loading, createTemplate, updateTemplate, deleteTemplate } = useTemplates()
+    const { createNotification } = useNotifications()
 
-    const handleSaveTemplate = () => {
-        setIsDialogOpen(false)
-        toast.success(editingTemplate ? "Plantilla actualizada" : "Plantilla creada exitosamente")
+    // UI State
+    const [isDialogOpen, setIsDialogOpen] = useState(false)
+    const [useDialogOpen, setUseDialogOpen] = useState(false) // State for "Use Template" dialog
+    const [selectedTemplateForUse, setSelectedTemplateForUse] = useState<NotificationTemplate | null>(null)
+
+    const [isSubmitting, setIsSubmitting] = useState(false)
+    const [searchTerm, setSearchTerm] = useState("")
+
+    // Form State
+    const [editingTemplate, setEditingTemplate] = useState<NotificationTemplate | null>(null)
+    const [formData, setFormData] = useState({
+        name: "",
+        title: "",
+        message: "",
+        type: "info" as 'info' | 'alert' | 'payment' | 'contract'
+    })
+
+    const resetForm = () => {
+        setFormData({ name: "", title: "", message: "", type: "info" })
         setEditingTemplate(null)
     }
 
-    const handleEdit = (template: any) => {
-        setEditingTemplate(template)
+    const openCreateDialog = () => {
+        resetForm()
         setIsDialogOpen(true)
     }
 
-    const handleDelete = (id: string) => {
-        toast.success("Plantilla eliminada")
+    const openEditDialog = (template: NotificationTemplate) => {
+        setEditingTemplate(template)
+        setFormData({
+            name: template.name,
+            title: template.title,
+            message: template.message,
+            type: template.type
+        })
+        setIsDialogOpen(true)
     }
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault()
+        setIsSubmitting(true)
+
+        try {
+            if (editingTemplate) {
+                await updateTemplate(editingTemplate.id, formData)
+                toast.success("Plantilla actualizada")
+            } else {
+                await createTemplate(formData)
+                toast.success("Plantilla creada exitosamente")
+            }
+            setIsDialogOpen(false)
+            resetForm()
+        } catch (error) {
+            toast.error("Ocurrió un error al guardar la plantilla")
+        } finally {
+            setIsSubmitting(false)
+        }
+    }
+
+    const handleDelete = async (id: string) => {
+        if (confirm("¿Está seguro de que desea eliminar esta plantilla?")) {
+            try {
+                await deleteTemplate(id)
+                toast.success("Plantilla eliminada")
+            } catch (error) {
+                toast.error("Error al eliminar la plantilla")
+            }
+        }
+    }
+
+    const filteredTemplates = templates.filter(t =>
+        t.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        t.title.toLowerCase().includes(searchTerm.toLowerCase())
+    )
 
     return (
         <div className="container mx-auto p-6 space-y-8">
@@ -77,134 +102,155 @@ export default function CommunicationsPage() {
                         Gestione las plantillas para correos y notificaciones automáticas.
                     </p>
                 </div>
-
-                <Dialog open={isDialogOpen} onOpenChange={(open) => {
-                    setIsDialogOpen(open)
-                    if (!open) setEditingTemplate(null)
-                }}>
-                    <DialogTrigger asChild>
-                        <Button>
-                            <Plus className="mr-2 h-4 w-4" /> Nueva Plantilla
-                        </Button>
-                    </DialogTrigger>
-                    <DialogContent className="sm:max-w-[700px]">
+                <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                    <Button onClick={openCreateDialog}>
+                        <Plus className="mr-2 h-4 w-4" /> Nueva Plantilla
+                    </Button>
+                    <DialogContent className="sm:max-w-[500px]">
                         <DialogHeader>
                             <DialogTitle>{editingTemplate ? "Editar Plantilla" : "Crear Nueva Plantilla"}</DialogTitle>
                             <DialogDescription>
-                                Configure el contenido y asunto. Use variables como {'{inquilino}'}, {'{mes}'}, {'{monto}'}.
+                                Configure el contenido predeterminado para este tipo de comunicación.
                             </DialogDescription>
                         </DialogHeader>
-                        <div className="grid gap-4 py-4">
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="grid gap-2">
-                                    <Label>Nombre de la Plantilla</Label>
-                                    <Input placeholder="Ej. Recordatorio 1" defaultValue={editingTemplate?.name} />
-                                </div>
-                                <div className="grid gap-2">
-                                    <Label>Tipo</Label>
-                                    <Select defaultValue={editingTemplate?.type}>
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Seleccionar tipo..." />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="Factura">Factura</SelectItem>
-                                            <SelectItem value="Recordatorio">Recordatorio</SelectItem>
-                                            <SelectItem value="Aviso">Aviso</SelectItem>
-                                            <SelectItem value="Bienvenida">Bienvenida</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                            </div>
-
+                        <form onSubmit={handleSubmit} className="space-y-4 py-4">
                             <div className="grid gap-2">
-                                <Label>Asunto del Correo</Label>
-                                <Input placeholder="Ej. Recordatorio de Pago - {mes}" defaultValue={editingTemplate?.subject} />
-                            </div>
-
-                            <div className="grid gap-2">
-                                <Label>Contenido del Mensaje</Label>
-                                <Textarea
-                                    placeholder="Estimado {inquilino}, le recordamos que..."
-                                    className="min-h-[200px] font-mono text-sm"
-                                    defaultValue={editingTemplate ? "Contenido de ejemplo..." : ""}
+                                <Label htmlFor="name">Nombre de la Plantilla (Interno)</Label>
+                                <Input
+                                    id="name"
+                                    placeholder="Ej. Recordatorio de Pago"
+                                    value={formData.name}
+                                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                    required
                                 />
-                                <p className="text-xs text-muted-foreground">
-                                    Variables disponibles: {'{inquilino}'}, {'{propiedad}'}, {'{monto}'}, {'{fecha_vencimiento}'}.
-                                </p>
                             </div>
-                        </div>
-                        <DialogFooter>
-                            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
-                            <Button onClick={handleSaveTemplate}>
-                                {editingTemplate ? "Guardar Cambios" : "Crear Plantilla"}
-                            </Button>
-                        </DialogFooter>
+                            <div className="grid gap-2">
+                                <Label htmlFor="type">Tipo</Label>
+                                <Select
+                                    value={formData.type}
+                                    onValueChange={(v: any) => setFormData({ ...formData, type: v })}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Seleccione tipo" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="info">Información</SelectItem>
+                                        <SelectItem value="alert">Alerta / Urgente</SelectItem>
+                                        <SelectItem value="payment">Cobro / Pago</SelectItem>
+                                        <SelectItem value="contract">Contrato</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="title">Asunto / Título (Público)</Label>
+                                <Input
+                                    id="title"
+                                    placeholder="Ej. Aviso de vencimiento"
+                                    value={formData.title}
+                                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                                    required
+                                />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="message">Contenido del Mensaje</Label>
+                                <Textarea
+                                    id="message"
+                                    placeholder="Escriba el cuerpo del mensaje..."
+                                    className="min-h-[150px]"
+                                    value={formData.message}
+                                    onChange={(e) => setFormData({ ...formData, message: e.target.value })}
+                                    required
+                                />
+                            </div>
+                            <DialogFooter>
+                                <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
+                                    Cancelar
+                                </Button>
+                                <Button type="submit" disabled={isSubmitting}>
+                                    {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                    {editingTemplate ? "Guardar Cambios" : "Crear Plantilla"}
+                                </Button>
+                            </DialogFooter>
+                        </form>
                     </DialogContent>
                 </Dialog>
             </div>
 
             <Card>
                 <CardHeader>
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <CardTitle>Mis Plantillas</CardTitle>
-                            <CardDescription>Plantillas predefinidas para uso recurrente.</CardDescription>
-                        </div>
-                        <div className="relative w-64">
-                            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                            <Input placeholder="Buscar plantilla..." className="pl-8" />
-                        </div>
-                    </div>
+                    <CardTitle>Mis Plantillas</CardTitle>
+                    <CardDescription>Plantillas predefinidas para uso recurrente.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Nombre</TableHead>
-                                <TableHead>Tipo</TableHead>
-                                <TableHead>Asunto</TableHead>
-                                <TableHead>Última Edición</TableHead>
-                                <TableHead>Estado</TableHead>
-                                <TableHead className="text-right">Acciones</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {TEMPLATES_DATA.map((template) => (
-                                <TableRow key={template.id}>
-                                    <TableCell className="font-medium">
-                                        <div className="flex items-center gap-2">
-                                            <FileText className="h-4 w-4 text-muted-foreground" />
-                                            {template.name}
+                    <div className="mb-6 relative">
+                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input
+                            placeholder="Buscar plantilla..."
+                            className="pl-8 max-w-sm"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                    </div>
+
+                    {loading ? (
+                        <div className="text-center py-10 text-muted-foreground">Cargando plantillas...</div>
+                    ) : filteredTemplates.length === 0 ? (
+                        <div className="text-center py-10 text-muted-foreground">
+                            No se encontraron plantillas. Cree una nueva para comenzar.
+                        </div>
+                    ) : (
+                        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                            {filteredTemplates.map((template) => (
+                                <Card key={template.id} className="overflow-hidden">
+                                    <div className={`h-2 w-full ${template.type === 'alert' ? 'bg-red-500' :
+                                        template.type === 'payment' ? 'bg-green-500' :
+                                            template.type === 'contract' ? 'bg-purple-500' : 'bg-blue-500'
+                                        }`} />
+                                    <CardHeader className="pb-2">
+                                        <div className="flex justify-between items-start">
+                                            <div>
+                                                <CardTitle className="text-lg">{template.name}</CardTitle>
+                                                <CardDescription className="mt-1">{template.title}</CardDescription>
+                                            </div>
+                                            <div className="flex gap-1">
+                                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditDialog(template)}>
+                                                    <Pencil className="h-4 w-4" />
+                                                </Button>
+                                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDelete(template.id)}>
+                                                    <Trash2 className="h-4 w-4" />
+                                                </Button>
+                                            </div>
                                         </div>
-                                    </TableCell>
-                                    <TableCell>
-                                        <Badge variant="outline">{template.type}</Badge>
-                                    </TableCell>
-                                    <TableCell className="text-muted-foreground text-sm">
-                                        {template.subject}
-                                    </TableCell>
-                                    <TableCell className="text-sm">{template.lastUpdated}</TableCell>
-                                    <TableCell>
-                                        <Badge variant={template.status === 'Activa' ? 'default' : 'secondary'} className={template.status === 'Activa' ? 'bg-green-500 hover:bg-green-600' : ''}>
-                                            {template.status}
-                                        </Badge>
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                        <div className="flex justify-end gap-2">
-                                            <Button variant="ghost" size="icon" onClick={() => handleEdit(template)}>
-                                                <Edit className="h-4 w-4" />
-                                            </Button>
-                                            <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDelete(template.id)}>
-                                                <Trash2 className="h-4 w-4" />
-                                            </Button>
-                                        </div>
-                                    </TableCell>
-                                </TableRow>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <p className="text-sm text-muted-foreground line-clamp-3 mb-4">
+                                            {template.message}
+                                        </p>
+                                        <Button variant="outline" size="sm" className="w-full" onClick={() => {
+                                            setSelectedTemplateForUse(template)
+                                            setUseDialogOpen(true)
+                                        }}>
+                                            <Mail className="mr-2 h-4 w-4" /> Usar Plantilla
+                                        </Button>
+                                    </CardContent>
+                                </Card>
                             ))}
-                        </TableBody>
-                    </Table>
+                        </div>
+                    )}
                 </CardContent>
             </Card>
+
+            {/* Dialog to Use/Send Template */}
+            <CreateNotificationDialog
+                open={useDialogOpen}
+                onOpenChange={setUseDialogOpen}
+                onSubmit={createNotification}
+                initialData={selectedTemplateForUse ? {
+                    title: selectedTemplateForUse.title,
+                    message: selectedTemplateForUse.message,
+                    type: selectedTemplateForUse.type
+                } : undefined}
+            />
         </div>
     )
 }
