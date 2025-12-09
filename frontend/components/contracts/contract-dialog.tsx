@@ -126,7 +126,6 @@ export function ContractDialog({
             unit_id: formData.unit_id,
             tenant_id: formData.tenant_id,
             start_date: formData.start_date,
-            start_date: formData.start_date,
             end_date: formData.isIndefinite ? null : formData.end_date,
             rent_amount: parseFloat(formData.amount),
             type: formData.type,
