@@ -21,6 +21,8 @@ import {
 } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { FileText, User, Calendar, DollarSign, Building } from "lucide-react"
+import { toast } from "sonner"
+import { Checkbox } from "@/components/ui/checkbox"
 
 interface ContractDialogProps {
     open: boolean
@@ -65,6 +67,7 @@ export function ContractDialog({
         end_date: "",
         amount: "",
         type: "residential",
+        isIndefinite: false,
         ...contract
     })
 
@@ -78,6 +81,7 @@ export function ContractDialog({
                 end_date: contract.end_date || "",
                 amount: contract.rent_amount || "",
                 type: contract.type || "residential",
+                isIndefinite: !contract.end_date
             })
         } else {
             setFormData({
@@ -87,6 +91,7 @@ export function ContractDialog({
                 end_date: "",
                 amount: "",
                 type: "residential",
+                isIndefinite: false
             })
         }
     }, [contract, open])
@@ -104,11 +109,25 @@ export function ContractDialog({
     const handleSubmit = async () => {
         if (!onSubmit) return;
 
+        const missingFields = []
+        if (!formData.unit_id) missingFields.push("Unidad")
+        if (!formData.tenant_id) missingFields.push("Inquilino")
+        if (!formData.start_date) missingFields.push("Fecha Inicio")
+        if (!formData.start_date) missingFields.push("Fecha Inicio")
+        if (!formData.isIndefinite && !formData.end_date) missingFields.push("Fecha Fin")
+        if (!formData.amount) missingFields.push("Monto")
+
+        if (missingFields.length > 0) {
+            toast.error(`Por favor complete los campos obligatorios: ${missingFields.join(", ")}`)
+            return
+        }
+
         const dataToSave = {
             unit_id: formData.unit_id,
             tenant_id: formData.tenant_id,
             start_date: formData.start_date,
-            end_date: formData.end_date,
+            start_date: formData.start_date,
+            end_date: formData.isIndefinite ? null : formData.end_date,
             rent_amount: parseFloat(formData.amount),
             type: formData.type,
             status: contract?.statusRaw ?? contract?.status ?? 'active'
@@ -167,7 +186,7 @@ export function ContractDialog({
                                     <Label className="text-muted-foreground text-xs">Vigencia</Label>
                                     <div className="flex items-center gap-2">
                                         <Calendar className="h-4 w-4 text-muted-foreground" />
-                                        <span className="font-medium">{contract?.duration || "N/A"}</span>
+                                        <span className="font-medium">{contract?.end_date ? contract.duration : "Indefinido"}</span>
                                     </div>
                                 </div>
                                 <div className="space-y-1">
@@ -238,12 +257,34 @@ export function ContractDialog({
                             />
                         </div>
                         <div className="space-y-2">
-                            <Label htmlFor="end-date">Fecha Fin</Label>
+                            <div className="flex items-center justify-between">
+                                <Label htmlFor="end-date">Fecha Fin</Label>
+                                <div className="flex items-center space-x-2">
+                                    <Checkbox
+                                        id="indefinite"
+                                        checked={formData.isIndefinite}
+                                        onCheckedChange={(checked) => {
+                                            setFormData((prev: any) => ({
+                                                ...prev,
+                                                isIndefinite: checked === true,
+                                                end_date: checked === true ? "" : prev.end_date
+                                            }))
+                                        }}
+                                    />
+                                    <label
+                                        htmlFor="indefinite"
+                                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                                    >
+                                        Contrato Indefinido
+                                    </label>
+                                </div>
+                            </div>
                             <Input
                                 id="end-date"
                                 type="date"
                                 value={formData.end_date}
                                 onChange={(e) => setFormData((prev: any) => ({ ...prev, end_date: e.target.value }))}
+                                disabled={formData.isIndefinite}
                             />
                         </div>
 

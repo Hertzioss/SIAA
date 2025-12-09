@@ -15,23 +15,32 @@ import { useContracts } from "@/hooks/use-contracts"
 import { fetchBcvRate } from "@/services/exchange-rate"
 import { toast } from "sonner"
 import { format } from "date-fns"
+import { es } from "date-fns/locale"
+import { PendingBalanceCard } from "@/components/payments/pending-balance-card"
 
 export default function PaymentForm() {
-    const { registerPayment, isLoading: isSubmitting } = useTenantPayments()
+    const { registerPayment, isLoading: isSubmitting, getMonthlyBalance, getNextPaymentDate, getPaidMonths } = useTenantPayments()
     const { contracts, isLoading: isLoadingContracts } = useContracts()
     const [activeContract, setActiveContract] = useState<any>(null)
     const [selectedFile, setSelectedFile] = useState<File | null>(null)
     const fileInputRef = useRef<HTMLInputElement>(null)
+    const [balanceData, setBalanceData] = useState<any>(null)
+    const [nextPaymentDate, setNextPaymentDate] = useState<Date | null>(null)
+    const [paidMonths, setPaidMonths] = useState<number>(0)
 
-    // Form State
-    const [month, setMonth] = useState('julio')
-    const [year, setYear] = useState('2024')
-    const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd'))
-    const [reference, setReference] = useState('')
+    // Form States
+    const [exchangeRate, setExchangeRate] = useState<string>('')
     const [amount, setAmount] = useState('')
     const [currency, setCurrency] = useState<'USD' | 'VES'>('USD')
-    const [exchangeRate, setExchangeRate] = useState('36.45') // Mock default or fetch
+    const [reference, setReference] = useState('')
     const [notes, setNotes] = useState('')
+    const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd'))
+
+    // Month/Year Selection
+    const currentYear = new Date().getFullYear()
+    const [month, setMonth] = useState<string>((new Date().getMonth() + 1).toString())
+    const [year, setYear] = useState<string>(currentYear.toString())
+
 
     useEffect(() => {
         // Find the first active contract. 
@@ -41,9 +50,23 @@ export default function PaymentForm() {
             const active = contracts.find(c => c.status === 'active')
             if (active) {
                 setActiveContract(active)
+                if (active.tenant_id) {
+                    getNextPaymentDate(active.tenant_id).then(setNextPaymentDate)
+                    getPaidMonths(active.tenant_id).then(setPaidMonths)
+                }
             }
         }
-    }, [contracts])
+    }, [contracts, getMonthlyBalance, getNextPaymentDate, getPaidMonths])
+
+    useEffect(() => {
+        const fetchBalance = async () => {
+            if (activeContract) {
+                const data = await getMonthlyBalance(activeContract.tenant_id, parseInt(month), parseInt(year))
+                setBalanceData(data)
+            }
+        }
+        fetchBalance()
+    }, [activeContract, month, year, getMonthlyBalance])
 
     useEffect(() => {
         const getRate = async () => {
@@ -68,9 +91,26 @@ export default function PaymentForm() {
             return
         }
 
-        if (!amount || !reference || !date) {
-            toast.error("Por favor complete los campos obligatorios.")
+        const missingFields = []
+        if (!amount) missingFields.push("Monto")
+        if (!reference) missingFields.push("Número de Referencia")
+        if (!date) missingFields.push("Fecha")
+
+        if (missingFields.length > 0) {
+            toast.error(`Por favor complete los campos obligatorios: ${missingFields.join(", ")}`)
             return
+        }
+
+        // Validate Overpayment
+        if (balanceData) {
+            const amountNum = parseFloat(amount)
+            const payAmountUSD = currency === 'VES' && exchangeRate ? amountNum / parseFloat(exchangeRate) : amountNum
+
+            // Allow a small epsilon for floating point comp
+            if (payAmountUSD > (balanceData.remainingDebt + 0.01)) {
+                toast.error(`El monto excede la deuda restante para este mes ($${balanceData.remainingDebt.toFixed(2)})`)
+                return
+            }
         }
 
         const paymentData: PaymentInsert = {
@@ -125,28 +165,11 @@ export default function PaymentForm() {
                                     <Input
                                         value={propertyLabel}
                                         className="pl-9 bg-muted/50"
-                                        readOnly
-                                    />
+                                        readOnly />
                                 </div>
                             </div>
 
                             <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label>Mes del Pago</Label>
-                                    <Select value={month} onValueChange={setMonth}>
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Seleccione mes" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="julio">Julio</SelectItem>
-                                            <SelectItem value="agosto">Agosto</SelectItem>
-                                            <SelectItem value="septiembre">Septiembre</SelectItem>
-                                            <SelectItem value="octubre">Octubre</SelectItem>
-                                            <SelectItem value="noviembre">Noviembre</SelectItem>
-                                            <SelectItem value="diciembre">Diciembre</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
                                 <div className="space-y-2">
                                     <Label>Año del Pago</Label>
                                     <Select value={year} onValueChange={setYear}>
@@ -154,8 +177,75 @@ export default function PaymentForm() {
                                             <SelectValue placeholder="Seleccione año" />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="2024">2024</SelectItem>
-                                            <SelectItem value="2025">2025</SelectItem>
+                                            {Array.from({ length: 5 }, (_, i) => {
+                                                const currentYear = new Date().getFullYear()
+                                                const y = currentYear - 1 + i // Show last year to future
+                                                return (
+                                                    <SelectItem key={y} value={y.toString()}>
+                                                        {y}
+                                                    </SelectItem>
+                                                )
+                                            })}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Mes del Pago</Label>
+                                    <Select value={month} onValueChange={setMonth}>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Seleccione mes" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {(() => {
+                                                const allMonths = [
+                                                    { value: 'enero', label: 'Enero', index: 0 },
+                                                    { value: 'febrero', label: 'Febrero', index: 1 },
+                                                    { value: 'marzo', label: 'Marzo', index: 2 },
+                                                    { value: 'abril', label: 'Abril', index: 3 },
+                                                    { value: 'mayo', label: 'Mayo', index: 4 },
+                                                    { value: 'junio', label: 'Junio', index: 5 },
+                                                    { value: 'julio', label: 'Julio', index: 6 },
+                                                    { value: 'agosto', label: 'Agosto', index: 7 },
+                                                    { value: 'septiembre', label: 'Septiembre', index: 8 },
+                                                    { value: 'octubre', label: 'Octubre', index: 9 },
+                                                    { value: 'noviembre', label: 'Noviembre', index: 10 },
+                                                    { value: 'diciembre', label: 'Diciembre', index: 11 },
+                                                ]
+
+                                                return allMonths.map((m) => {
+                                                    let isDisabled = false
+                                                    if (activeContract && activeContract.start_date) {
+                                                        const startDate = new Date(activeContract.start_date)
+                                                        // Calculate absolute month index from start date
+                                                        // paidMonths count tells us how many months forward from start date are paid.
+                                                        // Target month date (approx 1st of month)
+                                                        const targetDate = new Date(parseInt(year), m.index, 1)
+
+                                                        // Paid until date
+                                                        const paidUntilDate = new Date(startDate)
+                                                        paidUntilDate.setMonth(paidUntilDate.getMonth() + (paidMonths || 0))
+                                                        // Reset to start of that month for comparison
+                                                        paidUntilDate.setDate(1)
+
+                                                        // If target month is strictly before the "paid until" month, it's paid.
+                                                        // Example: Start Jan 1. Paid 1 month. Paid Until Feb 1.
+                                                        // target Jan 1 < Feb 1 -> Disabled. 
+                                                        // target Feb 1 == Feb 1 -> Active (this is the next due).
+                                                        // However, we must ensure we don't disable months BEFORE contract start if user selects old year
+                                                        // But usually we care about "future" payment.
+                                                        // Let's simplified: compare dates.
+                                                        if (targetDate < paidUntilDate) {
+                                                            isDisabled = true
+                                                        }
+                                                    }
+
+                                                    return (
+                                                        <SelectItem key={m.value} value={m.value} disabled={isDisabled} className={isDisabled ? "opacity-50" : ""}>
+                                                            {m.label} {isDisabled && "(Pagado)"}
+                                                        </SelectItem>
+                                                    )
+                                                })
+                                            })()}
                                         </SelectContent>
                                     </Select>
                                 </div>
@@ -170,8 +260,7 @@ export default function PaymentForm() {
                                             type="date"
                                             value={date}
                                             onChange={(e) => setDate(e.target.value)}
-                                            className="pl-9"
-                                        />
+                                            className="pl-9" />
                                     </div>
                                 </div>
                                 <div className="space-y-2">
@@ -179,8 +268,7 @@ export default function PaymentForm() {
                                     <Input
                                         value={reference}
                                         onChange={(e) => setReference(e.target.value)}
-                                        placeholder="Ej: 0123456789"
-                                    />
+                                        placeholder="Ej: 0123456789" />
                                 </div>
                             </div>
 
@@ -192,8 +280,7 @@ export default function PaymentForm() {
                                         value={amount}
                                         onChange={(e) => setAmount(e.target.value)}
                                         placeholder="0.00"
-                                        className="flex-1"
-                                    />
+                                        className="flex-1" />
                                     <div className="flex rounded-md border bg-muted p-1">
                                         <Button
                                             variant={currency === 'USD' ? 'default' : 'ghost'}
@@ -235,8 +322,7 @@ export default function PaymentForm() {
                                         ref={fileInputRef}
                                         className="hidden"
                                         accept="image/png, image/jpeg, application/pdf"
-                                        onChange={handleFileChange}
-                                    />
+                                        onChange={handleFileChange} />
                                 </div>
                             </div>
 
@@ -247,8 +333,7 @@ export default function PaymentForm() {
                                     onChange={(e) => setNotes(e.target.value)}
                                     placeholder="Abono parcial correspondiente a julio."
                                     className="resize-none"
-                                    rows={4}
-                                />
+                                    rows={4} />
                             </div>
 
                         </CardContent>
@@ -257,6 +342,11 @@ export default function PaymentForm() {
 
                 {/* Right Column - Summary */}
                 <div className="space-y-6">
+                    {/* Pending Balance Card (Always show for selected month) */}
+                    {balanceData && (
+                        <PendingBalanceCard data={balanceData} />
+                    )}
+
                     <Card>
                         <CardHeader>
                             <CardTitle className="text-base">Mi Estado de Cuenta</CardTitle>
@@ -273,6 +363,22 @@ export default function PaymentForm() {
                                 <span className="text-sm text-muted-foreground">Canon de Arrendamiento:</span>
                                 <span className="font-bold">$ {activeContract?.rent_amount || '0.00'}</span>
                             </div>
+
+                            {/* Next Payment Date Info */}
+                            {nextPaymentDate && (
+                                <>
+                                    <Separator className="my-2" />
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-sm text-muted-foreground">Próximo Pago:</span>
+                                        <div className="flex items-center gap-2">
+                                            <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+                                            <span className="font-semibold text-sm">
+                                                {format(nextPaymentDate, "d 'de' MMMM", { locale: es })}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </>
+                            )}
                         </CardContent>
                     </Card>
 
@@ -301,7 +407,7 @@ export default function PaymentForm() {
                                 <span className="text-sm font-medium text-blue-600 dark:text-blue-400">Total equivalente (VES):</span>
                                 <div className="text-right">
                                     <div className="text-lg font-bold text-blue-600 dark:text-blue-400">
-                                        {(parseFloat(amount || '0') * parseFloat(exchangeRate)).toLocaleString('es-VE', { minimumFractionDigits: 2 })}
+                                        {(parseFloat(amount || '0') * (currency === 'USD' ? parseFloat(exchangeRate) : 1)).toLocaleString('es-VE', { minimumFractionDigits: 2 })}
                                     </div>
                                     <div className="text-xs font-bold text-blue-600 dark:text-blue-400">VES</div>
                                 </div>
@@ -309,9 +415,7 @@ export default function PaymentForm() {
                         </CardContent>
                     </Card>
                 </div>
-            </div>
-
-            <div className="flex justify-end gap-4 mt-8">
+            </div><div className="flex justify-end gap-4 mt-8">
                 <Button variant="secondary" size="lg" onClick={() => window.history.back()}>Cancelar</Button>
                 <Button
                     size="lg"
@@ -322,6 +426,6 @@ export default function PaymentForm() {
                     {isSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Enviando...</> : 'Registrar Pago'}
                 </Button>
             </div>
-        </div>
+        </div >
     )
 }

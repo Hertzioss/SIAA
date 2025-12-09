@@ -42,16 +42,30 @@ export function useExpenses(propertyId?: string) {
 
     const createExpense = async (expense: Omit<Expense, 'id'>) => {
         try {
-            const { error } = await supabase
-                .from('expenses')
-                .insert([expense]);
+            // Remove any potentially undefined fields or extra fields if necessary
+            // But strict typing usually handles this.
 
-            if (error) throw error;
+            const { data, error } = await supabase
+                .from('expenses')
+                .insert([expense])
+                .select() // Select to return data and potential errors more robustly
+
+            if (error) {
+                console.error('Supabase Error:', error)
+                throw new Error(error.message)
+            }
+
             toast.success('Gasto registrado exitosamente');
             await fetchExpenses();
-        } catch (error) {
-            console.error('Error creating expense:', error);
-            toast.error('Error al registrar gasto');
+        } catch (error: any) {
+            console.error('Error creating expense (Detailed):', {
+                message: error.message,
+                details: error.details,
+                hint: error.hint,
+                code: error.code,
+                full: error
+            });
+            toast.error('Error al registrar gasto: ' + (error.message || 'Desconocido'));
             throw error;
         }
     };

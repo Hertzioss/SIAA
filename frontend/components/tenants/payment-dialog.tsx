@@ -151,8 +151,13 @@ export function PaymentDialog({ open, onOpenChange, tenant }: PaymentDialogProps
             return false
         }
 
-        if (!amount || !reference || !date) {
-            toast.error("Por favor complete los campos obligatorios (Monto, Referencia, Fecha).")
+        const missingFields = []
+        if (!amount) missingFields.push("Monto")
+        if (!reference) missingFields.push("Número de Referencia")
+        if (!date) missingFields.push("Fecha")
+
+        if (missingFields.length > 0) {
+            toast.error(`Por favor complete los campos obligatorios: ${missingFields.join(", ")}`)
             return false
         }
         return true
@@ -255,8 +260,15 @@ export function PaymentDialog({ open, onOpenChange, tenant }: PaymentDialogProps
                                         <SelectValue placeholder="Seleccione año" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="2024">2024</SelectItem>
-                                        <SelectItem value="2025">2025</SelectItem>
+                                        {Array.from({ length: 5 }, (_, i) => {
+                                            const currentYear = new Date().getFullYear()
+                                            const y = currentYear - 2 + i
+                                            return (
+                                                <SelectItem key={y} value={y.toString()}>
+                                                    {y}
+                                                </SelectItem>
+                                            )
+                                        })}
                                     </SelectContent>
                                 </Select>
                             </div>

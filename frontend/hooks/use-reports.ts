@@ -61,7 +61,7 @@ export function useReports() {
                 `)
                 .gte('date', startDate)
                 .lte('date', endDate)
-                .eq('status', 'paid') // Only paid
+                .in('status', ['paid', 'approved']) // Include approved (reconciled) payments
 
             const { data: paymentsData, error: paymentsError } = await paymentsQuery
             if (paymentsError) throw paymentsError
@@ -120,13 +120,20 @@ export function useReports() {
 
             const dataBs = filteredPayments
                 .filter((p: any) => p.currency === 'VES')
-                .map((p: any) => ({
-                    date: p.date,
-                    concept: p.concept,
-                    credit: p.amount,
-                    debit: 0,
-                    balance: p.amount
-                }))
+                .map((p: any) => {
+                    const rate = p.exchange_rate || 0
+                    const incomeUsd = rate > 0 ? (p.amount / rate) : 0
+                    return {
+                        date: p.date,
+                        concept: p.concept,
+                        credit: p.amount, // This is in VES
+                        debit: 0,
+                        balance: p.amount, // in VES
+                        rate: rate,
+                        incomeUsd: incomeUsd,
+                        balanceUsd: incomeUsd // in USD
+                    }
+                })
 
             const dataExpenses = filteredExpenses.map((e: any) => ({
                 date: e.date,
@@ -136,15 +143,90 @@ export function useReports() {
                 status: e.status
             }))
 
-            // Distribution logic (Expense Categories)
-            type DistAcc = Record<string, number>
-            const distMap = filteredExpenses.reduce((acc: DistAcc, e: any) => {
-                const cat = e.category || 'Otros'
-                acc[cat] = (acc[cat] || 0) + (e.amount || 0)
-                return acc
-            }, {})
+            // 3. Fetch Owners and Property Relationships
+            const { data: ownersData, error: ownersError } = await supabase
+                .from('property_owners')
+                .select(`
+                    percentage,
+                    property_id,
+                    owner:owners (
+                        id,
+                        name
+                    )
+                `)
 
-            const dataDistribution = Object.entries(distMap).map(([name, value]) => ({ name, value }))
+            if (ownersError) throw ownersError
+
+            // Calculate Net Income calculation per property to distribute correctly
+            // We need to group payments and expenses by property
+            const propertyFinancials: Record<string, { income: number, expense: number, net: number }> = {}
+
+            // Process Income
+            filteredPayments.forEach((p: any) => {
+                const pid = p.contracts?.units?.properties?.id
+                if (!pid) return
+
+                if (!propertyFinancials[pid]) propertyFinancials[pid] = { income: 0, expense: 0, net: 0 }
+
+                let amountUsd = p.amount
+                if (p.currency === 'VES') {
+                    const rate = p.exchange_rate || 0
+                    amountUsd = rate > 0 ? (p.amount / rate) : 0
+                }
+                propertyFinancials[pid].income += amountUsd
+            })
+
+            // Process Expenses
+            filteredExpenses.forEach((e: any) => {
+                const pid = e.property_id
+                if (!pid) return
+                if (!propertyFinancials[pid]) propertyFinancials[pid] = { income: 0, expense: 0, net: 0 }
+
+                propertyFinancials[pid].expense += e.amount
+            })
+
+            // Calculate Net for each property
+            Object.keys(propertyFinancials).forEach(pid => {
+                propertyFinancials[pid].net = propertyFinancials[pid].income - propertyFinancials[pid].expense
+            })
+
+            // Distribute to owners
+            const ownerShares: Record<string, { name: string, amount: number }> = {}
+            let totalNetIncome = 0
+
+            // Filter property owners by the selected properties (if filtering is active)
+            const relevantPropertyOwners = properties.length > 0
+                ? ownersData.filter((po: any) => properties.includes(po.property_id))
+                : ownersData
+
+            // We iterate over the financial records of properties that are relevant
+            Object.keys(propertyFinancials).forEach(pid => {
+                // If filter is active and this property is not in it, skip (though filteredPayments should handle this)
+                if (properties.length > 0 && !properties.includes(pid)) return
+
+                const net = propertyFinancials[pid].net
+                totalNetIncome += net
+
+                // Find owners for this property
+                const propsOwners = relevantPropertyOwners.filter((po: any) => po.property_id === pid)
+
+                propsOwners.forEach((po: any) => {
+                    const ownerName = po.owner?.name || 'Desconocido'
+                    const share = net * (po.percentage / 100)
+
+                    if (!ownerShares[ownerName]) {
+                        ownerShares[ownerName] = { name: ownerName, amount: 0 }
+                    }
+                    ownerShares[ownerName].amount += share
+                })
+            })
+
+            // Transform to distribution array with effective percentage
+            const dataDistribution = Object.values(ownerShares).map(share => ({
+                owner: share.name, // Component expects 'owner'
+                amount: share.amount,
+                percentage: totalNetIncome !== 0 ? (share.amount / totalNetIncome) * 100 : 0
+            }))
 
             return {
                 dataUsd,
@@ -269,7 +351,7 @@ export function useReports() {
             const { data: payments } = await supabase
                 .from('payments')
                 .select(`amount, contracts(units(property_id))`)
-                .eq('status', 'paid')
+                .in('status', ['paid', 'approved'])
                 .eq('currency', 'USD') // Normalize to USD for this report or handle both? Let's do USD only for performance summary for now.
 
             // Fetch all expenses

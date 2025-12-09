@@ -151,6 +151,41 @@ export function useTenants() {
 
     const deleteTenant = async (id: string) => {
         try {
+            // 1. Get all contracts to delete their payments ensuring no orphans
+            const { data: tenantContracts } = await supabase
+                .from('contracts')
+                .select('id')
+                .eq('tenant_id', id);
+
+            const contractIds = tenantContracts?.map(c => c.id) || [];
+
+            // 2. Delete all payments associated with these contracts
+            if (contractIds.length > 0) {
+                const { error: paymentsContractError } = await supabase
+                    .from('payments')
+                    .delete()
+                    .in('contract_id', contractIds);
+
+                if (paymentsContractError) throw paymentsContractError;
+            }
+
+            // 3. Delete any remaining payments directly linked to the tenant
+            const { error: paymentsError } = await supabase
+                .from('payments')
+                .delete()
+                .eq('tenant_id', id);
+
+            if (paymentsError) throw paymentsError;
+
+            // 4. Delete associated contracts
+            const { error: contractsError } = await supabase
+                .from('contracts')
+                .delete()
+                .eq('tenant_id', id);
+
+            if (contractsError) throw contractsError;
+
+            // 5. Delete the tenant
             const { error } = await supabase
                 .from('tenants')
                 .delete()
@@ -158,11 +193,13 @@ export function useTenants() {
 
             if (error) throw error;
 
-            toast.success('Inquilino eliminado');
+            toast.success('Inquilino y sus registros asociados eliminados');
             setTenants(prev => prev.filter(t => t.id !== id));
         } catch (err: any) {
             console.error('Error deleting tenant:', err);
-            toast.error('Error al eliminar inquilino');
+            // Supabase errors usually have a details or message field
+            const errorMessage = err?.message || err?.details || JSON.stringify(err);
+            toast.error(`Error al eliminar inquilino: ${errorMessage}`);
             throw err;
         }
     };

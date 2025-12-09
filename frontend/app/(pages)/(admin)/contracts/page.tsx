@@ -38,25 +38,29 @@ function ContractsContent() {
         const tenantName = c.tenants?.name || "Inquilino Desconocido"
 
         // Calculate duration approx
-        const start = new Date(c.start_date)
-        const end = new Date(c.end_date)
-        const diffMonths = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth())
-        const duration = `${diffMonths} Meses`
+        let duration = "Indefinido"
+        let displayStatus = c.status // Default to raw status
 
-        // Check status based on date
-        const now = new Date()
-        const thirtyDaysFromNow = new Date()
-        thirtyDaysFromNow.setDate(now.getDate() + 30)
+        if (c.end_date) {
+            const start = new Date(c.start_date)
+            const end = new Date(c.end_date)
+            const diffMonths = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth())
+            duration = `${diffMonths} Meses`
 
-        const endDate = new Date(c.end_date)
-        let displayStatus = "Activo"
+            // Check status based on date
+            const now = new Date()
+            const thirtyDaysFromNow = new Date()
+            thirtyDaysFromNow.setDate(now.getDate() + 30)
 
-        if (c.status === 'expired' || endDate < now) {
-            displayStatus = "Vencido"
-        } else if (c.status === 'active' && endDate <= thirtyDaysFromNow) {
-            displayStatus = "Por Vencer"
-        } else if (c.status !== 'active') {
-            displayStatus = c.status // e.g. cancelled
+            const endDate = new Date(c.end_date)
+
+            if (c.status === 'expired' || endDate < now) {
+                displayStatus = "Vencido"
+            } else if (c.status === 'active' && endDate <= thirtyDaysFromNow) {
+                displayStatus = "Por Vencer"
+            } else if (c.status !== 'active') {
+                displayStatus = c.status
+            }
         }
 
         return {
@@ -64,7 +68,7 @@ function ContractsContent() {
             property: `${propertyName} - ${unitName}`,
             tenant: tenantName,
             startDate: c.start_date,
-            endDate: c.end_date,
+            endDate: c.end_date || "Indefinido",
             duration: duration,
             status: displayStatus,
             amount: c.rent_amount,
@@ -106,19 +110,22 @@ function ContractsContent() {
     thirtyDaysFromNow.setDate(now.getDate() + 30)
 
     const expiringContracts = contracts.filter(c => {
-        if (c.status !== 'active') return false
+        if (c.status !== 'active' || !c.end_date) return false
         const end = new Date(c.end_date)
         return end >= now && end <= thirtyDaysFromNow
     }).length
 
     const expiredContracts = contracts.filter(c => {
+        if (!c.end_date) return c.status === 'expired' // Should generally not happen for indefinite unless manual
         const end = new Date(c.end_date)
         return c.status === 'expired' || end < now
     }).length
 
     const activeContracts = contracts.filter(c => {
+        if (c.status !== 'active') return false
+        if (!c.end_date) return true // Indefinite active
         const end = new Date(c.end_date)
-        return c.status === 'active' && end > now
+        return end > now
     }).length
 
     const handleDownload = (id: string) => {

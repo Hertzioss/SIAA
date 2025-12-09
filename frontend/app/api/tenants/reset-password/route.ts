@@ -52,7 +52,7 @@ export async function POST(request: Request) {
         }
 
         // 4. Send Email
-        const loginUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+        const loginUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://escritorio.legal'
         await sendEmail({
             to: email,
             subject: 'Restablecimiento de Contraseña - Escritorio Legal',

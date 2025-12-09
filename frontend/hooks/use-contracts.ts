@@ -8,7 +8,7 @@ export type Contract = {
     tenant_id: string | null
     contract_number: string | null
     start_date: string
-    end_date: string
+    end_date: string | null
     rent_amount: number
     deposit_amount: number | null
     status: 'active' | 'expired' | 'cancelled'

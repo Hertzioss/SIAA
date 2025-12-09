@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Loader2, User, Mail, Phone, Plus, Trash2, FileText, Calendar } from "lucide-react"
 import { toast } from "sonner"
 import { Tenant, TenantStatus } from "@/types/tenant"
@@ -57,6 +58,7 @@ export function TenantDialog({ open, onOpenChange, mode, tenant, properties, onS
     const [startDate, setStartDate] = useState("")
     const [endDate, setEndDate] = useState("")
     const [rentAmount, setRentAmount] = useState("")
+    const [isIndefinite, setIsIndefinite] = useState(false)
 
     // Access Tab State
     const [showManualPassword, setShowManualPassword] = useState(false)
@@ -105,23 +107,29 @@ export function TenantDialog({ open, onOpenChange, mode, tenant, properties, onS
         setSelectedUnitId("")
         setContractType("residential")
         setStartDate("")
+        setStartDate("")
         setEndDate("")
         setRentAmount("")
+        setIsIndefinite(false)
 
         setNewContact({ name: '', relation: 'family', phone: '', email: '' })
     }
 
     const handleSubmit = async () => {
-        if (!name || !docId) {
-            toast.error("Nombre y Documento son obligatorios")
-            return
-        }
+        const missingFields = []
+        if (!name) missingFields.push("Nombre")
+        if (!docId) missingFields.push("Documento")
 
         if (mode === 'create') {
-            if (!selectedUnitId || !startDate || !endDate || !rentAmount) {
-                toast.error("Todos los campos del contrato son obligatorios para registrar un inquilino.")
-                return
-            }
+            if (!selectedUnitId) missingFields.push("Unidad")
+            if (!startDate) missingFields.push("Fecha Inicio")
+            if (!isIndefinite && !endDate) missingFields.push("Fecha Fin")
+            if (!rentAmount) missingFields.push("Canon Mensual")
+        }
+
+        if (missingFields.length > 0) {
+            toast.error(`Por favor complete los campos obligatorios: ${missingFields.join(", ")}`)
+            return
         }
 
         try {
@@ -140,7 +148,7 @@ export function TenantDialog({ open, onOpenChange, mode, tenant, properties, onS
                 contractData = {
                     unit_id: selectedUnitId,
                     start_date: startDate,
-                    end_date: endDate,
+                    end_date: isIndefinite ? null : endDate,
                     rent_amount: parseFloat(rentAmount),
                     type: contractType
                 }
@@ -377,12 +385,31 @@ export function TenantDialog({ open, onOpenChange, mode, tenant, properties, onS
                                 />
                             </div>
                             <div className="grid gap-2">
-                                <Label htmlFor="endDate">Fecha Fin</Label>
+                                <div className="flex items-center justify-between">
+                                    <Label htmlFor="endDate" className={isIndefinite ? "text-muted-foreground" : ""}>Fecha Fin</Label>
+                                    <div className="flex items-center space-x-2">
+                                        <Checkbox
+                                            id="tenant-indefinite"
+                                            checked={isIndefinite}
+                                            onCheckedChange={(checked) => {
+                                                setIsIndefinite(checked === true)
+                                                if (checked === true) setEndDate("")
+                                            }}
+                                        />
+                                        <label
+                                            htmlFor="tenant-indefinite"
+                                            className="text-xs font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                                        >
+                                            Indefinido
+                                        </label>
+                                    </div>
+                                </div>
                                 <Input
                                     id="endDate"
                                     type="date"
                                     value={endDate}
                                     onChange={(e) => setEndDate(e.target.value)}
+                                    disabled={isIndefinite}
                                 />
                             </div>
                         </div>
@@ -486,7 +513,7 @@ export function TenantDialog({ open, onOpenChange, mode, tenant, properties, onS
                                             </CardHeader>
                                             <CardContent className="py-3 text-sm grid grid-cols-2 gap-2">
                                                 <div><span className="text-muted-foreground">Inicio:</span> {format(new Date(contract.start_date), 'dd MMM yyyy', { locale: es })}</div>
-                                                <div><span className="text-muted-foreground">Fin:</span> {format(new Date(contract.end_date), 'dd MMM yyyy', { locale: es })}</div>
+                                                <div><span className="text-muted-foreground">Fin:</span> {contract.end_date ? format(new Date(contract.end_date), 'dd MMM yyyy', { locale: es }) : "Indefinido"}</div>
                                                 <div className="col-span-2 mt-2">
                                                     <Link href={`/contracts?view=${contract.id}`}>
                                                         <Button variant="outline" size="sm" className="w-full">Ver Detalles</Button>

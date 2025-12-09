@@ -278,20 +278,40 @@ export function PropertyDialog({ open, onOpenChange, mode, property, propertyTyp
                             ) : (
                                 currentOwners.map((owner) => (
                                     <div key={owner.owner_id} className="flex justify-between items-center p-3 border rounded-md bg-card">
-                                        <div className="flex items-center gap-3">
+                                        <div className="flex items-center gap-3 flex-1">
                                             <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
                                                 <User className="h-4 w-4 text-primary" />
                                             </div>
-                                            <div>
+                                            <div className="flex-1">
                                                 <p className="font-medium text-sm">{owner.name}</p>
-                                                <p className="text-xs text-muted-foreground">{owner.participation_percentage}% Participación</p>
+                                                {!isView ? (
+                                                    <div className="flex items-center gap-2 mt-1">
+                                                        <span className="text-xs text-muted-foreground">Participación:</span>
+                                                        <Input
+                                                            type="number"
+                                                            className="h-6 w-20 text-xs"
+                                                            value={owner.participation_percentage}
+                                                            onChange={(e) => {
+                                                                const val = parseFloat(e.target.value) || 0
+                                                                setCurrentOwners(prev => prev.map(o =>
+                                                                    o.owner_id === owner.owner_id
+                                                                        ? { ...o, participation_percentage: val }
+                                                                        : o
+                                                                ))
+                                                            }}
+                                                        />
+                                                        <span className="text-xs text-muted-foreground">%</span>
+                                                    </div>
+                                                ) : (
+                                                    <p className="text-xs text-muted-foreground">{owner.participation_percentage}% Participación</p>
+                                                )}
                                             </div>
                                         </div>
                                         {!isView && (
                                             <Button
                                                 variant="ghost"
                                                 size="icon"
-                                                className="h-8 w-8 text-destructive hover:bg-destructive/10"
+                                                className="h-8 w-8 text-destructive hover:bg-destructive/10 ml-2"
                                                 onClick={() => handleRemoveOwner(owner.owner_id)}
                                             >
                                                 <Trash className="h-4 w-4" />

@@ -43,7 +43,7 @@ export async function POST(request: Request) {
         }
 
         // 3. Send Welcome Email
-        const loginUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+        const loginUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://escritorio.legal'
 
         await sendEmail({
             to: email,

@@ -58,10 +58,14 @@ import { usePropertyDetails } from "@/hooks/use-property-details"
 import { useExpenses } from "@/hooks/use-expenses"
 import { useMaintenance } from "@/hooks/use-maintenance"
 import { supabase } from "@/lib/supabase"
+import { useProperties } from "@/hooks/use-properties"
+import { PropertyDialog } from "@/components/properties/property-dialog"
 
 export default function PropertyDetailsPage() {
     const router = useRouter()
     const params = useParams()
+    const { propertyTypes, updateProperty } = useProperties()
+
     const {
         property,
         units,
@@ -103,7 +107,8 @@ export default function PropertyDetailsPage() {
 
     // Expense Form State
     const [isExpenseDialogOpen, setIsExpenseDialogOpen] = useState(false)
-    const [expenseCategory, setExpenseCategory] = useState("Mantenimiento")
+    const [isEditPropertyDialogOpen, setIsEditPropertyDialogOpen] = useState(false)
+    const [expenseCategory, setExpenseCategory] = useState("maintenance")
     const [expenseDescription, setExpenseDescription] = useState("")
     const [expenseAmount, setExpenseAmount] = useState("")
     const [expenseDate, setExpenseDate] = useState(new Date().toISOString().split('T')[0])
@@ -251,6 +256,8 @@ export default function PropertyDetailsPage() {
         }
     }
 
+
+
     return (<div className="container mx-auto p-6 space-y-8">
         {/* Header - (Keeping existing header logic) */}
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -276,75 +283,88 @@ export default function PropertyDetailsPage() {
                 </div>
             </div>
             <div className="flex gap-2">
-                <Button variant="outline">
+                <Button variant="outline" onClick={() => setIsEditPropertyDialogOpen(true)}>
                     <Edit className="h-4 w-4 mr-2" /> Editar
                 </Button>
-                <Dialog open={isAddUnitDialogOpen} onOpenChange={setIsAddUnitDialogOpen}>
-                    <DialogTrigger asChild>
-                        <Button>
-                            <Plus className="h-4 w-4 mr-2" /> Nueva Unidad
-                        </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                        <DialogHeader>
-                            <DialogTitle>Agregar Nueva Unidad</DialogTitle>
-                            <DialogDescription>
-                                Gestione los detalles de la unidad.
-                            </DialogDescription>
-                        </DialogHeader>
-                        <div className="grid gap-4 py-4">
-                            <div className="grid grid-cols-4 items-center gap-4">
-                                <Label htmlFor="unit-name" className="text-right">Nombre/N°</Label>
-                                <Input id="unit-name" value={newUnitName} onChange={e => setNewUnitName(e.target.value)} placeholder="Ej. Apto 101" className="col-span-3" />
-                            </div>
-                            <div className="grid grid-cols-4 items-center gap-4">
-                                <Label htmlFor="unit-type" className="text-right">Tipo</Label>
-                                <Select value={newUnitType} onValueChange={setNewUnitType}>
-                                    <SelectTrigger className="col-span-3">
-                                        <SelectValue placeholder="Seleccionar..." />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="apartment">Apartamento</SelectItem>
-                                        <SelectItem value="office">Oficina</SelectItem>
-                                        <SelectItem value="local">Local</SelectItem>
-                                        <SelectItem value="storage">Bodega</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div className="grid grid-cols-4 items-center gap-4">
-                                <Label htmlFor="unit-status" className="text-right">Estado</Label>
-                                <Select value={newUnitStatus} onValueChange={setNewUnitStatus}>
-                                    <SelectTrigger className="col-span-3">
-                                        <SelectValue placeholder="Seleccionar..." />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="vacant">Vacante</SelectItem>
-                                        <SelectItem value="occupied">Ocupada</SelectItem>
-                                        <SelectItem value="maintenance">Mantenimiento</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div className="grid grid-cols-4 items-center gap-4">
-                                <Label htmlFor="unit-rent" className="text-right">Canon</Label>
-                                <Input id="unit-rent" type="number" value={newUnitRent} onChange={e => setNewUnitRent(e.target.value)} placeholder="0.00" className="col-span-3" />
-                            </div>
-                            <div className="grid grid-cols-4 items-center gap-4">
-                                <Label htmlFor="unit-area" className="text-right">Área</Label>
-                                <Input id="unit-area" type="number" value={newUnitArea} onChange={e => setNewUnitArea(e.target.value)} placeholder="0.00" className="col-span-3" />
-                            </div>
-                            <div className="grid grid-cols-4 items-center gap-4">
-                                <Label htmlFor="unit-floor" className="text-right">Piso</Label>
-                                <Input id="unit-floor" value={newUnitFloor} onChange={e => setNewUnitFloor(e.target.value)} placeholder="Ej. 1" className="col-span-3" />
-                            </div>
-                        </div>
-                        <DialogFooter>
-                            <Button variant="outline" onClick={() => setIsAddUnitDialogOpen(false)}>Cancelar</Button>
-                            <Button onClick={handleAddUnit}>Guardar Unidad</Button>
-                        </DialogFooter>
-                    </DialogContent>
-                </Dialog>
             </div>
         </div>
+
+        <PropertyDialog
+            open={isEditPropertyDialogOpen}
+            onOpenChange={setIsEditPropertyDialogOpen}
+            mode="edit"
+            property={property}
+            propertyTypes={propertyTypes}
+            onSubmit={async (data) => {
+                await updateProperty(property.id, data)
+                refresh()
+            }}
+        />
+        <Dialog open={isAddUnitDialogOpen} onOpenChange={setIsAddUnitDialogOpen}>
+            <DialogTrigger asChild>
+                <Button>
+                    <Plus className="h-4 w-4 mr-2" /> Nueva Unidad
+                </Button>
+            </DialogTrigger>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Agregar Nueva Unidad</DialogTitle>
+                    <DialogDescription>
+                        Gestione los detalles de la unidad.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="unit-name" className="text-right">Nombre/N°</Label>
+                        <Input id="unit-name" value={newUnitName} onChange={e => setNewUnitName(e.target.value)} placeholder="Ej. Apto 101" className="col-span-3" />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="unit-type" className="text-right">Tipo</Label>
+                        <Select value={newUnitType} onValueChange={setNewUnitType}>
+                            <SelectTrigger className="col-span-3">
+                                <SelectValue placeholder="Seleccionar..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="apartment">Apartamento</SelectItem>
+                                <SelectItem value="office">Oficina</SelectItem>
+                                <SelectItem value="local">Local</SelectItem>
+                                <SelectItem value="storage">Bodega</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="unit-status" className="text-right">Estado</Label>
+                        <Select value={newUnitStatus} onValueChange={setNewUnitStatus}>
+                            <SelectTrigger className="col-span-3">
+                                <SelectValue placeholder="Seleccionar..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="vacant">Vacante</SelectItem>
+                                <SelectItem value="occupied">Ocupada</SelectItem>
+                                <SelectItem value="maintenance">Mantenimiento</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="unit-rent" className="text-right">Canon</Label>
+                        <Input id="unit-rent" type="number" value={newUnitRent} onChange={e => setNewUnitRent(e.target.value)} placeholder="0.00" className="col-span-3" />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="unit-area" className="text-right">Área</Label>
+                        <Input id="unit-area" type="number" value={newUnitArea} onChange={e => setNewUnitArea(e.target.value)} placeholder="0.00" className="col-span-3" />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="unit-floor" className="text-right">Piso</Label>
+                        <Input id="unit-floor" value={newUnitFloor} onChange={e => setNewUnitFloor(e.target.value)} placeholder="Ej. 1" className="col-span-3" />
+                    </div>
+                </div>
+                <DialogFooter>
+                    <Button variant="outline" onClick={() => setIsAddUnitDialogOpen(false)}>Cancelar</Button>
+                    <Button onClick={handleAddUnit}>Guardar Unidad</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+
 
         {/* Stats Grid */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -703,12 +723,12 @@ export default function PropertyDetailsPage() {
                                                         <SelectValue />
                                                     </SelectTrigger>
                                                     <SelectContent>
-                                                        <SelectItem value="Mantenimiento">Mantenimiento</SelectItem>
-                                                        <SelectItem value="Servicios">Servicios (Agua/Luz)</SelectItem>
-                                                        <SelectItem value="Impuestos">Impuestos</SelectItem>
-                                                        <SelectItem value="Limpieza">Limpieza</SelectItem>
-                                                        <SelectItem value="Seguridad">Seguridad</SelectItem>
-                                                        <SelectItem value="Otros">Otros</SelectItem>
+                                                        <SelectItem value="maintenance">Mantenimiento</SelectItem>
+                                                        <SelectItem value="utilities">Servicios (Agua/Luz)</SelectItem>
+                                                        <SelectItem value="tax">Impuestos</SelectItem>
+                                                        <SelectItem value="maintenance">Limpieza</SelectItem>
+                                                        <SelectItem value="other">Seguridad</SelectItem>
+                                                        <SelectItem value="other">Otros</SelectItem>
                                                     </SelectContent>
                                                 </Select>
                                             </div>
