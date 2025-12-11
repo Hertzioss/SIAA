@@ -31,11 +31,13 @@ export default function AdminLayout({
             // 2. Si no hay sesión, lo mandamos fuera
             if (!session) {
                 console.log('No hay sesión')
-                router.push('/signin') // Changed from '/' to '/signin' for clarity
+                router.push('/signin')
             } else {
-                // 3. Check Role
+                // 3. Check Role or Super Admin
                 const role = session.user.user_metadata.role
-                if (role === 'tenant') {
+                const isSuperAdminEnv = process.env.NEXT_PUBLIC_SUPER_ADMIN_EMAIL === session.user.email
+
+                if (role === 'tenant' && !isSuperAdminEnv) {
                     // Tenants should not be here
                     router.push('/payment-form')
                 } else {

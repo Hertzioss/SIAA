@@ -151,6 +151,19 @@ export function useTenants() {
 
     const deleteTenant = async (id: string) => {
         try {
+            // 0. Fetch tenant to get user_id
+            const { data: tenantData, error: fetchError } = await supabase
+                .from('tenants')
+                .select('user_id')
+                .eq('id', id)
+                .single();
+
+            if (fetchError) {
+                console.error("Error fetching tenant details before deletion:", fetchError);
+                // We continue to try to delete the DB records even if fetch fails, 
+                // though it might mean we miss deleting the user.
+            }
+
             // 1. Get all contracts to delete their payments ensuring no orphans
             const { data: tenantContracts } = await supabase
                 .from('contracts')
@@ -192,6 +205,22 @@ export function useTenants() {
                 .eq('id', id);
 
             if (error) throw error;
+
+            // 6. Delete Auth User (if exists)
+            if (tenantData?.user_id) {
+                try {
+                    await fetch('/api/tenants/delete-user', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ userId: tenantData.user_id })
+                    });
+                } catch (authErr) {
+                    console.error('Failed to delete auth user:', authErr);
+                    // We don't throw here to avoid showing an error if the DB delete was successful
+                    // but maybe we should toast a warning?
+                    toast.warning('Inquilino eliminado, pero hubo un error eliminando su cuenta de usuario.');
+                }
+            }
 
             toast.success('Inquilino y sus registros asociados eliminados');
             setTenants(prev => prev.filter(t => t.id !== id));

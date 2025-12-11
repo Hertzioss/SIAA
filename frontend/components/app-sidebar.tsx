@@ -148,11 +148,11 @@ const data = {
       url: "/communications",
       icon: IconMail,
     },
-    // {
-    //   title: "Empresa",
-    //   url: "/account",
-    //   icon: IconBriefcase,
-    // },
+    {
+      title: "Usuarios",
+      url: "/users",
+      icon: IconUserSquareRounded,
+    },
   ],
   documents: [
     {
