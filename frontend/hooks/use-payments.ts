@@ -46,8 +46,8 @@ export function usePayments() {
                 .from('payments')
                 .select(`
                     *,
+                    tenant:tenants(name, doc_id, email),
                     contract:contracts(
-                        tenant:tenants(name, doc_id, email),
                         unit:units(name, property:properties(name))
                     )
                 `, { count: 'exact' });
@@ -69,7 +69,7 @@ export function usePayments() {
             // Transform data
             const formatted = data?.map((p: any) => ({
                 ...p,
-                tenant: p.contract?.tenant,
+                tenant: p.tenant, // Direct fetch
                 unit: {
                     name: p.contract?.unit?.name,
                     property_name: p.contract?.unit?.property?.name

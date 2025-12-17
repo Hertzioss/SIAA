@@ -25,7 +25,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Escritorio Legal",
-  description: "Sistema Integral de Administración de Arrendamientos",
+  description: "Sistema Integral de Administración de Arrendamientos"
 };
 
 export default function RootLayout({
@@ -40,7 +40,7 @@ export default function RootLayout({
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta name="description" content="Sistema Integral de Administración de Arrendamientos" />
       </head>
-      <body suppressHydrationWarning>
+      <body suppressHydrationWarning className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
