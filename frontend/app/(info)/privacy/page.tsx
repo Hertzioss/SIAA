@@ -72,7 +72,7 @@ export default function PrivacyPage() {
                     <section>
                         <h2 className="text-xl font-semibold mb-2">6. Contacto</h2>
                         <p className="text-muted-foreground">
-                            Si tiene alguna pregunta sobre esta Política de Privacidad, por favor contáctenos a través de nuestro soporte o envíe un correo a privacy@siaa.com.
+                            Si tiene alguna pregunta sobre esta Política de Privacidad, por favor contáctenos a través de nuestro soporte o envíe un correo a privacy@escritorio.legal
                         </p>
                     </section>
                 </CardContent>

@@ -82,7 +82,7 @@ export default function PolicyPage() {
                     <section>
                         <h2 className="text-xl font-semibold mb-2">7. Contacto</h2>
                         <p className="text-muted-foreground">
-                            Si tiene alguna pregunta sobre estos Términos, por favor contáctenos a través de nuestro soporte o envíe un correo a admin@siaa.com.
+                            Si tiene alguna pregunta sobre estos Términos, por favor contáctenos a través de nuestro soporte o envíe un correo a correo@escritorio.legal
                         </p>
                     </section>
                 </CardContent>

@@ -35,7 +35,7 @@ const BANK_ACCOUNTS_DATA = [
     {
         id: "3",
         bank: "Zelle",
-        accountNumber: "pagos@siaa.com",
+        accountNumber: "pagos@escritorio.legal",
         holder: "Escritorio Legal",
         currency: "USD",
         type: "Digital"
@@ -116,7 +116,7 @@ export default function AccountPage() {
                                 </div>
                                 <div className="space-y-2">
                                     <Label>Correo Electrónico</Label>
-                                    <Input defaultValue="administracion@siaa.com" />
+                                    <Input defaultValue="administracion@escritorio.legal" />
                                 </div>
                             </div>
                             <div className="space-y-2">

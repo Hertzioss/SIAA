@@ -58,7 +58,7 @@ export async function enableOwnerAccess(ownerId: string, email: string, password
         try {
             await sendEmail({
                 to: email,
-                subject: 'Bienvenido al Portal de Propietarios - SIAA',
+                subject: 'Bienvenido al Portal de Propietarios',
                 html: generateOwnerCredentialsTemplate(owner.name, email, finalPassword, false)
             })
         } catch (emailError) {
@@ -136,7 +136,7 @@ export async function resetOwnerPassword(ownerId: string, password?: string) {
         try {
             await sendEmail({
                 to: owner.email,
-                subject: 'Restablecimiento de Contraseña - SIAA',
+                subject: 'Restablecimiento de Contraseña',
                 html: generateOwnerCredentialsTemplate(owner.name, owner.email, newPassword, true)
             })
         } catch (emailError) {
@@ -262,7 +262,7 @@ export async function updateOwner(
             try {
                 await sendEmail({
                     to: ownerData.email,
-                    subject: 'Credenciales de Acceso Actualizadas - SIAA',
+                    subject: 'Credenciales de Acceso Actualizadas',
                     html: generateOwnerCredentialsTemplate(ownerData.name, ownerData.email, newPassword, false)
                 })
             } catch (emailError) {

@@ -44,7 +44,7 @@ export const generateEmailHtml = (title: string, message: string, recipientName:
 };
 
 export const generateOwnerCredentialsEmail = (name: string, email: string, password: string, isReset: boolean = false) => {
-    const title = isReset ? 'Restablecimiento de Contraseña - SIAA' : 'Bienvenido al Portal de Propietarios - SIAA'
+    const title = isReset ? 'Restablecimiento de Contraseña' : 'Bienvenido al Portal de Propietarios'
     const subjectPrefix = isReset ? 'Nueva Contraseña' : 'Credenciales de Acceso'
 
     // Custom logic to show "Your account has been created" vs "Your password has been reset"
@@ -63,7 +63,7 @@ export const generateOwnerCredentialsEmail = (name: string, email: string, passw
         `
         : `
         <p>Hola <strong>${name}</strong>,</p>
-        <p>Le damos la bienvenida al <strong>Sistema Integral de Administración (SIAA)</strong>.</p>
+        <p>Le damos la bienvenida al <strong>Portal de Propietarios</strong>.</p>
         <p>Se ha creado una cuenta para que pueda acceder al Portal de Propietarios, donde podrá visualizar el estado de sus propiedades, contratos y pagos.</p>
         <p>Sus credenciales de acceso son:</p>
         <div style="background-color: #f4f4f5; padding: 16px; border-radius: 6px; margin: 16px 0;">
@@ -110,7 +110,7 @@ export const generateOwnerCredentialsTemplate = (name: string, email: string, pa
 <body>
     <div class="container">
         <div class="header">
-            <h1>Escritorio Legal SIAA</h1>
+            <h1>Escritorio Legal</h1>
         </div>
         <div class="content">
             <h2 style="margin-top: 0; font-size: 20px; font-weight: 600;">${title}</h2>

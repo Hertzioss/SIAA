@@ -21,7 +21,7 @@ export interface SendEmailData {
 export const sendEmail = async ({ to, subject, html }: SendEmailData) => {
     try {
         const info = await transporter.sendMail({
-            from: process.env.MAILRELAY_FROM_EMAIL || '"Escritorio Legal Admin" <admin@siaa.com>',
+            from: process.env.MAILRELAY_FROM_EMAIL || '"Escritorio Legal Admin" <admin@escritorio.legal>',
             to: Array.isArray(to) ? to.join(', ') : to,
             subject,
             html,
