@@ -93,14 +93,14 @@ export function NavUser({
               <DropdownMenuItem asChild>
                 <a href="/account">
                   <IconUserCircle />
-                  Account
+                  Perfil
                 </a>
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleLogout}>
               <IconLogout />
-              Log out
+              Salir
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

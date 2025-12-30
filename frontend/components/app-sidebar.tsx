@@ -44,7 +44,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
-import { AppLogo } from "./appLogo"
+import { InternalAppLogo } from "./internal-appLogo"
 
 const data = {
   user: {
@@ -200,7 +200,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               className="data-[slot=sidebar-menu-button]:!p-1.5"
             >
               <a href="/dashboard">
-                <AppLogo />
+                <InternalAppLogo />
                 {/* <IconInnerShadowTop className="!size-5" />
                 <span className="text-base font-semibold">Escritorio Legal.</span> */}
               </a>
