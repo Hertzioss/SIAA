@@ -49,7 +49,7 @@ export function DashboardCharts({
     recentActivity
 }: DashboardChartsProps) {
     return (
-        <div className="grid gap-4 md:px-4 md:grid-cols-2 lg:grid-cols-7 lg:px-6">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
             {/* Left Column: Financials & Occupancy (4 cols) */}
             <div className="col-span-4 space-y-4">
                 {/* Financial Summary */}
