@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 
@@ -95,6 +95,10 @@ export function useMaintenance(propertyId?: string) {
             throw error;
         }
     };
+
+    useEffect(() => {
+        fetchRequests();
+    }, [fetchRequests]);
 
     return {
         loading,

@@ -26,23 +26,26 @@ export function useDashboardData(propertyId: string) {
                 .from('units')
                 .select('id, property_id, status');
 
+            // 4. Fetch Maintenance Requests
+            let maintenanceQuery = supabase
+                .from('maintenance_requests')
+                .select('id, property_id, status, priority, title, created_at, unit:units(name)')
+                .in('status', ['open', 'in_progress', 'urgent']);
+
             // Execute queries
-            const [paymentsRes, contractsRes, unitsRes] = await Promise.all([
+            const [paymentsRes, contractsRes, unitsRes, maintenanceRes] = await Promise.all([
                 paymentsQuery,
                 contractsQuery,
-                unitsQuery
+                unitsQuery,
+                maintenanceQuery
             ]);
 
             const payments = paymentsRes.data || [];
             const contracts = contractsRes.data || [];
             const units = unitsRes.data || [];
+            const maintenance = maintenanceRes.data || [];
 
             // FILTER BY PROPERTY ID IF NOT 'all'
-            // Since we can't easily filter by deep relation in one go without complex syntax or views,
-            // and dataset is likely small, we filter in JS. 
-            // Optimization: If propertyId is set, we could use !inner join to filter on DB side, but structure above is loose.
-            // Let's filter in JS for now for simplicity and robustness.
-
             const filteredPayments = propertyId === 'all'
                 ? payments
                 : payments.filter((p: any) => p.contract?.unit?.property_id === propertyId);
@@ -55,6 +58,11 @@ export function useDashboardData(propertyId: string) {
                 ? units
                 : units.filter((u: any) => u.property_id === propertyId);
 
+            const filteredMaintenance = propertyId === 'all'
+                ? maintenance
+                : maintenance.filter((m: any) => m.property_id === propertyId);
+
+
             // --- CALCULATE STATS ---
 
             // Revenue (Approved Payments)
@@ -62,13 +70,7 @@ export function useDashboardData(propertyId: string) {
                 .filter((p: any) => p.status === 'approved')
                 .reduce((sum: number, p: any) => sum + Number(p.amount), 0);
 
-            // Arrears (Pending?) - Simplified logic: Pending payments are potential arrears or just not processed.
-            // Let's assume 'pending' implies "Por Cobrar" if date is passed? 
-            // Or just sum all 'pending'. 
-            // Mock data has "Por Cobrar" and "Atrasado". 
-            // Let's map "pending" to "Por Cobrar". 
-            // "Atrasado" implementation would require checking due dates vs payment dates.
-            // We'll stick to: Approved = Cobrado, Pending = Por Cobrar.
+            // Arrears (Pending?)
             const pending = filteredPayments
                 .filter((p: any) => p.status === 'pending')
                 .reduce((sum: number, p: any) => sum + Number(p.amount), 0);
@@ -77,6 +79,10 @@ export function useDashboardData(propertyId: string) {
             const totalUnits = filteredUnits.length;
             const occupiedUnits = filteredContracts.length; // Active contracts ~ occupied units
             const occupancyRate = totalUnits > 0 ? Math.round((occupiedUnits / totalUnits) * 100) : 0;
+
+            // Requests
+            const pendingRequests = filteredMaintenance.length;
+
 
             // --- CHARTS DATA ---
 
@@ -118,9 +124,8 @@ export function useDashboardData(propertyId: string) {
                 }))
                 .slice(0, 5); // Limit to 5
 
-            // Recent Activity (Last 5 Payments/New Contracts)
-            // Initial simple version: Just payments
-            const recentActivity = filteredPayments
+            // Recent Activity (Mixed Payments and Maintenance)
+            const recentPayments = filteredPayments
                 .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())
                 .slice(0, 5)
                 .map((p: any) => ({
@@ -128,12 +133,30 @@ export function useDashboardData(propertyId: string) {
                     title: "Pago Registrado",
                     desc: `${p.contract?.tenant?.name} - ${p.contract?.unit?.name}`,
                     amount: `$${p.amount}`,
-                    status: p.status === 'approved' ? 'success' : 'warning'
+                    status: p.status === 'approved' ? 'success' : 'warning',
+                    date: p.date
                 }));
 
-            // Occupancy Trend (Mocking historical for now, or just showing current flat)
-            // Real calc requires querying historical contract states. 
-            // For MVP: Show current occupancy across months + slight variation or just flat.
+            // Map maintenance to activity format
+            const recentMaintenance = filteredMaintenance
+                .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+                .slice(0, 5)
+                .map((m: any) => ({
+                    type: "maintenance",
+                    title: "Mantenimiento",
+                    desc: `${m.title} - ${m.unit?.name || 'Común'}`,
+                    amount: m.priority === 'urgent' ? 'Urgente' : m.status,
+                    status: m.priority === 'urgent' ? 'destructive' : 'warning',
+                    date: m.created_at
+                }));
+
+            // Merge and sort
+            const recentActivity = [...recentPayments, ...recentMaintenance]
+                .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                .slice(0, 6);
+
+
+            // Occupancy Trend
             const occupancyData = last6Months.map(date => ({
                 name: format(date, 'MMM', { locale: es }),
                 value: occupancyRate
@@ -147,8 +170,8 @@ export function useDashboardData(propertyId: string) {
                     occupancyTrend: 0,
                     properties: propertyId === 'all' ? new Set(filteredUnits.map((u: any) => u.property_id)).size : 1,
                     propertiesTrend: 0,
-                    requests: 0,
-                    requestsTrend: "N/A"
+                    requests: pendingRequests,
+                    requestsTrend: pendingRequests > 0 ? "Activas" : "Sin pendientes"
                 },
                 paymentData: paymentStatusData,
                 arrearsData: [], // TODO
