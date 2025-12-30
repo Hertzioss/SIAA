@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { User, Building, Plus, Trash, Mail, Phone, MapPin } from "lucide-react"
+import { User, Building, Plus, Trash, Mail, Phone, MapPin, Lock, Unlock } from "lucide-react"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
@@ -20,6 +20,7 @@ import { Owner, OwnerBeneficiary } from "@/types/owner"
 import { toast } from "sonner"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { OwnerAccountsList } from "./owner-accounts-list"
+import { enableOwnerAccess, disableOwnerAccess, resetOwnerPassword } from "@/actions/access"
 
 interface OwnerDialogProps {
     open: boolean
@@ -27,17 +28,25 @@ interface OwnerDialogProps {
     mode?: "create" | "view" | "edit"
     owner?: Owner
     onSubmit?: (data: any) => Promise<void>
+    onOwnerUpdated?: () => void
 }
 
+/**
+ * Diálogo para gestionar la información de propietarios.
+ * Soporta registro de personas naturales y empresas (con beneficiarios), y gestión de cuentas bancarias.
+ */
 export function OwnerDialog({
     open,
     onOpenChange,
     mode = "create",
     owner,
-    onSubmit
+    onSubmit,
+    onOwnerUpdated
 }: OwnerDialogProps) {
     const [loading, setLoading] = useState(false)
+    const [accessLoading, setAccessLoading] = useState(false)
     const [ownerType, setOwnerType] = useState<"individual" | "company">("individual")
+    const [manualPassword, setManualPassword] = useState("")
 
     // Form States
     const [formData, setFormData] = useState({
@@ -69,6 +78,7 @@ export function OwnerDialog({
                 setFormData({ name: "", doc_id: "", email: "", phone: "", address: "" })
                 setBeneficiaries([])
             }
+            setManualPassword("") // Reset password field
         }
     }, [owner, mode, open])
 
@@ -112,6 +122,82 @@ export function OwnerDialog({
             // Error is handled in the parent hook
         } finally {
             setLoading(false)
+        }
+    }
+
+    // Handler for Enabling Access
+    const handleEnableAccess = async () => {
+        if (!owner?.id || !owner?.email) {
+            toast.error("El propietario debe tener un email registrado")
+            return
+        }
+
+        setAccessLoading(true)
+        try {
+            const res = await enableOwnerAccess(owner.id, owner.email, manualPassword || undefined)
+            if (res.success && res.data) {
+                toast.success("Acceso habilitado correctamente", {
+                    description: `Contraseña: ${res.data.password}`,
+                    duration: 10000,
+                    action: {
+                        label: "Copiar",
+                        onClick: () => navigator.clipboard.writeText(res.data.password)
+                    }
+                })
+                setManualPassword("")
+                if (onOwnerUpdated) onOwnerUpdated()
+                onOpenChange(false)
+            } else {
+                toast.error(res.error || "Error habilitando acceso")
+            }
+        } catch (error) {
+            toast.error("Error inesperado")
+        } finally {
+            setAccessLoading(false)
+        }
+    }
+
+    // Handler for Disabling Access
+    const handleDisableAccess = async () => {
+        if (!owner?.id) return
+        setAccessLoading(true)
+        try {
+            const res = await disableOwnerAccess(owner.id)
+            if (res.success) {
+                toast.success("Acceso deshabilitado")
+                setManualPassword("")
+                if (onOwnerUpdated) onOwnerUpdated()
+                onOpenChange(false)
+            } else {
+                toast.error(res.error)
+            }
+        } finally {
+            setAccessLoading(false)
+        }
+    }
+
+    const handleResetPassword = async () => {
+        if (!owner?.id) return
+        setAccessLoading(true)
+        try {
+            const res = await resetOwnerPassword(owner.id, manualPassword || undefined)
+            if (res.success && res.data) {
+                toast.success("Contraseña actualizada", {
+                    description: `Nueva contraseña: ${res.data.password}`,
+                    duration: 20000,
+                    action: {
+                        label: "Copiar",
+                        onClick: () => navigator.clipboard.writeText(res.data.password)
+                    }
+                })
+                setManualPassword("")
+            } else {
+                toast.error(res.error || "Error restableciendo contraseña")
+            }
+        } catch (err) {
+            toast.error("Error inesperado")
+        } finally {
+            setAccessLoading(false)
         }
     }
 
@@ -229,7 +315,6 @@ export function OwnerDialog({
                                             <Label className="text-base">Beneficiarios / Socios</Label>
                                         </div>
                                         <div className="p-4 border rounded-lg bg-muted/20 space-y-4">
-                                            {/* Beneficiary Input - same as original */}
                                             <div className="grid grid-cols-12 gap-2">
                                                 <div className="col-span-12 sm:col-span-5">
                                                     <Input
@@ -327,6 +412,102 @@ export function OwnerDialog({
                                             </div>
                                         </div>
 
+                                        <Separator />
+                                        <div className="space-y-4">
+                                            <div className="flex items-center justify-between">
+                                                <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Acceso al Sistema</h4>
+                                                {owner?.user_id ? (
+                                                    <Badge variant="default" className="bg-green-600 hover:bg-green-700">
+                                                        <Unlock className="w-3 h-3 mr-1" /> Habilitado
+                                                    </Badge>
+                                                ) : (
+                                                    <Badge variant="outline" className="text-muted-foreground">
+                                                        <Lock className="w-3 h-3 mr-1" /> Inhabilitado
+                                                    </Badge>
+                                                )}
+                                            </div>
+
+
+                                            <div className="flex flex-col gap-4 p-4 border rounded-lg bg-muted/10">
+                                                <div className="flex items-center justify-between gap-4">
+                                                    <div className="space-y-1">
+                                                        <p className="text-sm font-medium">Portal de Propietarios</p>
+                                                        <p className="text-xs text-muted-foreground">
+                                                            {owner?.user_id
+                                                                ? "El propietario tiene acceso habilitado."
+                                                                : "Habilite el acceso para que pueda ver sus propiedades."}
+                                                        </p>
+                                                    </div>
+                                                </div>
+
+                                                <div className="grid gap-2">
+                                                    <Label htmlFor="manual-pass" className="text-xs">
+                                                        Contraseña Manual (Opcional)
+                                                    </Label>
+                                                    <Input
+                                                        id="manual-pass"
+                                                        type="text"
+                                                        placeholder="Dejar vacío para autogenerar"
+                                                        value={manualPassword}
+                                                        onChange={(e) => setManualPassword(e.target.value)}
+                                                        className="h-8 text-sm"
+                                                    />
+                                                </div>
+
+                                                <div className="flex justify-end gap-2">
+                                                    {owner?.user_id ? (
+                                                        <>
+                                                            <Button
+                                                                variant="destructive"
+                                                                size="sm"
+                                                                onClick={handleDisableAccess}
+                                                                disabled={accessLoading}
+                                                            >
+                                                                {accessLoading ? "..." : "Deshabilitar"}
+                                                            </Button>
+                                                            <Button
+                                                                variant="default"
+                                                                size="sm"
+                                                                onClick={handleResetPassword}
+                                                                disabled={accessLoading}
+                                                            >
+                                                                <Lock className="w-3 h-3 mr-2" />
+                                                                Actualizar Contraseña
+                                                            </Button>
+                                                        </>
+                                                    ) : (
+                                                        <Button
+                                                            variant="default"
+                                                            size="sm"
+                                                            onClick={handleEnableAccess}
+                                                            disabled={!owner?.email || accessLoading}
+                                                        >
+                                                            {accessLoading ? "..." : "Habilitar Acceso"}
+                                                        </Button>
+                                                    )}
+                                                </div>
+
+                                                {owner?.user_id && (
+                                                    <div className="pt-2 border-t mt-2">
+                                                        <div className="grid grid-cols-2 gap-4 text-sm mt-2">
+                                                            <div>
+                                                                <span className="text-muted-foreground block text-xs">Usuario</span>
+                                                                <span className="font-mono bg-background px-2 py-1 rounded border inline-block mt-1 truncate max-w-full">
+                                                                    {owner.email}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                            {!owner?.email && !owner?.user_id && (
+                                                <p className="text-xs text-destructive">
+                                                    * Se requiere un correo electrónico para habilitar el acceso.
+                                                </p>
+                                            )}
+                                        </div>
+
+
                                         {ownerType === 'company' && beneficiaries.length > 0 && (
                                             <>
                                                 <Separator />
@@ -401,7 +582,6 @@ export function OwnerDialog({
                                                 onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                                             />
                                         </div>
-                                        {/* Simplified Edit Companies for now, reusing Create Block earlier is better refactoring but this works for diffs */}
                                     </div>
                                 )}
                             </TabsContent>

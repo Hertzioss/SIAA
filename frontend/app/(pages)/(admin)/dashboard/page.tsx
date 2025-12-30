@@ -29,8 +29,8 @@ export default function Page() {
   return (
     <div className="flex flex-col gap-4 p-4 lg:p-6">
       {/* Filter Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <h2 className="text-2xl font-bold tracking-tight">Dashboard</h2>
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 lg:p-6 md:p-4">
+        <h2 className="text-2xl font-bold tracking-tight">Inicio</h2>
         <div className="flex items-center gap-2">
           {selectedProperty !== "all" && (
             <Button

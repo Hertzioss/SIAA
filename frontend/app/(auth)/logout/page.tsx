@@ -4,6 +4,10 @@ import { useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 
+/**
+ * Página de cierre de sesión.
+ * Ejecuta el logout de Supabase y redirige al usuario a la página principal.
+ */
 export default function LogoutPage() {
     const router = useRouter()
 

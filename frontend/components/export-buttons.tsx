@@ -23,6 +23,10 @@ const getNestedValue = (obj: any, path: string) => {
     return path.split('.').reduce((acc, part) => acc && acc[part], obj);
 }
 
+/**
+ * Botones para exportar datos a Excel y PDF.
+ * Recibe datos y configuración de columnas para generar reportes descargables.
+ */
 export function ExportButtons({ data, filename = "export", columns, title = "Reporte" }: ExportButtonsProps) {
 
     const handleExportExcel = () => {

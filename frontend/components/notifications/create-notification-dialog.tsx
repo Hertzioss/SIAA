@@ -25,6 +25,10 @@ interface CreateNotificationDialogProps {
     }
 }
 
+/**
+ * Diálogo para crear y enviar notificaciones masivas o dirigidas.
+ * Permite seleccionar el alcance (Todos, Propiedad, Inquilino) y tipo de mensaje.
+ */
 export function CreateNotificationDialog({ open, onOpenChange, onSubmit, initialData }: CreateNotificationDialogProps) {
     const [title, setTitle] = useState(initialData?.title || "")
     const [message, setMessage] = useState(initialData?.message || "")

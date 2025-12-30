@@ -2,6 +2,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import Link from "next/link"
 
+/**
+ * Página de Términos y Condiciones.
+ * Muestra los términos legales de uso del servicio.
+ */
 export default function PolicyPage() {
     return (
         <div className="container mx-auto py-10 max-w-4xl">

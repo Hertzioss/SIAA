@@ -14,6 +14,10 @@ interface PendingBalanceCardProps {
     }
 }
 
+/**
+ * Tarjeta informativa que muestra el estado de pago del mes actual.
+ * Indica el canon total, lo abonado y lo pendiente, con indicador visual de completado.
+ */
 export function PendingBalanceCard({ data }: PendingBalanceCardProps) {
     // Normalize pending amount
     // Hook returns pendingPayments, interface might have old pendingAmount or new pendingPayments

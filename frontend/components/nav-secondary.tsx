@@ -11,6 +11,10 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 
+/**
+ * Navegación secundaria (grupo lateral).
+ * Renderiza una lista de enlaces con iconos, usualmente para utilidades o soporte.
+ */
 export function NavSecondary({
   items,
   ...props

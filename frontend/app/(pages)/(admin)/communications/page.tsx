@@ -14,6 +14,11 @@ import { useTemplates, NotificationTemplate } from "@/hooks/use-templates"
 import { CreateNotificationDialog } from "@/components/notifications/create-notification-dialog"
 import { useNotifications } from "@/hooks/use-notifications" // Need this to send the actual notification
 
+/**
+ * Página de gestión de plantillas de comunicación.
+ * Permite a los administradores crear, editar, eliminar y probar plantillas
+ * para correos electrónicos y notificaciones del sistema.
+ */
 export default function CommunicationsPage() {
     const { templates, loading, createTemplate, updateTemplate, deleteTemplate } = useTemplates()
     const { createNotification } = useNotifications()

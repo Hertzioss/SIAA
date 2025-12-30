@@ -61,6 +61,11 @@ import { supabase } from "@/lib/supabase"
 import { useProperties } from "@/hooks/use-properties"
 import { PropertyDialog } from "@/components/properties/property-dialog"
 
+/**
+ * Página de detalle de una propiedad específica.
+ * Muestra métricas clave, lista de unidades, inquilinos, gastos y solicitudes de mantenimiento.
+ * Permite gestionar todos los aspectos relacionados con la propiedad seleccionada.
+ */
 export default function PropertyDetailsPage() {
     const router = useRouter()
     const params = useParams()

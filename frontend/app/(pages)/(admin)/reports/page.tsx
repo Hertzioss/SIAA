@@ -67,6 +67,11 @@ const ALL_MONTHS = [
     "JULIO", "AGOSTO", "SEPTIEMBRE", "OCTUBRE", "NOVIEMBRE", "DICIEMBRE"
 ]
 
+/**
+ * Generador de reportes del sistema.
+ * Permite seleccionar tipo de reporte (Financiero, Ocupación, etc.), aplicar filtros
+ * y generar vistas previas o descargas en PDF/Excel.
+ */
 export default function ReportsPage() {
     const { fetchIncomeExpense, fetchOccupancy, fetchDelinquency, fetchMaintenance, fetchPropertyPerformance, isLoading } = useReports()
     const { properties, loading: isLoadingProperties } = useProperties()

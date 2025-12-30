@@ -12,6 +12,10 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 
+/**
+ * Navegación principal del sidebar.
+ * Muestra los enlaces a las diferentes secciones administrativas.
+ */
 export function NavMain({
   items,
 }: {

@@ -45,6 +45,10 @@ interface UserDialogProps {
 
 
 
+/**
+ * Diálogo para la gestión de usuarios del sistema (Admin, Operador, Inquilino).
+ * Permite crear cuentas y vincularlas a inquilinos existentes si aplica.
+ */
 export function UserDialog({ open, onOpenChange, user, mode, onSubmit }: UserDialogProps) {
     const [unlinkedTenants, setUnlinkedTenants] = useState<{ id: string, name: string, doc_id: string }[]>([])
 

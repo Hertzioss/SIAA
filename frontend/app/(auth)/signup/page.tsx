@@ -2,6 +2,10 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
+/**
+ * Página de registro de usuarios.
+ * Actualmente informa que el registro es manejado por administradores.
+ */
 export default function Signup() {
     return (
         <div className="flex h-screen w-full items-center justify-center px-4">

@@ -29,6 +29,10 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 
+/**
+ * Menú de usuario en el sidebar.
+ * Muestra el avatar, nombre del usuario y opciones de cuenta/logout.
+ */
 export function NavUser({
   user,
 }: {

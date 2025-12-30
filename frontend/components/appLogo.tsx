@@ -8,6 +8,10 @@ const styles = {
     }
 }
 
+/**
+ * Componente de logotipo de la aplicación.
+ * Muestra el nombre "Escritorio Legal" y subtítulo con el icono institucional.
+ */
 export function AppLogo() {
     return (
         <div className="flex items-center gap-3">

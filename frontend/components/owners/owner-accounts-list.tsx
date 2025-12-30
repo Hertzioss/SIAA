@@ -17,6 +17,10 @@ interface OwnerAccountsListProps {
     readOnly?: boolean
 }
 
+/**
+ * Componente que lista las cuentas bancarias de un propietario.
+ * Permite agregar nuevas cuentas y eliminar existentes.
+ */
 export function OwnerAccountsList({ ownerId, readOnly = false }: OwnerAccountsListProps) {
     const { accounts, loading, createAccount, deleteAccount } = useOwnerAccounts(ownerId)
     const [isCreating, setIsCreating] = useState(false)

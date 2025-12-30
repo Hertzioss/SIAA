@@ -54,7 +54,7 @@ const data = {
   },
   navMain: [
     {
-      title: "Dashboard",
+      title: "Inicio",
       url: "/dashboard",
       icon: IconDashboard,
     },
@@ -89,49 +89,53 @@ const data = {
       icon: IconFileText,
     },
   ],
+  /**
+   * Mock data for cloud/proposal features (Placeholder)
+   * Datos simulados para características futuras (Nube/Propuestas)
+   */
   navClouds: [
     {
-      title: "Capture",
+      title: "Captura",
       icon: IconCamera,
       isActive: true,
       url: "#",
       items: [
         {
-          title: "Active Proposals",
+          title: "Propuestas Activas",
           url: "#",
         },
         {
-          title: "Archived",
+          title: "Archivados",
           url: "#",
         },
       ],
     },
     {
-      title: "Proposal",
+      title: "Propuestas",
       icon: IconFileDescription,
       url: "#",
       items: [
         {
-          title: "Active Proposals",
+          title: "Activas",
           url: "#",
         },
         {
-          title: "Archived",
+          title: "Archivadas",
           url: "#",
         },
       ],
     },
     {
-      title: "Prompts",
+      title: "Asistente AI",
       icon: IconFileAi,
       url: "#",
       items: [
         {
-          title: "Active Proposals",
+          title: "Prompts",
           url: "#",
         },
         {
-          title: "Archived",
+          title: "Historial",
           url: "#",
         },
       ],
@@ -154,25 +158,33 @@ const data = {
       icon: IconUserSquareRounded,
     },
   ],
+  /**
+   * Mock data for documents (Placeholder)
+   * Datos simulados para documentos
+   */
   documents: [
     {
-      name: "Data Library",
+      name: "Biblioteca de Datos",
       url: "#",
       icon: IconDatabase,
     },
     {
-      name: "Reports",
+      name: "Reportes",
       url: "/reports",
       icon: IconReport,
     },
     {
-      name: "Word Assistant",
+      name: "Asistente Word",
       url: "/word-assistant",
       icon: IconFileWord,
     },
   ],
 }
 
+/**
+ * Barra lateral principal de la aplicación.
+ * Gestiona la navegación principal, secundaria y la información del usuario actual.
+ */
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const [user, setUser] = React.useState(data.user)
 

@@ -18,6 +18,10 @@ import { ModeToggle } from "./mode-togle"
 import { Container, Eye, EyeOff } from "lucide-react"
 import { AppLogo } from "./appLogo"
 
+/**
+ * Formulario de inicio de sesión.
+ * Gestiona el input de credenciales, visualización de contraseña y envío al backend.
+ */
 export function LoginForm({ className, ...props }: React.ComponentProps<"div">) {
 
   const router = useRouter()

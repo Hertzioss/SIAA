@@ -155,3 +155,36 @@ USING (auth.role() = 'authenticated');
 CREATE POLICY "Authenticated users can create payments"
 ON payments FOR INSERT
 WITH CHECK (auth.role() = 'authenticated');
+
+-- 14. Maintenance Requests
+CREATE TABLE maintenance_requests (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    property_id UUID REFERENCES properties(id) ON DELETE CASCADE,
+    unit_id UUID REFERENCES units(id) ON DELETE SET NULL,
+    tenant_id UUID REFERENCES tenants(id) ON DELETE SET NULL,
+    title VARCHAR(200) NOT NULL,
+    description TEXT,
+    priority VARCHAR(20) NOT NULL CHECK (priority IN ('low', 'medium', 'high', 'urgent')),
+    status VARCHAR(20) NOT NULL CHECK (status IN ('open', 'in_progress', 'resolved', 'closed')),
+    created_at TIMESTAMP DEFAULT NOW(),
+    resolved_at TIMESTAMP
+);
+
+-- RLS Policies for Maintenance Requests
+ALTER TABLE maintenance_requests ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Authenticated users can view maintenance requests"
+ON maintenance_requests FOR SELECT
+USING (auth.role() = 'authenticated');
+
+CREATE POLICY "Authenticated users can create maintenance requests"
+ON maintenance_requests FOR INSERT
+WITH CHECK (auth.role() = 'authenticated');
+
+CREATE POLICY "Authenticated users can update maintenance requests"
+ON maintenance_requests FOR UPDATE
+USING (auth.role() = 'authenticated');
+
+CREATE POLICY "Authenticated users can delete maintenance requests"
+ON maintenance_requests FOR DELETE
+USING (auth.role() = 'authenticated');

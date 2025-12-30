@@ -42,6 +42,11 @@ const BANK_ACCOUNTS_DATA = [
     }
 ]
 
+/**
+ * Página de configuración de la cuenta de empresa.
+ * Permite gestionar la información general de la empresa, cuentas bancarias
+ * y parámetros de configuración contable.
+ */
 export default function AccountPage() {
     const [isAccountDialogOpen, setIsAccountDialogOpen] = useState(false)
 

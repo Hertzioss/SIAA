@@ -10,6 +10,10 @@ interface PrintableReceiptHandlerProps {
     onClose: () => void
 }
 
+/**
+ * Manejador para la impresión de recibos.
+ * Renderiza el recibo de forma invisible y gestiona el diálogo de impresión del navegador.
+ */
 export function PrintableReceiptHandler({ payment, onClose }: PrintableReceiptHandlerProps) {
     const printRef = useRef<HTMLDivElement>(null)
 
@@ -34,6 +38,7 @@ export function PrintableReceiptHandler({ payment, onClose }: PrintableReceiptHa
                 ref={printRef}
                 payment={{
                     date: format(new Date(payment.date), 'dd/MM/yyyy'),
+                    id: payment.id,
                     amount: payment.amount.toString(),
                     concept: payment.concept,
                     status: payment.status,
@@ -47,6 +52,10 @@ export function PrintableReceiptHandler({ payment, onClose }: PrintableReceiptHa
                     docId: payment.tenants?.doc_id || "",
                     property: `${payment.contracts?.units?.properties?.name || ''} - ${payment.contracts?.units?.name || ''}`.trim() || "Propiedad"
                 }}
+                owners={payment.contracts?.units?.properties?.property_owners?.map((po: any) => ({
+                    name: po.owners?.name,
+                    docId: po.owners?.doc_id
+                })) || []}
             />
         </div>
     )

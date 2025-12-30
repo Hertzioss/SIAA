@@ -2,6 +2,7 @@ export type OwnerType = 'individual' | 'company';
 
 export interface Owner {
     id: string;
+    user_id?: string | null;
     type: OwnerType;
     name: string;
     doc_id: string;

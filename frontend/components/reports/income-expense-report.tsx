@@ -36,6 +36,10 @@ interface IncomeExpenseReportProps {
     dataDistribution?: Distribution[]
 }
 
+/**
+ * Componente de reporte financiero detallado (Ingresos y Egresos).
+ * Genera una vista imprimible con tablas de transacciones en USD/Bs y gráficas de resumen.
+ */
 export const IncomeExpenseReport = React.forwardRef<HTMLDivElement, IncomeExpenseReportProps>(({ month, year, dataUsd, dataBs, dataExpenses = [], dataDistribution }, ref) => {
 
     const totalIncomeUsd = dataUsd.reduce((acc, curr) => acc + (curr.credit || 0), 0)

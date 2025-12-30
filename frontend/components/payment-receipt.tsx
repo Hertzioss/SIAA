@@ -1,9 +1,11 @@
 import React from 'react'
+import QRCode from "react-qr-code"
 
 interface PaymentReceiptProps {
     payment: {
         date: string
         amount: string
+        id?: string
         concept: string
         status: string
         reference?: string
@@ -22,9 +24,17 @@ interface PaymentReceiptProps {
         name: string
         rif: string
     }
+    owners?: {
+        name: string
+        docId: string
+    }[]
 }
 
-export const PaymentReceipt = React.forwardRef<HTMLDivElement, PaymentReceiptProps>(({ payment, tenant, company }, ref) => {
+/**
+ * Componente visual del recibo de pago.
+ * Diseñado para ser impreso, muestra todos los detalles del pago, inquilino, propiedad y montos.
+ */
+export const PaymentReceipt = React.forwardRef<HTMLDivElement, PaymentReceiptProps>(({ payment, tenant, company, owners }, ref) => {
     // Helper to parse amount string to number if needed
     const parseAmount = (str: string) => parseFloat(str.replace(/[^0-9.-]+/g, ""))
 
@@ -89,6 +99,16 @@ export const PaymentReceipt = React.forwardRef<HTMLDivElement, PaymentReceiptPro
                 <div className="font-bold uppercase text-gray-600 ml-4">EDIFICIO:</div>
                 <div className="flex-1 font-bold uppercase bg-gray-100 px-4 py-0.5 text-center">{tenant.property.split('-')[0]?.trim() || tenant.property}</div>
             </div>
+
+            {/* Owner Info */}
+            {owners && owners.length > 0 && (
+                <div className="flex mb-4 items-center gap-2 text-xs">
+                    <div className="font-bold uppercase text-gray-600">PROPIETARIO(S):</div>
+                    <div className="flex-1 font-bold uppercase text-sm">
+                        {owners.map(o => o.name).join(' / ')}
+                    </div>
+                </div>
+            )}
 
             {/* Observation */}
             <div className="mb-6">
@@ -162,7 +182,21 @@ export const PaymentReceipt = React.forwardRef<HTMLDivElement, PaymentReceiptPro
                     </div>
                 </div>
             </div>
-        </div>
+
+
+            {/* QR Code */}
+            <div className="absolute bottom-8 right-8 opacity-50">
+                <div className="w-16 h-16 bg-white p-1">
+                    <QRCode
+                        value={payment.id || payment.reference || 'N/A'}
+                        size={64}
+                        style={{ height: "auto", maxWidth: "100%", width: "100%" }}
+                        viewBox={`0 0 256 256`}
+                    />
+                </div>
+                <p className="text-[8px] text-center mt-1 text-gray-400">{payment.id?.substring(0, 8)}</p>
+            </div>
+        </div >
     )
 })
 

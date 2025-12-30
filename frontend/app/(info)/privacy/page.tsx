@@ -2,6 +2,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import Link from "next/link"
 
+/**
+ * Página de Política de Privacidad.
+ * Detalla cómo se recopila, utiliza y protege la información del usuario.
+ */
 export default function PrivacyPage() {
     return (
         <div className="container mx-auto py-10 max-w-4xl space-y-4">

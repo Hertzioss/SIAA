@@ -14,7 +14,7 @@ const getHeaderTitle = () => {
   switch (pathname) {
 
     case "/dashboard":
-      return "Dashboard";
+      return "Inicio";
     case "/reports":
       return "Reportes";
     case "/owners":
@@ -29,6 +29,10 @@ const getHeaderTitle = () => {
 }
 
 
+/**
+ * Encabezado principal del sitio.
+ * Muestra el título de la página actual, breadcrumbs (si aplica) y el toggle de tema.
+ */
 export function SiteHeader() {
 
   const siteHeader = {

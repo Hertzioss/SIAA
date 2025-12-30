@@ -17,6 +17,10 @@ import { useContracts } from "@/hooks/use-contracts"
 
 import { useRouter, useSearchParams } from "next/navigation"
 
+/**
+ * Componente de contenido para la gestión de contratos.
+ * Lista contratos con filtrado por estado y búsqueda.
+ */
 function ContractsContent() {
     const { contracts, isLoading, fetchContracts, createContract, updateContract } = useContracts()
     const { properties } = useProperties()

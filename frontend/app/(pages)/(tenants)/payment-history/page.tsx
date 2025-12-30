@@ -13,6 +13,11 @@ import { es } from "date-fns/locale"
 import { PrintableReceiptHandler } from "@/components/printable-receipt-handler"
 import { PendingBalanceCard } from "@/components/payments/pending-balance-card"
 
+/**
+ * Página de historial de pagos del inquilino.
+ * Muestra una tabla con todos los pagos realizados, su estado,
+ * y permite descargar recibos o ver comprobantes.
+ */
 export default function PaymentHistoryPage() {
     const { history, isLoading, fetchPaymentHistory, getMonthlyBalance, getNextPaymentDate } = useTenantPayments()
     const { contracts, isLoading: isLoadingContracts } = useContracts()

@@ -12,6 +12,9 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 
+/**
+ * Botón para alternar entre modo claro, oscuro y sistema.
+ */
 export function ModeToggle() {
     const { setTheme } = useTheme()
 

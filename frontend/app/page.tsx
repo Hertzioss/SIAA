@@ -1,6 +1,10 @@
 
 import { LoginForm } from "@/components/login-form";
 
+/**
+ * Página principal (Landing Page).
+ * Actualmente renderiza el formulario de inicio de sesión.
+ */
 export default async function Home() {
 
   return (

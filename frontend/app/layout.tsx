@@ -28,13 +28,17 @@ export const metadata: Metadata = {
   description: "Sistema Integral de Administración de Arrendamientos"
 };
 
+/**
+ * Layout raíz de la aplicación.
+ * Define la estructura HTML base, fuentes, temas y metadatos globales.
+ */
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="es" suppressHydrationWarning>
       <head>
         <link rel="icon" href="/favicon.ico" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />

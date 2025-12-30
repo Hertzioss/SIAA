@@ -31,6 +31,10 @@ interface ContractDialogProps {
     contract?: any // Replace with proper type
 }
 
+/**
+ * Diálogo para la gestión de contratos (Crear, Editar, Ver).
+ * Permite asociar unidades e inquilinos, definir montos y vigencia.
+ */
 export function ContractDialog({
     open,
     onOpenChange,
@@ -225,6 +229,11 @@ export function ContractDialog({
                                         ))}
                                     </SelectContent>
                                 </Select>
+                                {formData.unit_id && (
+                                    <p className="text-[10px] text-muted-foreground mt-1">
+                                        Canon sugerido: ${units.find(u => u.id === formData.unit_id)?.default_rent || "N/A"}
+                                    </p>
+                                )}
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="tenant">Inquilino</Label>

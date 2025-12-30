@@ -14,6 +14,10 @@ interface PaymentActionDialogProps {
     onConfirm: (id: string, action: 'approved' | 'rejected', notes: string, sendEmail: boolean) => Promise<void>
 }
 
+/**
+ * Diálogo para aprobar o rechazar un pago.
+ * Permite añadir notas y enviar confirmación por correo al inquilino.
+ */
 export function PaymentActionDialog({ open, onOpenChange, action, paymentId, onConfirm }: PaymentActionDialogProps) {
     const [loading, setLoading] = useState(false)
     const [notes, setNotes] = useState("")

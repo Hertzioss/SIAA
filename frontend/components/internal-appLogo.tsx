@@ -8,6 +8,10 @@ const styles = {
     }
 }
 
+/**
+ * Logo interno de la aplicación.
+ * Muestra el nombre "Escritorio Legal" y un icono distintivo.
+ */
 export function InternalAppLogo() {
     return (
         <div className="flex items-center gap-3">

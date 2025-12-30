@@ -41,6 +41,10 @@ interface PaymentDialogProps {
     tenant: Tenant | undefined
 }
 
+/**
+ * Diálogo para registrar pagos manuales de inquilinos.
+ * Permite ingresar montos en Bs/USD, referencia bancaria y adjuntar comprobantes.
+ */
 export function PaymentDialog({ open, onOpenChange, tenant }: PaymentDialogProps) {
     const { registerPayment, isLoading: isSubmitting } = useTenantPayments()
     const { contracts, isLoading: isLoadingContracts } = useContracts()

@@ -36,6 +36,10 @@ interface DashboardChartsProps {
     recentActivity: any[]
 }
 
+/**
+ * Componente que renderiza todos los gráficos del dashboard.
+ * Incluye gráficos de pastel para pagos, barras para morosidad, área para flujo de caja, y líneas para ocupación.
+ */
 export function DashboardCharts({
     paymentData,
     arrearsData,
@@ -45,7 +49,7 @@ export function DashboardCharts({
     recentActivity
 }: DashboardChartsProps) {
     return (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
+        <div className="grid gap-4 md:px-4 md:grid-cols-2 lg:grid-cols-7 lg:px-6">
             {/* Left Column: Financials & Occupancy (4 cols) */}
             <div className="col-span-4 space-y-4">
                 {/* Financial Summary */}
@@ -215,8 +219,8 @@ export function DashboardCharts({
                                         </p>
                                     </div>
                                     <div className={`ml-auto font-medium ${item.status === 'success' ? 'text-green-600' :
-                                            item.status === 'destructive' ? 'text-red-600' :
-                                                item.status === 'warning' ? 'text-yellow-600' : 'text-blue-600'
+                                        item.status === 'destructive' ? 'text-red-600' :
+                                            item.status === 'warning' ? 'text-yellow-600' : 'text-blue-600'
                                         }`}>
                                         {item.amount}
                                     </div>

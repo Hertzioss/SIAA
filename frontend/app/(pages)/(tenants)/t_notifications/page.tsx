@@ -10,6 +10,10 @@ import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
+/**
+ * Página de notificaciones para inquilinos.
+ * Muestra alertas y comunicados importantes enviados por los administradores.
+ */
 export default function TenantNotificationsPage() {
     const {
         notifications,

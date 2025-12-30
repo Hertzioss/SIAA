@@ -20,6 +20,11 @@ import {
 import { useUsers, User } from "@/hooks/use-users"
 import { Badge } from "@/components/ui/badge"
 
+/**
+ * Página de gestión de usuarios del sistema.
+ * Permite administrar usuarios con roles de 'admin', 'operator' e 'inquilinos'.
+ * Incluye funcionalidades para listar, buscar, crear, editar y eliminar usuarios.
+ */
 export default function UsersPage() {
     const { users, loading, addUser, updateUser, removeUser } = useUsers()
 

@@ -16,7 +16,7 @@ CREATE TABLE public.users (
     id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
     email VARCHAR(255) UNIQUE NOT NULL,
     full_name VARCHAR(100) NOT NULL,
-    role VARCHAR(20) NOT NULL CHECK (role IN ('admin', 'operator', 'tenant')),
+    role VARCHAR(20) NOT NULL CHECK (role IN ('admin', 'operator', 'tenant', 'owner')),
     created_at TIMESTAMP DEFAULT NOW()
 );
 
@@ -31,6 +31,7 @@ CREATE POLICY "Usuarios pueden ver perfiles" ON public.users
 -- 3. OWNERS
 CREATE TABLE public.owners (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID REFERENCES auth.users(id), -- Linked Auth User
     type VARCHAR(20) NOT NULL CHECK (type IN ('individual', 'company')),
     name VARCHAR(200) NOT NULL,
     doc_id VARCHAR(50) UNIQUE NOT NULL,

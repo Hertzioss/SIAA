@@ -8,6 +8,10 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { CreditCard, History, Bell } from "lucide-react"
 
+/**
+ * Layout principal del portal de inquilinos.
+ * Gestiona la navegación superior y la verificación de sesión del usuario.
+ */
 export default function TenantLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname()
     const [loading, setLoading] = useState(true)

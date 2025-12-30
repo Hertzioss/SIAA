@@ -13,6 +13,10 @@ import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import { Check, X, Search, FileText, Loader2, Edit2, ChevronLeft, ChevronRight } from "lucide-react"
 
+/**
+ * Página para la gestión y conciliación de pagos.
+ * Muestra historial de pagos, permite aprobar/rechazar pagos y filtrar por estado.
+ */
 export default function PaymentsPage() {
     const {
         payments, loading, total,

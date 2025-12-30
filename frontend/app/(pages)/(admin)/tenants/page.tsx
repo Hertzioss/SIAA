@@ -30,6 +30,11 @@ import {
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 
+/**
+ * Página de administración de inquilinos.
+ * Permite registrar, editar, eliminar y visualizar inquilinos.
+ * Incluye registro directo de pagos.
+ */
 export default function TenantsPage() {
     const { tenants, loading, createTenant, updateTenant, deleteTenant } = useTenants()
     const { properties } = useProperties()

@@ -26,6 +26,10 @@ interface PaymentHistoryListProps {
     tenantId: string
 }
 
+/**
+ * Lista de historial de pagos de un inquilino.
+ * Muestra una tabla paginada con los pagos realizados, estado y opciones para imprimir recibos via modal.
+ */
 export function PaymentHistoryList({ tenantId }: PaymentHistoryListProps) {
     const { history, isLoading, fetchPaymentHistory, getMonthlyBalance } = useTenantPayments()
     const [selectedPayment, setSelectedPayment] = useState<any>(null)

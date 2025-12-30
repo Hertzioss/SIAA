@@ -93,7 +93,7 @@ export function useTenantPayments() {
         try {
             let query = supabase
                 .from('payments')
-                .select('*, tenants(name, doc_id), contracts(units(name, properties(name)))', { count: 'exact' })
+                .select('*, tenants(name, doc_id), contracts(units(name, properties(name, property_owners(owners(name, doc_id)))))', { count: 'exact' })
                 .order('date', { ascending: false })
 
             if (tenantId) {

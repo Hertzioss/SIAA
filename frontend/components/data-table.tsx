@@ -336,6 +336,12 @@ function DraggableRow({ row }: { row: Row<z.infer<typeof schema>> }) {
   )
 }
 
+/**
+ * Componente de Tabla de Datos (Ejemplo / Plantilla).
+ * NOTA: Este componente parece ser una plantilla de Shadcn/UI y contiene texto en inglés.
+ * Actualmente no se utiliza en las vistas principales de producción (que usan tablas HTML standard o DataTables específicas).
+ * Si se planea usar, debe ser localizado completamente.
+ */
 export function DataTable({
   data: initialData,
 }: {
@@ -497,9 +503,9 @@ export function DataTable({
                           {header.isPlaceholder
                             ? null
                             : flexRender(
-                                header.column.columnDef.header,
-                                header.getContext()
-                              )}
+                              header.column.columnDef.header,
+                              header.getContext()
+                            )}
                         </TableHead>
                       )
                     })}

@@ -21,8 +21,13 @@ import {
 import { useOwners } from "@/hooks/use-owners"
 import { Owner } from "@/types/owner"
 
+/**
+ * Página de gestión de propietarios.
+ * Permite listar, buscar, crear, editar y eliminar propietarios, así como ver sus detalles.
+ * También gestiona la confirmación de eliminación con un diálogo de alerta.
+ */
 export default function OwnersPage() {
-    const { owners, loading, createOwner, updateOwner, deleteOwner } = useOwners()
+    const { owners, loading, createOwner, updateOwner, deleteOwner, fetchOwners } = useOwners()
 
     const [isDialogOpen, setIsDialogOpen] = useState(false)
     const [dialogMode, setDialogMode] = useState<"create" | "view" | "edit">("create")
@@ -230,6 +235,7 @@ export default function OwnersPage() {
                 mode={dialogMode}
                 owner={selectedOwner}
                 onSubmit={handleDialogSubmit}
+                onOwnerUpdated={fetchOwners}
             />
 
             {/* Delete Alert */}

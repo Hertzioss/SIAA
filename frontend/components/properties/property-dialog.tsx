@@ -20,6 +20,10 @@ interface PropertyDialogProps {
     onSubmit?: (data: any) => Promise<void>
 }
 
+/**
+ * Diálogo para la gestión de propiedades.
+ * Permite registrar, editar y ver detalles de inmuebles, incluyendo asignación de propietarios.
+ */
 export function PropertyDialog({ open, onOpenChange, mode, property, propertyTypes, onSubmit }: PropertyDialogProps) {
     const [loading, setLoading] = useState(false)
     const { owners: availableOwners, fetchOwners } = useOwners()

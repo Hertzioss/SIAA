@@ -40,6 +40,10 @@ interface TenantDialogProps {
     onSubmit?: (tenantData: any, contractData?: any) => Promise<void>
 }
 
+/**
+ * Diálogo principal para la gestión de inquilinos.
+ * Maneja información personal, creación de contratos iniciales, contactos y acceso (reset de contraseña).
+ */
 export function TenantDialog({ open, onOpenChange, mode, tenant, properties, onSubmit }: TenantDialogProps) {
     const [loading, setLoading] = useState(false)
 

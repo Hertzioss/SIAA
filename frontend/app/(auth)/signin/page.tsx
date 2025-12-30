@@ -10,6 +10,10 @@ import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
 import { Loader2 } from "lucide-react"
 
+/**
+ * Página de inicio de sesión.
+ * Maneja la autenticación de usuarios y redirige según el rol (admin/tenant).
+ */
 export default function Signin() {
     const router = useRouter()
     const [email, setEmail] = useState('')

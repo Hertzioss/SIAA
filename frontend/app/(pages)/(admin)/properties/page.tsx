@@ -30,6 +30,11 @@ import { Property } from "@/types/property"
 
 const ITEMS_PER_PAGE = 5
 
+/**
+ * Página principal de administración de propiedades.
+ * Permite listar, crear, editar y eliminar propiedades y sus unidades.
+ * Incluye filtrado, paginación y exportación de datos.
+ */
 export default function PropertiesPage() {
     const { properties, propertyTypes, loading, createProperty, updateProperty, deleteProperty, createUnit, updateUnit, deleteUnit } = useProperties()
 

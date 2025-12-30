@@ -12,6 +12,11 @@ import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import { CreateNotificationDialog } from "@/components/notifications/create-notification-dialog"
 
+/**
+ * Página de gestión de notificaciones.
+ * Muestra el historial de notificaciones del sistema y permite a los administradores
+ * marcar como leídas, eliminar y crear nuevas notificaciones (comunicados).
+ */
 export default function NotificationsPage() {
     const {
         notifications,

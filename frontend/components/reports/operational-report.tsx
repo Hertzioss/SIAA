@@ -9,6 +9,10 @@ interface OperationalReportProps {
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
 
+/**
+ * Reporte operativo (Ocupación y Morosidad).
+ * Visualiza el estado de ocupación de inmuebles o el análisis de deuda por inquilino.
+ */
 export const OperationalReport = React.forwardRef<HTMLDivElement, OperationalReportProps>(({ type, data }, ref) => {
 
     const renderOccupancyReport = () => {

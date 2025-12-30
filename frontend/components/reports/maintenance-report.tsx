@@ -21,6 +21,10 @@ interface MaintenanceReportProps {
     data: any[]
 }
 
+/**
+ * Reporte de mantenimiento.
+ * Muestra el estado global de solicitudes y reparaciones mediante gráficas y tablas detalladas.
+ */
 export const MaintenanceReport = forwardRef<HTMLDivElement, MaintenanceReportProps>(({ data }, ref) => {
 
     // Process Data for Charts

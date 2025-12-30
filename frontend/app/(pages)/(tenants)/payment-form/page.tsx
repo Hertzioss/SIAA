@@ -18,6 +18,11 @@ import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import { PendingBalanceCard } from "@/components/payments/pending-balance-card"
 
+/**
+ * Formulario de registro de pagos para inquilinos.
+ * Permite a los inquilinos registrar nuevos pagos, subir comprobantes,
+ * y ver el estado de cuenta y montos pendientes.
+ */
 export default function PaymentForm() {
     const { registerPayment, isLoading: isSubmitting, getMonthlyBalance, getNextPaymentDate, getPaidMonths } = useTenantPayments()
     const { contracts, isLoading: isLoadingContracts } = useContracts()

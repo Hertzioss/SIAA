@@ -20,6 +20,10 @@ interface PropertyPerformanceProps {
     data: any[]
 }
 
+/**
+ * Reporte de rendimiento por propiedad.
+ * Ofrece un análisis comparativo de ingresos vs. egresos y calcula el margen de utilidad neta.
+ */
 export const PropertyPerformanceReport = forwardRef<HTMLDivElement, PropertyPerformanceProps>(({ data }, ref) => {
 
     const totalIncome = data.reduce((sum, item) => sum + item.income, 0)

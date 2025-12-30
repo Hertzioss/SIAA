@@ -40,6 +40,9 @@ export default function AdminLayout({
                 if (role === 'tenant' && !isSuperAdminEnv) {
                     // Tenants should not be here
                     router.push('/payment-form')
+                } else if (role === 'owner' && !isSuperAdminEnv) {
+                    // Owners should not be here
+                    router.push('/owners/dashboard')
                 } else {
                     setLoading(false)
                 }
