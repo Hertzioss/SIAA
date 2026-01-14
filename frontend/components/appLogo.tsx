@@ -19,8 +19,11 @@ export function AppLogo() {
                 <span className="text-5xl font-bold leading-none text-foreground tracking-tight">
                     Escritorio Legal
                 </span>
-                <span className="text-[16px] text-muted-foreground font-medium uppercase tracking-wider">
+                <span className="text-[13px] text-muted-foreground font-medium uppercase tracking-wider">
                     Sistema Integral
+                </span>
+                <span className="text-[18px] text-muted-foreground font-medium uppercase tracking-wider">
+                    Abogado Leonardo Hernández
                 </span>
             </div>
             <div className="h-8 w-[1px] bg-border" />
