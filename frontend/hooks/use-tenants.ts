@@ -20,14 +20,27 @@ export function useTenants() {
         setLoading(true);
         setError(null);
         try {
-            const { data, error } = await supabase
+            const { data, error: fetchError } = await supabase
                 .from('tenants')
-                .select('*')
+                .select(`
+                    *,
+                    contracts (
+                        status,
+                        unit:units (
+                            property:properties (
+                                id,
+                                name
+                            )
+                        )
+                    )
+                `)
                 .order('created_at', { ascending: false });
 
-            if (error) throw error;
+            if (fetchError) throw fetchError;
 
-            setTenants(data || []);
+            // Post-process to attach "currentProperty" for easier UI handling if needed
+            // But raw structure is fine if we filter carefully.
+            setTenants(data as any || []);
         } catch (err: any) {
             console.error('Error fetching tenants:', err);
             setError(err.message);
@@ -42,6 +55,22 @@ export function useTenants() {
         contractData?: ContractData
     ) => {
         try {
+            // 0. CHECK AVAILABILITY if contract is requested
+            if (contractData) {
+                const { data: existingContract, error: checkError } = await supabase
+                    .from('contracts')
+                    .select('id')
+                    .eq('unit_id', contractData.unit_id)
+                    .eq('status', 'active')
+                    .maybeSingle();
+
+                if (checkError) throw checkError;
+
+                if (existingContract) {
+                    throw new Error("La unidad seleccionada ya tiene un contrato activo.");
+                }
+            }
+
             // 1. Create Tenant
             const { data: tenant, error: tenantError } = await supabase
                 .from('tenants')

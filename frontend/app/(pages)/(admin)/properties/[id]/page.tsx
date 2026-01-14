@@ -59,6 +59,7 @@ import { useExpenses } from "@/hooks/use-expenses"
 import { useMaintenance } from "@/hooks/use-maintenance"
 import { supabase } from "@/lib/supabase"
 import { useProperties } from "@/hooks/use-properties"
+import { useContracts } from "@/hooks/use-contracts"
 import { PropertyDialog } from "@/components/properties/property-dialog"
 
 /**
@@ -70,6 +71,7 @@ export default function PropertyDetailsPage() {
     const router = useRouter()
     const params = useParams()
     const { propertyTypes, updateProperty } = useProperties()
+    const { updateContract } = useContracts()
 
     const {
         property,
@@ -208,7 +210,24 @@ export default function PropertyDetailsPage() {
         setIsMaintenanceDialogOpen(false)
         setMaintenanceTitle("")
         setMaintenanceDescription("")
+        setIsMaintenanceDialogOpen(false)
+        setMaintenanceTitle("")
+        setMaintenanceDescription("")
         toast.success("Solicitud creada")
+    }
+
+    const handleTerminateContract = async (contractId: string) => {
+        if (confirm("¿Está seguro de finalizar este contrato? El inquilino pasará a estado 'Vencido'.")) {
+            try {
+                await updateContract(contractId, {
+                    status: 'expired',
+                    end_date: new Date().toISOString().split('T')[0] // Set end date to today
+                })
+                refresh()
+            } catch (error) {
+                console.error("Error terminando contrato", error)
+            }
+        }
     }
 
     // Pagination State
@@ -628,7 +647,7 @@ export default function PropertyDetailsPage() {
                             </TableHeader>
                             <TableBody>
                                 {currentTenants.map((tenant: any) => (
-                                    <TableRow key={tenant.id}>
+                                    <TableRow key={tenant.contractId}>
                                         <TableCell className="font-medium">{tenant.name}</TableCell>
                                         <TableCell>{tenant.unit}</TableCell>
                                         <TableCell>
@@ -664,6 +683,17 @@ export default function PropertyDetailsPage() {
                                                     <DropdownMenuItem onClick={() => toast.info("Funcionalidad de contacto próximamente")}>
                                                         <Mail className="mr-2 h-4 w-4" /> Contactar
                                                     </DropdownMenuItem>
+                                                    {tenant.status !== 'Vencido' && (
+                                                        <>
+                                                            <DropdownMenuSeparator />
+                                                            <DropdownMenuItem
+                                                                className="text-red-600 focus:text-red-600"
+                                                                onClick={() => handleTerminateContract(tenant.contractId)}
+                                                            >
+                                                                <Trash className="mr-2 h-4 w-4" /> Finalizar Contrato
+                                                            </DropdownMenuItem>
+                                                        </>
+                                                    )}
                                                 </DropdownMenuContent>
                                             </DropdownMenu>
                                         </TableCell>

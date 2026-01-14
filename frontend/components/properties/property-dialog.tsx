@@ -41,6 +41,10 @@ export function PropertyDialog({ open, onOpenChange, mode, property, propertyTyp
     const [selectedOwnerId, setSelectedOwnerId] = useState("")
     const [percentage, setPercentage] = useState("")
 
+    // Calculate total percentage
+    const totalPercentage = currentOwners.reduce((sum, owner) => sum + (owner.participation_percentage || 0), 0)
+    const isTotalValid = Math.abs(totalPercentage - 100) < 0.01 // Epsilon for float comparison
+
     useEffect(() => {
         if (open) {
             fetchOwners(); // Load available owners for the dropdown
@@ -101,6 +105,11 @@ export function PropertyDialog({ open, onOpenChange, mode, property, propertyTyp
     const handleSubmit = async () => {
         if (!name || !address || !propertyTypeId) {
             toast.error("Nombre, dirección y tipo son obligatorios")
+            return
+        }
+
+        if (currentOwners.length > 0 && Math.abs(totalPercentage - 100) > 0.1) {
+            toast.error(`El porcentaje total de participación debe ser 100%. Actual: ${totalPercentage}%`)
             return
         }
 
@@ -325,6 +334,14 @@ export function PropertyDialog({ open, onOpenChange, mode, property, propertyTyp
                                 ))
                             )}
                         </div>
+
+                        {/* Total Percentage Indicator */}
+                        {currentOwners.length > 0 && (
+                            <div className={`flex justify-end items-center gap-2 text-sm font-medium ${Math.abs(totalPercentage - 100) < 0.1 ? 'text-green-600' : 'text-red-500'}`}>
+                                <span>Total Participación:</span>
+                                <span>{totalPercentage.toFixed(2)}%</span>
+                            </div>
+                        )}
                     </div>
                 </div>
 

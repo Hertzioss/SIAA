@@ -46,6 +46,7 @@ export default function TenantsPage() {
     const [selectedTenant, setSelectedTenant] = useState<Tenant | undefined>(undefined)
 
     const [searchTerm, setSearchTerm] = useState("")
+    const [propertyFilter, setPropertyFilter] = useState("all")
     const [currentPage, setCurrentPage] = useState(1)
     const ITEMS_PER_PAGE = 5
 
@@ -57,7 +58,12 @@ export default function TenantsPage() {
     const filteredTenants = tenants.filter(tenant => {
         const matchesSearch = tenant.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
             tenant.doc_id.toLowerCase().includes(searchTerm.toLowerCase())
-        return matchesSearch
+
+        const matchesProperty = propertyFilter === "all" || (tenant as any).contracts?.some((c: any) =>
+            c.unit?.property?.id === propertyFilter
+        )
+
+        return matchesSearch && matchesProperty
     })
 
     const totalPages = Math.ceil(filteredTenants.length / ITEMS_PER_PAGE)
@@ -151,6 +157,17 @@ export default function TenantsPage() {
                             <CardDescription>Base de datos de inquilinos registrados.</CardDescription>
                         </div>
                         <div className="flex items-center gap-4">
+                            <Select value={propertyFilter} onValueChange={(val) => { setPropertyFilter(val); setCurrentPage(1); }}>
+                                <SelectTrigger className="w-[200px]">
+                                    <SelectValue placeholder="Filtrar por Propiedad" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">Todas las Propiedades</SelectItem>
+                                    {properties.map(p => (
+                                        <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                             <div className="relative w-64">
                                 <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                                 <Input

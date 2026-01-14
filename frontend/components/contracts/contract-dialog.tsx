@@ -106,9 +106,12 @@ export function ContractDialog({
             id: u.id,
             label: `${p.name} - ${u.name}`,
             default_rent: u.default_rent_amount,
-            property_id: p.id
+            property_id: p.id,
+            isOccupied: u.isOccupied
         }))
     )
+
+    const [selectedFile, setSelectedFile] = useState<File | null>(null)
 
     const handleSubmit = async () => {
         if (!onSubmit) return;
@@ -117,7 +120,7 @@ export function ContractDialog({
         if (!formData.unit_id) missingFields.push("Unidad")
         if (!formData.tenant_id) missingFields.push("Inquilino")
         if (!formData.start_date) missingFields.push("Fecha Inicio")
-        if (!formData.start_date) missingFields.push("Fecha Inicio")
+        // Duplicate check removed
         if (!formData.isIndefinite && !formData.end_date) missingFields.push("Fecha Fin")
         if (!formData.amount) missingFields.push("Monto")
 
@@ -133,7 +136,8 @@ export function ContractDialog({
             end_date: formData.isIndefinite ? null : formData.end_date,
             rent_amount: parseFloat(formData.amount),
             type: formData.type,
-            status: contract?.statusRaw ?? contract?.status ?? 'active'
+            status: contract?.statusRaw ?? contract?.status ?? 'active',
+            file: selectedFile // Pass file to parent
         }
 
         await onSubmit(dataToSave)
@@ -223,8 +227,13 @@ export function ContractDialog({
                                     </SelectTrigger>
                                     <SelectContent>
                                         {units.map((unit) => (
-                                            <SelectItem key={unit.id} value={unit.id}>
-                                                {unit.label}
+                                            <SelectItem
+                                                key={unit.id}
+                                                value={unit.id}
+                                                disabled={unit.isOccupied && mode === 'create'} // Only disable on create
+                                                className={unit.isOccupied && mode === 'create' ? "text-muted-foreground" : ""}
+                                            >
+                                                {unit.label} {unit.isOccupied && mode === 'create' ? "(Ocupado)" : ""}
                                             </SelectItem>
                                         ))}
                                     </SelectContent>
@@ -294,6 +303,21 @@ export function ContractDialog({
                                 onChange={(e) => setFormData((prev: any) => ({ ...prev, end_date: e.target.value }))}
                                 disabled={formData.isIndefinite}
                             />
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label htmlFor="file">Contrato Escaneado (PDF/Imagen)</Label>
+                            <Input
+                                id="file"
+                                type="file"
+                                accept="application/pdf,image/*"
+                                onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                            />
+                            {contract?.file_url && (
+                                <a href={contract.file_url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline">
+                                    Ver Contrato Actual
+                                </a>
+                            )}
                         </div>
 
                         <div className="space-y-2">

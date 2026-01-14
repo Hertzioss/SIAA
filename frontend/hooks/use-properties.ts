@@ -30,7 +30,10 @@ export function useProperties() {
                 .select(`
                   *,
                   property_type:property_types(*),
-                  units(*),
+                  units(
+                    *,
+                    contracts(status)
+                  ),
                   property_owners(
                     percentage,
                     owner:owners(id, name)
@@ -43,6 +46,10 @@ export function useProperties() {
             // Transform data to flat structure expected by UI
             const formattedProperties: Property[] = (data || []).map((p: any) => ({
                 ...p,
+                units: p.units?.map((u: any) => ({
+                    ...u,
+                    isOccupied: u.contracts?.some((c: any) => c.status === 'active')
+                })),
                 owners: p.property_owners?.map((po: any) => ({
                     owner_id: po.owner?.id,
                     name: po.owner?.name,

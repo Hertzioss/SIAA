@@ -110,7 +110,19 @@ export function PaymentHistoryList({ tenantId }: PaymentHistoryListProps) {
                                 </TableCell>
                                 <TableCell>{payment.reference_number || '-'}</TableCell>
                                 <TableCell className="text-right font-medium">
-                                    {payment.currency} {payment.amount.toLocaleString('es-VE', { minimumFractionDigits: 2 })}
+                                    <div className="flex flex-col items-end">
+                                        <span>
+                                            Bs. {payment.currency === 'USD'
+                                                ? (payment.amount * (payment.exchange_rate || 0)).toLocaleString('es-VE', { minimumFractionDigits: 2 })
+                                                : payment.amount.toLocaleString('es-VE', { minimumFractionDigits: 2 })
+                                            }
+                                        </span>
+                                        {payment.currency === 'USD' && (
+                                            <span className="text-xs text-muted-foreground">
+                                                (Ref. ${payment.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })})
+                                            </span>
+                                        )}
+                                    </div>
                                 </TableCell>
                                 <TableCell>
                                     <Badge variant={

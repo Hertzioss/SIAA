@@ -16,6 +16,7 @@ export interface PaymentInsert {
     notes?: string
     proof_file?: File
     owner_bank_account_id?: string
+    metadata?: any
 }
 
 export function useTenantPayments() {
@@ -71,7 +72,8 @@ export function useTenantPayments() {
                     notes: data.notes,
                     proof_url: proof_url,
                     status: 'pending', // Default status
-                    owner_bank_account_id: data.owner_bank_account_id
+                    owner_bank_account_id: data.owner_bank_account_id,
+                    metadata: data.metadata // JSONB for extra details (mixed currency, multi-month)
                 })
 
             if (insertError) throw insertError

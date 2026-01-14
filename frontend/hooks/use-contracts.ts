@@ -97,9 +97,55 @@ export function useContracts() {
 
     const createContract = async (contract: ContractInsert) => {
         try {
+            // Validate availability
+            if (contract.unit_id) {
+                const { data: existing, error: checkError } = await supabase
+                    .from('contracts')
+                    .select('id')
+                    .eq('unit_id', contract.unit_id)
+                    .eq('status', 'active')
+                    .maybeSingle(); // Use maybeSingle to avoid 406 on no rows
+
+                if (checkError) throw checkError
+                if (existing) {
+                    throw new Error("La unidad seleccionada ya tiene un contrato activo.")
+                }
+            }
+
+            // Upload File if provided
+            let fileUrl = null;
+            if ((contract as any).file) {
+                const file = (contract as any).file;
+                const fileExt = file.name.split('.').pop();
+                const fileName = `${Math.random()}.${fileExt}`;
+                const filePath = `${fileName}`;
+
+                const { error: uploadError } = await supabase.storage
+                    .from('contracts')
+                    .upload(filePath, file);
+
+                if (uploadError) {
+                    console.error('Error uploading contract:', uploadError);
+                    toast.warning('Contrato creado, pero falló la carga del archivo.');
+                } else {
+                    // Get Public URL
+                    const { data: { publicUrl } } = supabase.storage
+                        .from('contracts')
+                        .getPublicUrl(filePath);
+                    fileUrl = publicUrl;
+                }
+            }
+
+            const payload = {
+                ...contract,
+                file_url: fileUrl // Add URL to payload
+            };
+            // Remove file object from payload
+            delete (payload as any).file;
+
             const { data, error } = await supabase
                 .from('contracts')
-                .insert(contract)
+                .insert(payload)
                 .select()
                 .single()
 
@@ -111,7 +157,7 @@ export function useContracts() {
             return data
         } catch (err: any) {
             console.error('Error creating contract:', err)
-            toast.error('Error al crear el contrato')
+            toast.error(err.message || 'Error al crear el contrato')
             throw err
         }
     }

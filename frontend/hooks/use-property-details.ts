@@ -38,13 +38,13 @@ export function usePropertyDetails(propertyId: string) {
                 .select('*')
                 .eq('property_id', propertyId);
 
-            // 3. Fetch Active Contracts (to link tenants and check occupancy)
+            // 3. Fetch Active and Expired Contracts
             // We need to know which unit has which active contract
             const contractsQuery = supabase
                 .from('contracts')
                 .select('*, tenant:tenants(*), unit:units!inner(property_id)') // !inner filters contracts by unit's property_id
                 .eq('unit.property_id', propertyId)
-                .eq('status', 'active');
+                .in('status', ['active', 'expired']);
 
             // 4. Fetch Payments (via contracts in this property)
             // We can reuse the contracts above to filter payments, but let's query payments directly linked to those contracts?
@@ -76,17 +76,34 @@ export function usePropertyDetails(propertyId: string) {
             // Create a map of UnitID -> ActiveContract
             const unitContractMap = new Map();
             contractsData.forEach((c: any) => {
-                if (c.unit_id) unitContractMap.set(c.unit_id, c);
+                // If multiple contracts exist (e.g. one active, one expired), prefer Active.
+                // If only expired, show expired.
+                if (c.unit_id) {
+                    const existing = unitContractMap.get(c.unit_id);
+                    if (!existing || (existing.status !== 'active' && c.status === 'active')) {
+                        unitContractMap.set(c.unit_id, c);
+                    }
+                }
             });
 
             const processedUnits = unitsData.map((u: any) => {
                 const contract = unitContractMap.get(u.id);
+                // "Occupied" strictly means ACTIVE contract.
+                // Expired contract means "Vacant" (physically maybe not, but legally/system wise yes for new rental)
+                // BUT user wants to see expired tenants. 
+                // Let's say status is "Vacante" but we show the last tenant info if available?
+                // Or maybe a new status "Contrato Vencido"?
+
+                let unitStatus = "Vacante";
+                if (contract?.status === 'active') unitStatus = "Ocupado";
+                else if (contract?.status === 'expired') unitStatus = "Vencido"; // Custom status for UI
+
                 return {
                     id: u.id,
                     name: u.name,
                     type: u.type,
-                    area: "N/A", // Schema doesn't have area yet? Checked generic schema, units table has rent_amount, status, type. No area in schema 001.
-                    status: contract ? "Ocupado" : "Vacante", // Or use u.status if managed manually
+                    area: "N/A",
+                    status: unitStatus,
                     tenant: contract?.tenant?.name || "-",
                     rent: contract ? contract.rent_amount : u.rent_amount
                 };
@@ -97,17 +114,18 @@ export function usePropertyDetails(propertyId: string) {
                 id: c.tenant?.id,
                 contractId: c.id,
                 name: c.tenant?.name,
-                contact: c.tenant?.name, // Placeholder, maybe add contact person col later
+                contact: c.tenant?.name,
                 email: c.tenant?.email,
                 phone: c.tenant?.phone,
                 unit: unitsData.find((u: any) => u.id === c.unit_id)?.name || "Unidad",
-                status: c.tenant?.status === 'solvent' ? 'Al día' : 'Atrasado',
+                status: c.status === 'expired' ? 'Vencido' : (c.tenant?.status === 'solvent' ? 'Al día' : 'Atrasado'),
                 leaseEnd: c.end_date ? format(parseISO(c.end_date), 'yyyy-MM-dd') : '-'
             }));
 
             // Stats
             const totalUnits = unitsData.length;
-            const occupiedCount = contractsData.length;
+            // Occupied count only includes ACTIVE contracts
+            const occupiedCount = contractsData.filter((c: any) => c.status === 'active').length;
             const occupancyRate = totalUnits > 0 ? Math.round((occupiedCount / totalUnits) * 100) : 0;
 
             // Revenue (Approved payments in the last month? Or total? Dashboard mock showed total monthly revenue logic?)
