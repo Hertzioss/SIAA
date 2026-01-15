@@ -197,11 +197,9 @@ export default function PaymentForm() {
 
         if (successCount === paymentParts.length) {
             toast.message("Todos los pagos registrados exitosamente", {
-                description: "Una vez conciliado, le enviaremos el recibo. Revise SPAM."
+                description: "Una vez conciliado, le enviaremos el recibo. Revise SPAM si no lo ve en su bandeja de entrada."
             })
             // Reset form
-            setReference('') // Legacy
-            setAmount('') // Legacy
             setPaymentParts([{ amount: '', currency: 'USD', reference: '' }])
             setNotes('')
             setSelectedFile(null)
