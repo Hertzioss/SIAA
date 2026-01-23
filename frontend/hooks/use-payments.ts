@@ -56,13 +56,10 @@ export function usePayments() {
                 query = query.eq('status', statusFilter);
             }
 
-            // Pagination ranges
-            const from = (page - 1) * pageSize;
-            const to = from + pageSize - 1;
-
+            // Fetch more items to allow client-side sorting
             const { data, count, error } = await query
                 .order('date', { ascending: false })
-                .range(from, to);
+                .limit(1000);
 
             if (error) throw error;
 
@@ -76,7 +73,19 @@ export function usePayments() {
                 }
             })) || [];
 
-            setPayments(formatted);
+            // Client-side Sort: Pending first, then Date Descending
+            formatted.sort((a: any, b: any) => {
+                if (a.status === 'pending' && b.status !== 'pending') return -1;
+                if (a.status !== 'pending' && b.status === 'pending') return 1;
+                return new Date(b.date).getTime() - new Date(a.date).getTime();
+            });
+
+            // Client-side Pagination
+            const from = (page - 1) * pageSize;
+            const to = from + pageSize;
+            const paginated = formatted.slice(from, to);
+
+            setPayments(paginated);
             setTotal(count || 0);
 
         } catch (err: any) {

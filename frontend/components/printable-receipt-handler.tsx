@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react"
 import { useReactToPrint } from "react-to-print"
 import { format } from "date-fns"
+import { parseLocalDate } from "@/lib/utils"
 import { PaymentReceipt } from "@/components/payment-receipt"
 
 interface PrintableReceiptHandlerProps {
@@ -37,7 +38,7 @@ export function PrintableReceiptHandler({ payment, onClose }: PrintableReceiptHa
             <PaymentReceipt
                 ref={printRef}
                 payment={{
-                    date: format(new Date(payment.date), 'dd/MM/yyyy'),
+                    date: format(parseLocalDate(payment.date), 'dd-MM-yyyy'),
                     id: payment.id,
                     amount: payment.amount.toString(),
                     concept: payment.concept,

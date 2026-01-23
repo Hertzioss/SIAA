@@ -75,8 +75,19 @@ const data = {
     },
     {
       title: "Pagos",
-      url: "/payments",
+      url: "#",
       icon: IconCash,
+      isActive: true,
+      items: [
+        {
+          title: "Registro de pago",
+          url: "/payments/new",
+        },
+        {
+          title: "Conciliación de Pagos",
+          url: "/payments",
+        },
+      ],
     },
     {
       title: "Reportes",

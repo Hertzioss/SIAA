@@ -11,6 +11,7 @@ import {
     TableRow,
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
+import { parseLocalDate } from "@/lib/utils"
 import { format } from "date-fns"
 
 import { Loader2, Printer } from "lucide-react"
@@ -104,7 +105,7 @@ export function PaymentHistoryList({ tenantId }: PaymentHistoryListProps) {
                     <TableBody>
                         {history.map((payment) => (
                             <TableRow key={payment.id}>
-                                <TableCell>{format(new Date(payment.date), 'dd/MM/yyyy')}</TableCell>
+                                <TableCell>{format(parseLocalDate(payment.date), 'dd-MM-yyyy')}</TableCell>
                                 <TableCell className="max-w-[200px] truncate" title={payment.concept}>
                                     {payment.concept}
                                 </TableCell>

@@ -28,6 +28,7 @@ import { Badge } from "@/components/ui/badge"
 import { Calendar, AlertTriangle } from "lucide-react"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
+import { parseLocalDate } from "@/lib/utils"
 
 interface DashboardChartsProps {
     paymentData: any[]
@@ -221,7 +222,7 @@ export function DashboardCharts({
                                             {item.desc}
                                         </p>
                                         <p className="text-xs text-muted-foreground">
-                                            {format(new Date(item.date), "dd MMM yyyy", { locale: es })}
+                                            {format(parseLocalDate(item.date), "dd MMM yyyy", { locale: es })}
                                         </p>
                                     </div>
                                     <div className={`ml-auto font-medium ${item.status === 'success' ? 'text-green-600' :

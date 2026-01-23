@@ -12,11 +12,13 @@ import { format, addMonths } from "date-fns"
 import { es } from "date-fns/locale"
 import { PrintableReceiptHandler } from "@/components/printable-receipt-handler"
 import { PendingBalanceCard } from "@/components/payments/pending-balance-card"
+import { parseLocalDate } from "@/lib/utils"
 
 /**
  * Página de historial de pagos del inquilino.
  * Muestra una tabla con todos los pagos realizados, su estado,
  * y permite descargar recibos o ver comprobantes.
+ * @returns 
  */
 export default function PaymentHistoryPage() {
     const { history, isLoading, fetchPaymentHistory, getMonthlyBalance, getNextPaymentDate } = useTenantPayments()
@@ -145,7 +147,7 @@ export default function PaymentHistoryPage() {
                                 <TableBody>
                                     {history.map((payment) => (
                                         <TableRow key={payment.id}>
-                                            <TableCell>{format(new Date(payment.date), 'dd/MM/yyyy')}</TableCell>
+                                            <TableCell>{format(parseLocalDate(payment.date), 'dd-MM-yyyy')}</TableCell>
                                             <TableCell>{payment.concept}</TableCell>
                                             <TableCell>{payment.payment_method}</TableCell>
                                             <TableCell>{payment.reference_number || '-'}</TableCell>

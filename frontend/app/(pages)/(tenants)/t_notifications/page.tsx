@@ -29,7 +29,7 @@ export default function TenantNotificationsPage() {
 
     // Helper to format date
     const formatDate = (dateString: string) => {
-        return format(new Date(dateString), "dd/MM/yyyy HH:mm a", { locale: es })
+        return format(new Date(dateString), "dd-MM-yyyy HH:mm a", { locale: es })
     }
 
     const renderPagination = () => (

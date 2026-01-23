@@ -12,6 +12,7 @@ import { PaymentActionDialog } from "@/components/payments/payment-action-dialog
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import { Check, X, Search, FileText, Loader2, Edit2, ChevronLeft, ChevronRight } from "lucide-react"
+import { parseLocalDate } from "@/lib/utils"
 
 /**
  * Página para la gestión y conciliación de pagos.
@@ -117,7 +118,7 @@ export default function PaymentsPage() {
                                     filteredPayments.map((payment) => (
                                         <TableRow key={payment.id}>
                                             <TableCell>
-                                                {format(new Date(payment.date), "dd/MM/yyyy")}
+                                                {format(parseLocalDate(payment.date), "dd-MM-yyyy")}
                                             </TableCell>
                                             <TableCell className="font-medium">
                                                 {payment.tenant?.name || "Desconocido"}

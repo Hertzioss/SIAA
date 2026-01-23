@@ -119,7 +119,7 @@ export function useDashboardData(propertyId: string) {
                 .map((c: any) => ({
                     tenant: c.tenant?.name || "Desconocido",
                     property: c.unit?.name || "Unidad",
-                    date: format(parseISO(c.end_date), 'dd/MM/yyyy'),
+                    date: format(parseISO(c.end_date), 'dd-MM-yyyy'),
                     days: differenceInDays(parseISO(c.end_date), today)
                 }))
                 .slice(0, 5); // Limit to 5
