@@ -139,7 +139,6 @@ export function useOwnerReport() {
                         totalIncome: 0,
                         totalExpenses: 0,
                         netBalance: 0,
-                        netBalance: 0,
                         propertyCount: 0, // To be calculated? 
                         payments: []
                     };

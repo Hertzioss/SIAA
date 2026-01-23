@@ -43,7 +43,7 @@ export default function OwnerReportPage() {
                 return
             }
 
-            // Transform data for Excel
+            // 1. Summary Data
             const exportData = reportData.map(item => ({
                 "Propietario": item.ownerName,
                 "Documento": item.ownerDocId,
@@ -53,10 +53,11 @@ export default function OwnerReportPage() {
                 "Balance Neto (USD)": item.netBalance
             }))
 
+            // 2. Detail Data
             const detailData = reportData.flatMap(owner =>
-                owner.payments.map(p => ({
-                    "Propietario": owner.ownerName,
+                (owner.payments || []).map(p => ({
                     "Fecha": p.date,
+                    "Propietario": owner.ownerName,
                     "Inquilino": p.tenantName,
                     "Unidad": p.unitName,
                     "Método": p.method,
@@ -64,20 +65,27 @@ export default function OwnerReportPage() {
                 }))
             )
 
-            // Create Worksheet
+            // Create Worksheets
             const wsSummary = XLSX.utils.json_to_sheet(exportData)
-            const wsDetail = XLSX.utils.json_to_sheet(detailData)
+
+            // Handle Detail Sheet (ensure headers even if empty)
+            let wsDetail
+            if (detailData.length > 0) {
+                wsDetail = XLSX.utils.json_to_sheet(detailData)
+            } else {
+                wsDetail = XLSX.utils.json_to_sheet([{ "Info": "No hay pagos registrados en este periodo" }])
+            }
 
             const wb = XLSX.utils.book_new()
             XLSX.utils.book_append_sheet(wb, wsSummary, "Resumen")
-            XLSX.utils.book_append_sheet(wb, wsDetail, "Detalles")
+            XLSX.utils.book_append_sheet(wb, wsDetail, "Detalle Pagos")
 
             // Generate File Name
             const fileName = `Reporte_Propietarios_${format(filters.startDate, "yyyy-MM-dd")}_${format(filters.endDate, "yyyy-MM-dd")}.xlsx`
 
             // Download
             XLSX.writeFile(wb, fileName)
-            toast.success("Reporte exportado exitosamente")
+            toast.success("Reporte exportado con éxito (Resumen y Detalles)")
         } catch (error) {
             console.error("Export error:", error)
             toast.error("Error al exportar reporte")
