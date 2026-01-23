@@ -55,7 +55,12 @@ export function PaymentForm({ defaultTenant, onSuccess, onCancel, className }: P
     // Form State
     const [month, setMonth] = useState('enero')
     const [year, setYear] = useState('2023')
-    const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd'))
+    const [date, setDate] = useState('')
+
+    // Initialize date on client side to avoid hydration mismatch and use local time
+    useEffect(() => {
+        setDate(format(new Date(), 'yyyy-MM-dd'))
+    }, [])
 
     // Split Payment State
     const [paymentParts, setPaymentParts] = useState<{ amount: string, currency: 'USD' | 'VES', reference: string, accountId: string }[]>([

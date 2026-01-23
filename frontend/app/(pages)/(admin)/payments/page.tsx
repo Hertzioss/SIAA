@@ -13,7 +13,7 @@ import { PaymentDialog } from "@/components/tenants/payment-dialog"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import { Check, X, Search, FileText, Loader2, Edit2, ChevronLeft, ChevronRight, DollarSign } from "lucide-react"
-import { parseLocalDate } from "@/lib/utils"
+import { parseLocalDate, formatDateString } from "@/lib/utils"
 
 /**
  * Página para la gestión y conciliación de pagos.
@@ -129,7 +129,9 @@ export default function PaymentsPage() {
                                                 {payment.created_at ? format(new Date(payment.created_at), "dd-MM-yyyy") : "-"}
                                             </TableCell>
                                             <TableCell>
-                                                {format(parseLocalDate(payment.date), "dd-MM-yyyy")}
+                                                {/* {format(parseLocalDate(payment.date), "dd-MM-yyyy")} */}
+                                                {/* Use direct string formatting to avoid timezone offset issues */}
+                                                {formatDateString(payment.date)}
                                             </TableCell>
                                             <TableCell className="font-medium">
                                                 {payment.tenant?.name || "Desconocido"}

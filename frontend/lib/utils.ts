@@ -17,3 +17,12 @@ export function parseLocalDate(dateString: string): Date {
   const [year, month, day] = dateString.split('-').map(Number);
   return new Date(year, month - 1, day);
 }
+
+export function formatDateString(dateString: string): string {
+  if (!dateString) return "-";
+  // Expects YYYY-MM-DD
+  const parts = dateString.split('-');
+  if (parts.length !== 3) return dateString;
+  const [year, month, day] = parts;
+  return `${day}-${month}-${year}`;
+}

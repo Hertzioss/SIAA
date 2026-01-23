@@ -1,11 +1,12 @@
 'use client'
 import { useState, useRef, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { FileSpreadsheet, Printer as PrinterIcon, ArrowLeft, FileText, PieChart, BarChart3, Filter, ChevronsUpDown, Check, Wrench, TrendingUp } from "lucide-react"
+import { FileSpreadsheet, Printer as PrinterIcon, ArrowLeft, FileText, PieChart, BarChart3, Filter, ChevronsUpDown, Check, Wrench, TrendingUp, Users } from "lucide-react"
 import { IncomeExpenseReport } from "@/components/reports/income-expense-report"
 import { OperationalReport } from "@/components/reports/operational-report"
 import { MaintenanceReport } from "@/components/reports/maintenance-report"
@@ -59,6 +60,14 @@ const REPORT_TYPES = [
         icon: TrendingUp,
         color: 'text-purple-600',
         bgColor: 'bg-purple-100'
+    },
+    {
+        id: 'owners',
+        title: 'Estado de Cuenta Propietarios',
+        description: 'Ingresos, egresos y balance neto por propietario.',
+        icon: Users, // Need to import Users
+        color: 'text-indigo-600',
+        bgColor: 'bg-indigo-100'
     }
 ]
 
@@ -99,7 +108,13 @@ export default function ReportsPage() {
         documentTitle: `Reporte_${selectedReportId}_${filters.year}`,
     })
 
+    const router = useRouter()
+
     const handleSelectReport = (id: string) => {
+        if (id === 'owners') {
+            router.push('/reports/owners')
+            return
+        }
         setSelectedReportId(id)
         setIsGenerated(false)
         setIncomeExpenseData(null)
