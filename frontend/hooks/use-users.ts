@@ -6,8 +6,9 @@ export type User = {
     id: string
     email: string
     full_name: string
-    role: 'admin' | 'operator' | 'tenant'
+    role: 'admin' | 'operator' | 'tenant' | 'owner'
     created_at: string
+    last_sign_in_at?: string
 }
 
 export function useUsers() {

@@ -222,7 +222,15 @@ export function DashboardCharts({
                                             {item.desc}
                                         </p>
                                         <p className="text-xs text-muted-foreground">
-                                            {format(parseLocalDate(item.date), "dd MMM yyyy", { locale: es })}
+                                            {(() => {
+                                                try {
+                                                    const parsedDate = parseLocalDate(item.date)
+                                                    if (isNaN(parsedDate.getTime())) return "Fecha inválida"
+                                                    return format(parsedDate, "dd MMM yyyy", { locale: es })
+                                                } catch (e) {
+                                                    return "N/A"
+                                                }
+                                            })()}
                                         </p>
                                     </div>
                                     <div className={`ml-auto font-medium ${item.status === 'success' ? 'text-green-600' :

@@ -47,6 +47,7 @@ export default function TenantsPage() {
 
     const [searchTerm, setSearchTerm] = useState("")
     const [propertyFilter, setPropertyFilter] = useState("all")
+    const [ownerFilter, setOwnerFilter] = useState("all")
     const [currentPage, setCurrentPage] = useState(1)
     const ITEMS_PER_PAGE = 5
 
@@ -55,6 +56,38 @@ export default function TenantsPage() {
     const [tenantToDelete, setTenantToDelete] = useState<Tenant | null>(null)
 
     // Derived Data
+    const uniqueOwners = Array.from(
+        new Map(
+            properties.flatMap(p => p.owners || []).map(o => [o.owner_id, o])
+        ).values()
+    ).sort((a: any, b: any) => a.name.localeCompare(b.name));
+
+    // Dependent Filter Logic
+    const handleOwnerChange = (value: string) => {
+        setOwnerFilter(value);
+        setPropertyFilter("all"); // Reset property filter when owner changes
+        setCurrentPage(1);
+    }
+
+    const handlePropertyChange = (value: string) => {
+        setPropertyFilter(value);
+        setCurrentPage(1);
+
+        if (value !== "all") {
+            const property = properties.find(p => p.id === value);
+            // If property has owners, auto-select the first one (or main one)
+            if (property && property.owners && property.owners.length > 0) {
+                // Assuming we want to filter by the first owner found if multiple
+                setOwnerFilter(property.owners[0].owner_id);
+            }
+        }
+    }
+
+    const availableProperties = ownerFilter === "all"
+        ? properties
+        : properties.filter(p => p.owners?.some(o => o.owner_id === ownerFilter));
+
+    // Calculate Derived Data based on filters
     const filteredTenants = tenants.filter(tenant => {
         const matchesSearch = tenant.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
             tenant.doc_id.toLowerCase().includes(searchTerm.toLowerCase())
@@ -63,7 +96,14 @@ export default function TenantsPage() {
             c.unit?.property?.id === propertyFilter
         )
 
-        return matchesSearch && matchesProperty
+        const matchesOwner = ownerFilter === "all" || (tenant as any).contracts?.some((c: any) => {
+            const propertyId = c.unit?.property?.id;
+            if (!propertyId) return false;
+            const property = properties.find(p => p.id === propertyId);
+            return property?.owners?.some((o: any) => o.owner_id === ownerFilter);
+        })
+
+        return matchesSearch && matchesProperty && matchesOwner
     })
 
     const totalPages = Math.ceil(filteredTenants.length / ITEMS_PER_PAGE)
@@ -157,13 +197,29 @@ export default function TenantsPage() {
                             <CardDescription>Base de datos de inquilinos registrados.</CardDescription>
                         </div>
                         <div className="flex items-center gap-4">
-                            <Select value={propertyFilter} onValueChange={(val) => { setPropertyFilter(val); setCurrentPage(1); }}>
+                            <Select
+                                value={ownerFilter}
+                                onValueChange={handleOwnerChange}
+                                disabled={propertyFilter !== "all"}
+                            >
                                 <SelectTrigger className="w-[200px]">
-                                    <SelectValue placeholder="Filtrar por Propiedad" />
+                                    <SelectValue placeholder="Por Propietario" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">Todos los Propietarios</SelectItem>
+                                    {uniqueOwners.map((owner: any) => (
+                                        <SelectItem key={owner.owner_id} value={owner.owner_id}>{owner.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+
+                            <Select value={propertyFilter} onValueChange={handlePropertyChange}>
+                                <SelectTrigger className="w-[200px]">
+                                    <SelectValue placeholder="Por Propiedad" />
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="all">Todas las Propiedades</SelectItem>
-                                    {properties.map(p => (
+                                    {availableProperties.map(p => (
                                         <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
                                     ))}
                                 </SelectContent>
@@ -213,6 +269,29 @@ export default function TenantsPage() {
                                                     <div>
                                                         <p className="font-medium">{tenant.name}</p>
                                                         <p className="text-xs text-muted-foreground">{tenant.doc_id}</p>
+                                                        {((tenant as any).contracts?.[0]?.unit?.property?.name) && (
+                                                            <div className="flex flex-col gap-0.5 mt-1">
+                                                                <p className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
+                                                                    <Home className="h-3 w-3" />
+                                                                    {(tenant as any).contracts[0].unit.property.name} - {(tenant as any).contracts[0].unit.name}
+                                                                </p>
+                                                                {(() => {
+                                                                    const propertyId = (tenant as any).contracts[0].unit.property.id;
+                                                                    const fullProperty = properties.find(p => p.id === propertyId);
+                                                                    const ownerName = fullProperty?.owners?.[0]?.name;
+
+                                                                    if (ownerName) {
+                                                                        return (
+                                                                            <p className="flex items-center gap-1 text-[10px] text-muted-foreground/80 pl-4">
+                                                                                <Building className="h-3 w-3" />
+                                                                                {ownerName}
+                                                                            </p>
+                                                                        )
+                                                                    }
+                                                                    return null;
+                                                                })()}
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 </div>
                                             </TableCell>

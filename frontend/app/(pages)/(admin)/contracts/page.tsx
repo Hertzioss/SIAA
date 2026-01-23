@@ -83,6 +83,8 @@ function ContractsContent() {
             rent_amount: c.rent_amount,
             start_date: c.start_date,
             end_date: c.end_date,
+            displayStartDate: new Date(c.start_date).toLocaleDateString('es-VE', { day: '2-digit', month: '2-digit', year: 'numeric' }),
+            displayEndDate: c.end_date ? new Date(c.end_date).toLocaleDateString('es-VE', { day: '2-digit', month: '2-digit', year: 'numeric' }) : "Indefinido",
             statusRaw: c.status
         }
     }
@@ -291,7 +293,7 @@ function ContractsContent() {
                                         <TableCell>{contract.tenant}</TableCell>
                                         <TableCell>
                                             <div className="text-sm">{contract.duration}</div>
-                                            <div className="text-xs text-muted-foreground">{contract.startDate} - {contract.endDate}</div>
+                                            <div className="text-xs text-muted-foreground">{contract.displayStartDate} - {contract.displayEndDate}</div>
                                         </TableCell>
                                         <TableCell>
                                             <Badge

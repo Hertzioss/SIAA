@@ -40,6 +40,7 @@ export default function UsersPage() {
 
     const [currentPageStaff, setCurrentPageStaff] = useState(1)
     const [currentPageTenants, setCurrentPageTenants] = useState(1)
+    const [currentPageOwners, setCurrentPageOwners] = useState(1)
     const ITEMS_PER_PAGE = 5
 
     // Filtered Data
@@ -50,6 +51,7 @@ export default function UsersPage() {
 
     const staffUsers = filteredUsers.filter(user => ['admin', 'operator'].includes(user.role))
     const tenantUsers = filteredUsers.filter(user => user.role === 'tenant')
+    const ownerUsers = filteredUsers.filter(user => user.role === 'owner')
 
     // Staff Pagination
     const totalPagesStaff = Math.ceil(staffUsers.length / ITEMS_PER_PAGE)
@@ -61,8 +63,14 @@ export default function UsersPage() {
     // Tenant Pagination
     const totalPagesTenants = Math.ceil(tenantUsers.length / ITEMS_PER_PAGE)
     const currentTenantUsers = tenantUsers.slice(
-        (currentPageTenants - 1) * ITEMS_PER_PAGE,
         currentPageTenants * ITEMS_PER_PAGE
+    )
+
+    // Owner Pagination
+    const totalPagesOwners = Math.ceil(ownerUsers.length / ITEMS_PER_PAGE)
+    const currentOwnerUsers = ownerUsers.slice(
+        (currentPageOwners - 1) * ITEMS_PER_PAGE,
+        currentPageOwners * ITEMS_PER_PAGE
     )
 
     // Helper for pagination controls
@@ -140,9 +148,22 @@ export default function UsersPage() {
                 return <Badge variant="secondary">Operador</Badge>
             case 'tenant':
                 return <Badge variant="outline">Inquilino</Badge>
+            case 'owner':
+                return <Badge className="border-emerald-500 text-emerald-600 bg-emerald-50">Propietario</Badge>
             default:
                 return <Badge variant="outline">{role}</Badge>
         }
+    }
+
+    const formatDate = (dateString?: string) => {
+        if (!dateString) return "Nunca"
+        return new Date(dateString).toLocaleString("es-VE", {
+            day: "2-digit",
+            month: "2-digit",
+            year: "numeric",
+            hour: "2-digit",
+            minute: "2-digit"
+        })
     }
 
     if (loading) {
@@ -191,13 +212,14 @@ export default function UsersPage() {
                                 <TableHead>Email</TableHead>
                                 <TableHead>Rol</TableHead>
                                 <TableHead>Fecha Registro</TableHead>
+                                <TableHead>Último Ingreso</TableHead>
                                 <TableHead className="text-right">Acciones</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {currentStaffUsers.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                                         No se encontraron administradores u operadores.
                                     </TableCell>
                                 </TableRow>
@@ -219,6 +241,9 @@ export default function UsersPage() {
                                         <TableCell>
                                             {new Date(user.created_at).toLocaleDateString()}
                                         </TableCell>
+                                        <TableCell>
+                                            <span className="text-sm text-muted-foreground">{formatDate(user.last_sign_in_at)}</span>
+                                        </TableCell>
                                         <TableCell className="text-right">
                                             <div className="flex items-center justify-end gap-2">
                                                 <Button variant="ghost" size="icon" onClick={() => handleEdit(user)}>
@@ -235,6 +260,75 @@ export default function UsersPage() {
                         </TableBody>
                     </Table>
                     {renderPagination(currentPageStaff, totalPagesStaff, setCurrentPageStaff)}
+                </CardContent>
+            </Card>
+
+            {/* Owner Table */}
+            <Card>
+                <CardHeader>
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <CardTitle>Propietarios con Acceso</CardTitle>
+                            <CardDescription>Dueños con cuenta de usuario habilitada ({ownerUsers.length}).</CardDescription>
+                        </div>
+                    </div>
+                </CardHeader>
+                <CardContent>
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Usuario</TableHead>
+                                <TableHead>Email</TableHead>
+                                <TableHead>Rol</TableHead>
+                                <TableHead>Fecha Registro</TableHead>
+                                <TableHead>Último Ingreso</TableHead>
+                                <TableHead className="text-right">Acciones</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {currentOwnerUsers.length === 0 ? (
+                                <TableRow>
+                                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                                        No se encontraron usuarios propietarios.
+                                    </TableCell>
+                                </TableRow>
+                            ) : (
+                                currentOwnerUsers.map((user) => (
+                                    <TableRow key={user.id}>
+                                        <TableCell className="font-medium">
+                                            {user.full_name}
+                                        </TableCell>
+                                        <TableCell>
+                                            <div className="flex items-center gap-1">
+                                                <Mail className="h-3 w-3 text-muted-foreground" />
+                                                {user.email}
+                                            </div>
+                                        </TableCell>
+                                        <TableCell>
+                                            {getRoleBadge(user.role)}
+                                        </TableCell>
+                                        <TableCell>
+                                            {new Date(user.created_at).toLocaleDateString()}
+                                        </TableCell>
+                                        <TableCell>
+                                            <span className="text-sm text-muted-foreground">{formatDate(user.last_sign_in_at)}</span>
+                                        </TableCell>
+                                        <TableCell className="text-right">
+                                            <div className="flex items-center justify-end gap-2">
+                                                <Button variant="ghost" size="icon" onClick={() => handleEdit(user)}>
+                                                    <Edit className="h-4 w-4" />
+                                                </Button>
+                                                <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => confirmDelete(user.id, user.full_name)}>
+                                                    <Trash className="h-4 w-4" />
+                                                </Button>
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
+                                ))
+                            )}
+                        </TableBody>
+                    </Table>
+                    {renderPagination(currentPageOwners, totalPagesOwners, setCurrentPageOwners)}
                 </CardContent>
             </Card>
 
@@ -256,13 +350,14 @@ export default function UsersPage() {
                                 <TableHead>Email</TableHead>
                                 <TableHead>Rol</TableHead>
                                 <TableHead>Fecha Registro</TableHead>
+                                <TableHead>Último Ingreso</TableHead>
                                 <TableHead className="text-right">Acciones</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {currentTenantUsers.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                                         No se encontraron usuarios inquilinos.
                                     </TableCell>
                                 </TableRow>
@@ -283,6 +378,9 @@ export default function UsersPage() {
                                         </TableCell>
                                         <TableCell>
                                             {new Date(user.created_at).toLocaleDateString()}
+                                        </TableCell>
+                                        <TableCell>
+                                            <span className="text-sm text-muted-foreground">{formatDate(user.last_sign_in_at)}</span>
                                         </TableCell>
                                         <TableCell className="text-right">
                                             <div className="flex items-center justify-end gap-2">

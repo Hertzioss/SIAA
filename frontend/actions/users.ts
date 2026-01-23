@@ -5,18 +5,25 @@ import { revalidatePath } from "next/cache"
 
 export async function getUsers() {
     try {
-        // 1. Get all profiles from public table
-        const { data: profiles, error: profilesError } = await supabaseAdmin
-            .from('users')
-            .select('*')
-            .order('created_at', { ascending: false })
+        // Fetch users from Auth API to get last_sign_in_at and metadata
+        const { data: { users }, error } = await supabaseAdmin.auth.admin.listUsers({
+            perPage: 1000 // Reasonable limit for now
+        })
 
-        if (profilesError) throw profilesError
+        if (error) throw error
 
-        // 2. Get auth data to mix in (optional, but good for checking last sign in etc if needed)
-        // For now we just return profiles since that has the role
-        return { success: true, data: profiles }
-    } catch (error) {
+        // Map Auth User to our User type
+        const mappedUsers = users.map(u => ({
+            id: u.id,
+            email: u.email,
+            full_name: u.user_metadata?.full_name || 'Sin Nombre',
+            role: u.user_metadata?.role || 'user',
+            created_at: u.created_at,
+            last_sign_in_at: u.last_sign_in_at
+        }))
+
+        return { success: true, data: mappedUsers }
+    } catch (error: any) {
         console.error('Error fetching users:', error)
         return { success: false, error: 'Failed to fetch users' }
     }

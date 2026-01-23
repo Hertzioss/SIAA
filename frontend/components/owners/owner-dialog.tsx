@@ -11,6 +11,7 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
 import { User, Building, Plus, Trash, Mail, Phone, MapPin, Lock, Unlock } from "lucide-react"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
@@ -48,6 +49,10 @@ export function OwnerDialog({
     const [ownerType, setOwnerType] = useState<"individual" | "company">("individual")
     const [manualPassword, setManualPassword] = useState("")
 
+    // Split Doc ID State
+    const [docPrefix, setDocPrefix] = useState("V")
+    const [docNumber, setDocNumber] = useState("")
+
     // Form States
     const [formData, setFormData] = useState({
         name: "",
@@ -71,11 +76,24 @@ export function OwnerDialog({
                     phone: owner.phone || "",
                     address: owner.address || ""
                 })
+
+                // Parse existing doc_id
+                const parts = owner.doc_id.split('-')
+                if (parts.length === 2 && ["V", "E", "J", "G"].includes(parts[0])) {
+                    setDocPrefix(parts[0])
+                    setDocNumber(parts[1])
+                } else {
+                    setDocPrefix("V")
+                    setDocNumber(owner.doc_id)
+                }
+
                 setBeneficiaries(owner.beneficiaries || [])
             } else {
                 // Reset for create
                 setOwnerType("individual")
                 setFormData({ name: "", doc_id: "", email: "", phone: "", address: "" })
+                setDocPrefix("V")
+                setDocNumber("")
                 setBeneficiaries([])
             }
             setManualPassword("") // Reset password field
@@ -105,16 +123,19 @@ export function OwnerDialog({
         if (!onSubmit) return
 
         // Basic validation
-        if (!formData.name || !formData.doc_id) {
+        if (!formData.name || !docNumber) {
             toast.error("Por favor complete los campos obligatorios")
             return
         }
+
+        const fullDocId = `${docPrefix}-${docNumber}`
 
         setLoading(true)
         try {
             await onSubmit({
                 type: ownerType,
                 ...formData,
+                doc_id: fullDocId,
                 beneficiaries
             })
             onOpenChange(false)
@@ -272,12 +293,29 @@ export function OwnerDialog({
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="grid gap-2">
                                         <Label htmlFor="id-doc">{ownerType === 'company' ? 'RIF' : 'Cédula de Identidad'}</Label>
-                                        <Input
-                                            id="id-doc"
-                                            placeholder={ownerType === 'company' ? "J-12345678-9" : "V-12345678"}
-                                            value={formData.doc_id}
-                                            onChange={(e) => setFormData({ ...formData, doc_id: e.target.value })}
-                                        />
+                                        <div className="flex gap-2">
+                                            <Select value={docPrefix} onValueChange={setDocPrefix}>
+                                                <SelectTrigger className="w-[70px]">
+                                                    <SelectValue placeholder="Tipo" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="V">V</SelectItem>
+                                                    <SelectItem value="E">E</SelectItem>
+                                                    <SelectItem value="J">J</SelectItem>
+                                                    <SelectItem value="G">G</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                            <Input
+                                                id="id-doc"
+                                                placeholder={ownerType === 'company' ? "12345678-9" : "12345678"}
+                                                value={docNumber}
+                                                onChange={(e) => {
+                                                    const val = e.target.value.replace(/[^0-9]/g, '')
+                                                    setDocNumber(val)
+                                                }}
+                                                className="flex-1"
+                                            />
+                                        </div>
                                     </div>
                                     <div className="grid gap-2">
                                         <Label htmlFor="phone">Teléfono</Label>
@@ -546,12 +584,29 @@ export function OwnerDialog({
                                         <div className="grid grid-cols-2 gap-4">
                                             <div className="grid gap-2">
                                                 <Label htmlFor="id-doc">{ownerType === 'company' ? 'RIF' : 'Cédula de Identidad'}</Label>
-                                                <Input
-                                                    id="id-doc"
-                                                    placeholder={ownerType === 'company' ? "J-12345678-9" : "V-12345678"}
-                                                    value={formData.doc_id}
-                                                    onChange={(e) => setFormData({ ...formData, doc_id: e.target.value })}
-                                                />
+                                                <div className="flex gap-2">
+                                                    <Select value={docPrefix} onValueChange={setDocPrefix}>
+                                                        <SelectTrigger className="w-[70px]">
+                                                            <SelectValue placeholder="Tipo" />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="V">V</SelectItem>
+                                                            <SelectItem value="E">E</SelectItem>
+                                                            <SelectItem value="J">J</SelectItem>
+                                                            <SelectItem value="G">G</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                    <Input
+                                                        id="id-doc"
+                                                        placeholder={ownerType === 'company' ? "12345678-9" : "12345678"}
+                                                        value={docNumber}
+                                                        onChange={(e) => {
+                                                            const val = e.target.value.replace(/[^0-9]/g, '')
+                                                            setDocNumber(val)
+                                                        }}
+                                                        className="flex-1"
+                                                    />
+                                                </div>
                                             </div>
                                             <div className="grid gap-2">
                                                 <Label htmlFor="phone">Teléfono</Label>

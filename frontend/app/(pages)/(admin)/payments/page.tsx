@@ -9,9 +9,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { PaymentActionDialog } from "@/components/payments/payment-action-dialog"
+import { PaymentDialog } from "@/components/tenants/payment-dialog"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
-import { Check, X, Search, FileText, Loader2, Edit2, ChevronLeft, ChevronRight } from "lucide-react"
+import { Check, X, Search, FileText, Loader2, Edit2, ChevronLeft, ChevronRight, DollarSign } from "lucide-react"
 import { parseLocalDate } from "@/lib/utils"
 
 /**
@@ -51,10 +52,16 @@ export default function PaymentsPage() {
         setDialogOpen(true)
     }
 
+    // Generic Register Dialog State
+    const [isRegisterDialogOpen, setIsRegisterDialogOpen] = useState(false)
+
     return (
         <div className="space-y-6 p-6">
             <div className="flex justify-between items-center">
                 <h1 className="text-3xl font-bold tracking-tight">Conciliación de Pagos</h1>
+                {/* <Button onClick={() => setIsRegisterDialogOpen(true)} className="bg-green-600 hover:bg-green-700">
+                    <DollarSign className="mr-2 h-4 w-4" /> Registrar Pago
+                </Button> */}
             </div>
 
             <Card>
@@ -91,7 +98,8 @@ export default function PaymentsPage() {
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead>Fecha</TableHead>
+                                    <TableHead>Fecha Registro</TableHead>
+                                    <TableHead>Fecha Pago</TableHead>
                                     <TableHead>Inquilino</TableHead>
                                     <TableHead>Propiedad / Unidad</TableHead>
                                     <TableHead>Monto</TableHead>
@@ -104,19 +112,22 @@ export default function PaymentsPage() {
                             <TableBody>
                                 {loading ? (
                                     <TableRow>
-                                        <TableCell colSpan={8} className="text-center h-24">
+                                        <TableCell colSpan={9} className="text-center h-24">
                                             <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
                                         </TableCell>
                                     </TableRow>
                                 ) : filteredPayments.length === 0 ? (
                                     <TableRow>
-                                        <TableCell colSpan={8} className="text-center h-24 text-muted-foreground">
+                                        <TableCell colSpan={9} className="text-center h-24 text-muted-foreground">
                                             No se encontraron pagos registrados
                                         </TableCell>
                                     </TableRow>
                                 ) : (
                                     filteredPayments.map((payment) => (
                                         <TableRow key={payment.id}>
+                                            <TableCell className="text-xs text-muted-foreground">
+                                                {payment.created_at ? format(new Date(payment.created_at), "dd-MM-yyyy") : "-"}
+                                            </TableCell>
                                             <TableCell>
                                                 {format(parseLocalDate(payment.date), "dd-MM-yyyy")}
                                             </TableCell>
@@ -239,6 +250,12 @@ export default function PaymentsPage() {
                 action={dialogAction}
                 paymentId={selectedPaymentId}
                 onConfirm={updatePaymentStatus}
+            />
+
+            <PaymentDialog
+                open={isRegisterDialogOpen}
+                onOpenChange={setIsRegisterDialogOpen}
+                tenant={undefined}
             />
         </div>
     )

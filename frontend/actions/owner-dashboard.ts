@@ -28,7 +28,13 @@ async function getCurrentOwner(accessToken: string) {
 
 export async function getOwnerDashboardMetrics(accessToken: string) {
     const owner = await getCurrentOwner(accessToken)
-    if (!owner) return { error: 'No autorizado / Propietario no encontrado' }
+    if (!owner) {
+        const user = await getAuthenticatedUser(accessToken)
+        if (user) {
+            return { error: `Acceso Denegado: El usuario (${user.email}) no está registrado como propietario.` }
+        }
+        return { error: 'No autorizado / Sesión inválida' }
+    }
 
     try {
         // 1. Get Properties for this owner (via property_owners join)
@@ -90,8 +96,8 @@ export async function getOwnerDashboardMetrics(accessToken: string) {
                     contract.payments?.forEach((payment: any) => {
                         const paymentDate = new Date(payment.date)
 
-                        // Yearly/Monthly Income (Paid)
-                        if (payment.status === 'paid' &&
+                        // Yearly/Monthly Income (Approved)
+                        if (payment.status === 'approved' &&
                             paymentDate.getMonth() === currentMonth &&
                             paymentDate.getFullYear() === currentYear) {
 
@@ -107,7 +113,7 @@ export async function getOwnerDashboardMetrics(accessToken: string) {
                         }
 
                         // Collect recent payments
-                        if (payment.status === 'paid') {
+                        if (payment.status === 'approved') {
                             recentPayments.push({
                                 id: payment.id,
                                 propertyName: property.name,

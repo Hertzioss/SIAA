@@ -28,7 +28,7 @@ import { getUnlinkedTenants } from "@/actions/users"
 const userSchema = z.object({
     fullName: z.string().min(2, "El nombre debe tener al menos 2 caracteres"),
     email: z.string().email("Email inválido"),
-    role: z.enum(["admin", "operator", "tenant"]),
+    role: z.enum(["admin", "operator", "tenant", "owner"]),
     password: z.string().min(6, "La contraseña debe tener al menos 6 caracteres").optional().or(z.literal('')),
     tenantId: z.string().optional(),
 })
@@ -113,6 +113,9 @@ export function UserDialog({ open, onOpenChange, user, mode, onSubmit }: UserDia
             // We could auto-generate email too if needed: form.setValue("email", ...)
         }
     }
+
+    const isSystemUser = user && ['admin', 'operator'].includes(user.role)
+    const canEditRole = mode === 'create' || isSystemUser
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -211,7 +214,12 @@ export function UserDialog({ open, onOpenChange, user, mode, onSubmit }: UserDia
                             render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>Rol</FormLabel>
-                                    <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
+                                    <Select
+                                        onValueChange={field.onChange}
+                                        defaultValue={field.value}
+                                        value={field.value}
+                                        disabled={!canEditRole}
+                                    >
                                         <FormControl>
                                             <SelectTrigger>
                                                 <SelectValue placeholder="Seleccione un rol" />
@@ -220,13 +228,19 @@ export function UserDialog({ open, onOpenChange, user, mode, onSubmit }: UserDia
                                         <SelectContent>
                                             <SelectItem value="admin">Administrador</SelectItem>
                                             <SelectItem value="operator">Operador</SelectItem>
-                                            <SelectItem value="tenant">Inquilino</SelectItem>
+                                            {(mode === 'create' || selectedRole === 'tenant') && (
+                                                <SelectItem value="tenant">Inquilino</SelectItem>
+                                            )}
+                                            {selectedRole === 'owner' && (
+                                                <SelectItem value="owner">Propietario</SelectItem>
+                                            )}
                                         </SelectContent>
                                     </Select>
                                     <FormMessage />
                                 </FormItem>
                             )}
                         />
+
 
                         <DialogFooter>
                             <Button type="submit" disabled={isSubmitting}>
