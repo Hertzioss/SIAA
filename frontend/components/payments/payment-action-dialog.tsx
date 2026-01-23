@@ -11,6 +11,7 @@ interface PaymentActionDialogProps {
     onOpenChange: (open: boolean) => void
     action: 'approve' | 'reject' | null
     paymentId: string | null
+    tenantEmail?: string
     onConfirm: (id: string, action: 'approved' | 'rejected', notes: string, sendEmail: boolean) => Promise<void>
 }
 
@@ -18,7 +19,7 @@ interface PaymentActionDialogProps {
  * Diálogo para aprobar o rechazar un pago.
  * Permite añadir notas y enviar confirmación por correo al inquilino.
  */
-export function PaymentActionDialog({ open, onOpenChange, action, paymentId, onConfirm }: PaymentActionDialogProps) {
+export function PaymentActionDialog({ open, onOpenChange, action, paymentId, tenantEmail, onConfirm }: PaymentActionDialogProps) {
     const [loading, setLoading] = useState(false)
     const [notes, setNotes] = useState("")
     const [sendEmail, setSendEmail] = useState(true)
@@ -59,7 +60,7 @@ export function PaymentActionDialog({ open, onOpenChange, action, paymentId, onC
                             onCheckedChange={(c) => setSendEmail(!!c)}
                         />
                         <Label htmlFor="sendEmail" className="text-sm font-normal cursor-pointer">
-                            Enviar correo al inquilino informando el cambio
+                            Enviar correo al inquilino {tenantEmail ? <span className="font-semibold text-muted-foreground">({tenantEmail})</span> : ''} informando el cambio
                         </Label>
                     </div>
 

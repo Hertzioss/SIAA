@@ -17,6 +17,7 @@ export interface Payment {
     tenant?: {
         name: string;
         doc_id: string;
+        email?: string;
     };
     unit?: {
         name: string;

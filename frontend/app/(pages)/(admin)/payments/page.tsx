@@ -251,6 +251,7 @@ export default function PaymentsPage() {
                 onOpenChange={setDialogOpen}
                 action={dialogAction}
                 paymentId={selectedPaymentId}
+                tenantEmail={payments.find(p => p.id === selectedPaymentId)?.tenant?.email}
                 onConfirm={updatePaymentStatus}
             />
 
