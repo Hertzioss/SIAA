@@ -246,8 +246,8 @@ export function TenantDialog({ open, onOpenChange, mode, tenant, properties, onS
                 <DialogHeader>
                     <DialogTitle>
                         {mode === 'create' && 'Registrar Nuevo Inquilino'}
-                        {mode === 'edit' && 'Editar Inquilino'}
-                        {mode === 'view' && 'Detalles del Inquilino'}
+                        {mode === 'edit' && `Editar Inquilino${tenant?.name ? ` - ${tenant.name}` : ''}`}
+                        {mode === 'view' && `Detalles del Inquilino${tenant?.name ? ` - ${tenant.name}` : ''}`}
                     </DialogTitle>
                     <DialogDescription>
                         {mode === 'create'
@@ -578,6 +578,7 @@ export function TenantDialog({ open, onOpenChange, mode, tenant, properties, onS
                                     <TableHeader>
                                         <TableRow>
                                             <TableHead>Nombre</TableHead>
+                                            <TableHead>Email</TableHead>
                                             <TableHead>Relación</TableHead>
                                             <TableHead>Teléfono</TableHead>
                                             <TableHead className="text-right">Acciones</TableHead>
@@ -585,13 +586,14 @@ export function TenantDialog({ open, onOpenChange, mode, tenant, properties, onS
                                     </TableHeader>
                                     <TableBody>
                                         {loadingContacts ? (
-                                            <TableRow><TableCell colSpan={4} className="text-center">Cargando...</TableCell></TableRow>
+                                            <TableRow><TableCell colSpan={5} className="text-center">Cargando...</TableCell></TableRow>
                                         ) : contacts.length === 0 ? (
-                                            <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground">Sin contactos adicionales.</TableCell></TableRow>
+                                            <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground">Sin contactos adicionales.</TableCell></TableRow>
                                         ) : (
                                             contacts.map(contact => (
                                                 <TableRow key={contact.id}>
                                                     <TableCell>{contact.name}</TableCell>
+                                                    <TableCell>{contact.email || '-'}</TableCell>
                                                     <TableCell>
                                                         <Badge variant="outline" className="capitalize">
                                                             {contact.relation === 'family' ? 'Familiar' :

@@ -45,6 +45,7 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 import { InternalAppLogo } from "./internal-appLogo"
+import { Space } from "lucide-react"
 
 const data = {
   user: {
@@ -222,7 +223,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               asChild
               className="data-[slot=sidebar-menu-button]:!p-1.5"
             >
-              <a href="/dashboard">
+              <a href="/dashboard" className="mt-6">
                 <InternalAppLogo />
                 {/* <IconInnerShadowTop className="!size-5" />
                 <span className="text-base font-semibold">Escritorio Legal.</span> */}

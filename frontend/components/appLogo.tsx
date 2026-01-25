@@ -22,7 +22,7 @@ export function AppLogo() {
                 <span className="text-[13px] text-muted-foreground font-medium uppercase tracking-wider">
                     Sistema Integral
                 </span>
-                <span className="text-[18px] text-muted-foreground font-medium uppercase tracking-wider">
+                <span className="text-[13px] text-muted-foreground font-medium uppercase tracking-wider">
                     Abogado Leonardo Hernández
                 </span>
             </div>

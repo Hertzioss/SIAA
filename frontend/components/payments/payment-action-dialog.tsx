@@ -22,7 +22,7 @@ interface PaymentActionDialogProps {
 export function PaymentActionDialog({ open, onOpenChange, action, paymentId, tenantEmail, onConfirm }: PaymentActionDialogProps) {
     const [loading, setLoading] = useState(false)
     const [notes, setNotes] = useState("")
-    const [sendEmail, setSendEmail] = useState(true)
+    const [sendEmail, setSendEmail] = useState(false)
 
     const handleSubmit = async () => {
         if (!paymentId || !action) return
@@ -53,6 +53,11 @@ export function PaymentActionDialog({ open, onOpenChange, action, paymentId, ten
                 </DialogHeader>
 
                 <div className="grid gap-4 py-4">
+                    <div>
+                        <Label htmlFor="tenantEmail" className="text-sm font-normal cursor-pointer">
+                            <span className="font-semibold">Email del inquilino:</span> {tenantEmail}
+                        </Label>
+                    </div>
                     <div className="flex items-center space-x-2">
                         <Checkbox
                             id="sendEmail"
@@ -60,7 +65,7 @@ export function PaymentActionDialog({ open, onOpenChange, action, paymentId, ten
                             onCheckedChange={(c) => setSendEmail(!!c)}
                         />
                         <Label htmlFor="sendEmail" className="text-sm font-normal cursor-pointer">
-                            Enviar correo al inquilino {tenantEmail ? <span className="font-semibold text-muted-foreground">({tenantEmail})</span> : ''} informando el cambio
+                            Enviar correo al inquilino informando el cambio
                         </Label>
                     </div>
 
