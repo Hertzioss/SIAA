@@ -13,6 +13,8 @@ export interface Payment {
     notes?: string;
     proof_url?: string;
     created_at: string;
+    currency?: 'USD' | 'VES';
+    exchange_rate?: number;
     // Relations joined
     tenant?: {
         name: string;
@@ -67,6 +69,8 @@ export function usePayments() {
             // Transform data
             const formatted = data?.map((p: any) => ({
                 ...p,
+                // Map DB columns to Frontend Interface
+                reference: p.reference_number,
                 tenant: p.tenant, // Direct fetch
                 unit: {
                     name: p.contract?.unit?.name,

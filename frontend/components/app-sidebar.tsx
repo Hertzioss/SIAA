@@ -29,6 +29,7 @@ import {
   IconUserX,
   IconBriefcase,
   IconCash,
+  IconTrendingDown,
 } from "@tabler/icons-react"
 import { supabase } from "@/lib/supabase"
 import { NavDocuments } from "@/components/nav-documents"
@@ -89,6 +90,11 @@ const data = {
           url: "/payments",
         },
       ],
+    },
+    {
+      title: "Egresos",
+      url: "/expenses",
+      icon: IconTrendingDown,
     },
     {
       title: "Reportes",

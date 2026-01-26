@@ -61,6 +61,7 @@ import { supabase } from "@/lib/supabase"
 import { useProperties } from "@/hooks/use-properties"
 import { useContracts } from "@/hooks/use-contracts"
 import { PropertyDialog } from "@/components/properties/property-dialog"
+import { ExpenseCategory, ExpenseStatus } from "@/types/expense"
 
 /**
  * Página de detalle de una propiedad específica.
@@ -90,7 +91,7 @@ export default function PropertyDetailsPage() {
         loading: loadingExpenses,
         createExpense,
         deleteExpense
-    } = useExpenses(params.id as string)
+    } = useExpenses()
 
     const {
         requests,
@@ -115,11 +116,11 @@ export default function PropertyDetailsPage() {
     // Expense Form State
     const [isExpenseDialogOpen, setIsExpenseDialogOpen] = useState(false)
     const [isEditPropertyDialogOpen, setIsEditPropertyDialogOpen] = useState(false)
-    const [expenseCategory, setExpenseCategory] = useState("maintenance")
+    const [expenseCategory, setExpenseCategory] = useState<ExpenseCategory>("maintenance")
     const [expenseDescription, setExpenseDescription] = useState("")
     const [expenseAmount, setExpenseAmount] = useState("")
     const [expenseDate, setExpenseDate] = useState(new Date().toISOString().split('T')[0])
-    const [expenseStatus, setExpenseStatus] = useState("pending")
+    const [expenseStatus, setExpenseStatus] = useState<ExpenseStatus>("pending")
 
     // Maintenance Form State
     const [isMaintenanceDialogOpen, setIsMaintenanceDialogOpen] = useState(false)
@@ -186,7 +187,7 @@ export default function PropertyDetailsPage() {
             description: expenseDescription,
             amount: parseFloat(expenseAmount),
             date: expenseDate,
-            status: expenseStatus as any
+            status: expenseStatus
         })
         setIsExpenseDialogOpen(false)
         setExpenseDescription("")
@@ -753,7 +754,7 @@ export default function PropertyDetailsPage() {
                                         <div className="grid grid-cols-2 gap-4">
                                             <div className="grid gap-2">
                                                 <Label>Categoría</Label>
-                                                <Select value={expenseCategory} onValueChange={setExpenseCategory}>
+                                                <Select value={expenseCategory} onValueChange={(value) => setExpenseCategory(value as ExpenseCategory)}>
                                                     <SelectTrigger>
                                                         <SelectValue />
                                                     </SelectTrigger>
@@ -786,7 +787,7 @@ export default function PropertyDetailsPage() {
                                             </div>
                                             <div className="grid gap-2">
                                                 <Label>Estado de Pago</Label>
-                                                <Select value={expenseStatus} onValueChange={setExpenseStatus}>
+                                                <Select value={expenseStatus} onValueChange={(value) => setExpenseStatus(value as ExpenseStatus)}>
                                                     <SelectTrigger>
                                                         <SelectValue />
                                                     </SelectTrigger>

@@ -1,23 +1,35 @@
 import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Expense } from '@/types/expense';
+import { OwnerExpense } from '@/types/owner-expense';
 import { toast } from 'sonner';
 
-export function useExpenses() {
-    const [expenses, setExpenses] = useState<Expense[]>([]);
+export function useOwnerExpenses() {
+    const [expenses, setExpenses] = useState<OwnerExpense[]>([]);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+    const [owners, setOwners] = useState<any[]>([]);
+
+    const fetchOwners = useCallback(async () => {
+        const { data, error } = await supabase
+            .from('owners')
+            .select('id, name, doc_id')
+            .order('name');
+
+        if (error) {
+            console.error('Error fetching owners:', error);
+        } else {
+            setOwners(data || []);
+        }
+    }, []);
 
     const fetchExpenses = useCallback(async () => {
         setLoading(true);
-        setError(null);
         try {
             const { data, error } = await supabase
-                .from('expenses')
+                .from('owner_expenses')
                 .select(`
                     *,
-                    property:properties(id, name),
-                    unit:units(id, name)
+                    owner:owners(id, name, doc_id),
+                    property:properties(id, name)
                 `)
                 .order('date', { ascending: false });
 
@@ -25,18 +37,17 @@ export function useExpenses() {
 
             setExpenses(data || []);
         } catch (err: any) {
-            console.error('Error fetching expenses:', err);
-            setError(err.message);
-            toast.error('Error al cargar egresos');
+            console.error('Error fetching owner expenses:', err);
+            toast.error('Error al cargar egresos de propietarios');
         } finally {
             setLoading(false);
         }
     }, []);
 
-    const createExpense = async (expenseData: Omit<Expense, 'id' | 'created_at' | 'updated_at' | 'property' | 'unit'>) => {
+    const createExpense = async (expenseData: Omit<OwnerExpense, 'id' | 'created_at' | 'owner' | 'property'>) => {
         try {
             const { data, error } = await supabase
-                .from('expenses')
+                .from('owner_expenses')
                 .insert(expenseData)
                 .select()
                 .single();
@@ -53,10 +64,10 @@ export function useExpenses() {
         }
     };
 
-    const updateExpense = async (id: string, expenseData: Partial<Expense>) => {
+    const updateExpense = async (id: string, expenseData: Partial<OwnerExpense>) => {
         try {
             const { error } = await supabase
-                .from('expenses')
+                .from('owner_expenses')
                 .update(expenseData)
                 .eq('id', id);
 
@@ -74,7 +85,7 @@ export function useExpenses() {
     const deleteExpense = async (id: string) => {
         try {
             const { error } = await supabase
-                .from('expenses')
+                .from('owner_expenses')
                 .delete()
                 .eq('id', id);
 
@@ -90,13 +101,14 @@ export function useExpenses() {
     };
 
     useEffect(() => {
+        fetchOwners();
         fetchExpenses();
-    }, [fetchExpenses]);
+    }, [fetchOwners, fetchExpenses]);
 
     return {
         expenses,
+        owners,
         loading,
-        error,
         fetchExpenses,
         createExpense,
         updateExpense,

@@ -107,15 +107,10 @@ export function useOwnerReport() {
 
             if (payError) throw payError;
 
-            // 3. Fetch Expenses
-            // Paid expenses within date range
+            // 3. Fetch Owner Expenses (Directly linked to owner)
             const { data: expenses, error: expError } = await supabase
-                .from('expenses')
-                .select('amount, property_id') // Assuming expenses are VES? Or do they have currency? Checking schema...
-                // Schema check: expenses table has 'amount' numeric. Does not seem to have currency/exchange_rate.
-                // WE SHOULD CHECK SCHEMA. Assuming Base Currency (USD) or mixed? 
-                // Creating assumption: Expenses are in USD for now or handled same as payments.
-                // Re-checking schema if possible, but let's assume 'amount' is the value to subtract.
+                .from('owner_expenses')
+                .select('amount, owner_id')
                 .eq('status', 'paid')
                 .gte('date', startStr)
                 .lte('date', endStr);
@@ -190,16 +185,32 @@ export function useOwnerReport() {
 
             // Process Expenses
             expenses?.forEach((e: any) => {
-                const amount = Number(e.amount); // Assuming USD or same base
-                const propertyId = e.property_id;
-                if (!propertyId) return;
+                const amount = Number(e.amount);
+                const ownerId = e.owner_id;
 
-                const owners = propertyOwnership[propertyId] || [];
-                owners.forEach(owner => {
-                    const share = amount * (owner.percentage / 100);
-                    const stats = getStats(owner.ownerId, owner.name, owner.doc_id);
-                    stats.totalExpenses += share;
-                });
+                // We need owner details (name, doc) if not already initialized by payments.
+                // We should probably rely on the pre-fetched ownersList or ensure 'getStats' can find it.
+                // For now, let's assume if they have expenses but no income, they should still appear?
+                // Yes, but we need their name.
+                // Let's Find name in ownersList if not in stats.
+                let ownerName = "Desconocido";
+                let ownerDoc = "";
+
+                // Try to find in existing stats
+                if (ownerStats[ownerId]) {
+                    ownerName = ownerStats[ownerId].ownerName;
+                    ownerDoc = ownerStats[ownerId].ownerDocId;
+                } else {
+                    // Try to find in fetched owners list
+                    const found = ownersList.find((o: any) => o.id === ownerId);
+                    if (found) {
+                        ownerName = found.name;
+                        ownerDoc = found.doc_id;
+                    }
+                }
+
+                const stats = getStats(ownerId, ownerName, ownerDoc);
+                stats.totalExpenses += amount;
             });
 
             // Calculate Net & Property Count

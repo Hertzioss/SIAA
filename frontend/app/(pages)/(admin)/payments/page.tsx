@@ -12,8 +12,8 @@ import { PaymentActionDialog } from "@/components/payments/payment-action-dialog
 import { PaymentDialog } from "@/components/tenants/payment-dialog"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
-import { Check, X, Search, FileText, Loader2, Edit2, ChevronLeft, ChevronRight, DollarSign, ArrowUpDown } from "lucide-react"
-import { parseLocalDate, formatDateString } from "@/lib/utils"
+import { Check, X, Search, FileText, Loader2, Edit2, ChevronLeft, ChevronRight, DollarSign, ArrowUpDown, Calendar } from "lucide-react"
+import { parseISO, format as formatFn } from "date-fns"
 
 /**
  * Página para la gestión y conciliación de pagos.
@@ -164,7 +164,8 @@ export default function PaymentsPage() {
                                             <ArrowUpDown className="ml-2 h-4 w-4" />
                                         </Button>
                                     </TableHead>
-                                    <TableHead>Método</TableHead>
+                                    <TableHead>Moneda</TableHead>
+                                    <TableHead>Tasa</TableHead>
                                     <TableHead>Referencia</TableHead>
                                     <TableHead>
                                         <Button variant="ghost" onClick={() => requestSort('status')} className="hover:bg-transparent px-0 font-bold">
@@ -195,9 +196,8 @@ export default function PaymentsPage() {
                                                 {payment.created_at ? format(new Date(payment.created_at), "dd-MM-yyyy") : "-"}
                                             </TableCell>
                                             <TableCell>
-                                                {/* {format(parseLocalDate(payment.date), "dd-MM-yyyy")} */}
-                                                {/* Use direct string formatting to avoid timezone offset issues */}
-                                                {formatDateString(payment.date)}
+                                                {/* Fix date timezone issue by explicitly parsing the YYYY-MM-DD string */}
+                                                {payment.date ? formatFn(parseISO(payment.date), 'dd/MM/yyyy') : '-'}
                                             </TableCell>
                                             <TableCell className="font-medium">
                                                 {payment.tenant?.name || "Desconocido"}
@@ -210,11 +210,16 @@ export default function PaymentsPage() {
                                             </TableCell>
                                             <TableCell>
                                                 <span className={payment.status === 'rejected' ? "line-through text-muted-foreground" : ""}>
-                                                    ${payment.amount.toFixed(2)}
+                                                    {payment.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                                                 </span>
                                             </TableCell>
-                                            <TableCell className="capitalize">
-                                                {payment.method === 'pago_movil' ? 'Pago Móvil' : payment.method}
+                                            <TableCell>
+                                                <Badge variant="outline" className={payment.currency === 'USD' ? 'text-green-600 border-green-200' : 'text-blue-600 border-blue-200'}>
+                                                    {payment.currency || 'USD'}
+                                                </Badge>
+                                            </TableCell>
+                                            <TableCell>
+                                                {payment.exchange_rate ? payment.exchange_rate.toFixed(2) : '-'}
                                             </TableCell>
                                             <TableCell>
                                                 <span className="font-mono text-xs">{payment.reference || "-"}</span>
