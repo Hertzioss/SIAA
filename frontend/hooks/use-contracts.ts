@@ -23,6 +23,7 @@ export type Contract = {
     }
     tenants?: {
         name: string
+        email: string
     }
 }
 
@@ -49,7 +50,8 @@ export function useContracts() {
                         )
                     ),
                     tenants (
-                        name
+                        name,
+                        email
                     )
                 `)
                 .order('start_date', { ascending: false, nullsFirst: false })
@@ -79,6 +81,10 @@ export function useContracts() {
                         properties (
                             name
                         )
+                    ),
+                    tenants (
+                        name,
+                        email
                     )
                 `)
                 .eq('tenant_id', tenantId)

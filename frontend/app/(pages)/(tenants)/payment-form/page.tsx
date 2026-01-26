@@ -9,9 +9,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import { Building2, Calendar as CalendarIcon, CloudUpload, Loader2 } from "lucide-react"
+import { Building2, Calendar as CalendarIcon, CloudUpload, Loader2, User } from "lucide-react"
 import { useTenantPayments, PaymentInsert } from "@/hooks/use-tenant-payments"
 import { useContracts } from "@/hooks/use-contracts"
+import { useCurrentTenant } from "@/hooks/use-current-tenant"
 import { fetchBcvRate } from "@/services/exchange-rate"
 import { toast } from "sonner"
 import { format } from "date-fns"
@@ -25,7 +26,8 @@ import { PendingBalanceCard } from "@/components/payments/pending-balance-card"
  */
 export default function PaymentForm() {
     const { registerPayment, isLoading: isSubmitting, getMonthlyBalance, getNextPaymentDate, getPaidMonths } = useTenantPayments()
-    const { contracts, isLoading: isLoadingContracts } = useContracts()
+    const { contracts, isLoading: isLoadingContracts, fetchTenantContracts } = useContracts()
+    const { currentTenant, loading: loadingTenant } = useCurrentTenant()
     const [activeContract, setActiveContract] = useState<any>(null)
     const [selectedFile, setSelectedFile] = useState<File | null>(null)
     const fileInputRef = useRef<HTMLInputElement>(null)
@@ -56,11 +58,15 @@ export default function PaymentForm() {
 
 
     useEffect(() => {
-        // Find the first active contract. 
-        // In a real tenant app, we would filter by the logged-in user's tenant_id.
-        // Here we just take the first 'active' one for demo purposes if no auth context.
+        if (currentTenant) {
+            fetchTenantContracts(currentTenant.id)
+        }
+    }, [currentTenant, fetchTenantContracts])
+
+    useEffect(() => {
         if (contracts.length > 0) {
             // Pick Active OR just the first one found (Expired) if no active one
+            // If fetching by tenant, all these belong to the tenant anyway.
             const active = contracts.find(c => c.status === 'active') || contracts[0]
             if (active) {
                 setActiveContract(active)
@@ -220,6 +226,17 @@ export default function PaymentForm() {
                 <h1 className="text-3xl font-bold">Formulario de Pagos</h1>
                 <p className="text-muted-foreground">Ingrese los detalles para registrar un nuevo pago de su arrendamiento.</p>
             </div>
+            {activeContract?.tenants && (
+                <div className="mb-6 p-4 bg-card rounded-lg border shadow-sm flex items-center gap-4 animate-in fade-in slide-in-from-top-2">
+                    <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                        <User className="h-6 w-6 text-primary" />
+                    </div>
+                    <div>
+                        <h3 className="font-semibold text-lg">{activeContract.tenants.name}</h3>
+                        <p className="text-sm text-muted-foreground">{activeContract.tenants.email}</p>
+                    </div>
+                </div>
+            )}
 
             <div className="grid gap-6 lg:grid-cols-3">
                 {/* Left Column - Form */}

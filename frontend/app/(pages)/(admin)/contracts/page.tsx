@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { FileText, Download, Mail, Plus, MoreHorizontal, Search, Edit, Trash, ChevronLeft, ChevronRight, AlertCircle, CheckCircle2, Clock } from "lucide-react"
+import { FileText, Download, Mail, Plus, MoreHorizontal, Search, Edit, Trash, ChevronLeft, ChevronRight, AlertCircle, CheckCircle2, Clock, ArrowUpDown } from "lucide-react"
 import { toast } from "sonner"
 import { ContractDialog } from "@/components/contracts/contract-dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -14,15 +14,26 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { useProperties } from "@/hooks/use-properties"
 import { useTenants } from "@/hooks/use-tenants"
 import { useContracts } from "@/hooks/use-contracts"
+import { generateContractPDF } from "@/components/contracts/contract-pdf-generator"
 
 import { useRouter, useSearchParams } from "next/navigation"
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 /**
  * Componente de contenido para la gestión de contratos.
  * Lista contratos con filtrado por estado y búsqueda.
  */
 function ContractsContent() {
-    const { contracts, isLoading, fetchContracts, createContract, updateContract } = useContracts()
+    const { contracts, isLoading, fetchContracts, createContract, updateContract, deleteContract } = useContracts()
     const { properties } = useProperties()
     const { tenants } = useTenants()
     const searchParams = useSearchParams()
@@ -34,6 +45,21 @@ function ContractsContent() {
     const [statusFilter, setStatusFilter] = useState("all")
     const [currentPage, setCurrentPage] = useState(1)
     const ITEMS_PER_PAGE = 5
+
+    // Delete Confirmation State
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+    const [contractToDelete, setContractToDelete] = useState<any>(null)
+
+    // Sorting State
+    const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null)
+
+    const requestSort = (key: string) => {
+        let direction: 'asc' | 'desc' = 'asc'
+        if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
+            direction = 'desc'
+        }
+        setSortConfig({ key, direction })
+    }
 
     // Helper to format contract for display
     const formatContractData = (c: any) => {
@@ -103,8 +129,23 @@ function ContractsContent() {
         return matchesSearch && matchesStatus
     })
 
-    const totalPages = Math.ceil(filteredContracts.length / ITEMS_PER_PAGE) || 1
-    const currentContracts = filteredContracts.slice(
+    const sortedContracts = [...filteredContracts]
+    if (sortConfig) {
+        sortedContracts.sort((a, b) => {
+            // @ts-ignore
+            if (a[sortConfig.key] < b[sortConfig.key]) {
+                return sortConfig.direction === 'asc' ? -1 : 1
+            }
+            // @ts-ignore
+            if (a[sortConfig.key] > b[sortConfig.key]) {
+                return sortConfig.direction === 'asc' ? 1 : -1
+            }
+            return 0
+        })
+    }
+
+    const totalPages = Math.ceil(sortedContracts.length / ITEMS_PER_PAGE) || 1
+    const currentContracts = sortedContracts.slice(
         (currentPage - 1) * ITEMS_PER_PAGE,
         currentPage * ITEMS_PER_PAGE
     )
@@ -134,12 +175,50 @@ function ContractsContent() {
         return end > now
     }).length
 
-    const handleDownload = (id: string) => {
-        toast.success(`Descargando contrato ${id} en PDF...`)
+    const handleDownload = (contract: any) => {
+        if (contract.file_url) {
+            window.open(contract.file_url, '_blank')
+            toast.success("Abriendo archivo del contrato...")
+        } else {
+            toast.info("Generando PDF del contrato...", { description: "Si el archivo original no existe, se generará una versión digital." })
+            generateContractPDF(contract)
+        }
     }
 
-    const handleEmail = (id: string) => {
-        toast.success(`Enviando contrato ${id} por correo electrónico...`)
+    const handleEmail = async (contract: any) => {
+        const email = contract.tenants?.email
+        const name = contract.tenants?.name
+
+        if (!email) {
+            toast.error("El inquilino no tiene un correo electrónico registrado.")
+            return
+        }
+
+        toast.promise(
+            fetch('/api/emails/send', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    recipients: [{ email, name }],
+                    subject: `Contrato de Arrendamiento - ${contract.units?.properties?.name || 'Propiedad'}`,
+                    message: `
+                        <p>Estimado/a ${name},</p>
+                        <p>Adjunto encontrará la información relacionada con su contrato de arrendamiento para la unidad <strong>${contract.units?.name}</strong>.</p>
+                        <p><strong>Vigencia:</strong> ${new Date(contract.start_date).toLocaleDateString()} - ${contract.end_date ? new Date(contract.end_date).toLocaleDateString() : 'Indefinido'}</p>
+                        ${contract.file_url ? `<p>Puede descargar el documento original aquí: <a href="${contract.file_url}">Ver Contrato</a></p>` : ''}
+                        <p>Atentamente,<br>Administración</p>
+                    `
+                })
+            }).then(async (res) => {
+                if (!res.ok) throw new Error("Falló el envío")
+                return res.json()
+            }),
+            {
+                loading: 'Enviando correo...',
+                success: 'Contrato enviado exitosamente',
+                error: 'Error al enviar el correo'
+            }
+        )
     }
 
     const handleCreate = () => {
@@ -171,6 +250,19 @@ function ContractsContent() {
         } catch (error) {
             console.error("Error saving contract:", error)
             // Toast handled in hook
+        }
+    }
+
+    const confirmDelete = (contract: any) => {
+        setContractToDelete(contract)
+        setIsDeleteDialogOpen(true)
+    }
+
+    const handleDelete = async () => {
+        if (contractToDelete) {
+            await deleteContract(contractToDelete.id)
+            setIsDeleteDialogOpen(false)
+            setContractToDelete(null)
         }
     }
 
@@ -271,11 +363,30 @@ function ContractsContent() {
                     <Table>
                         <TableHeader>
                             <TableRow>
-                                <TableHead>ID</TableHead>
-                                <TableHead>Propiedad</TableHead>
-                                <TableHead>Inquilino</TableHead>
-                                <TableHead>Vigencia</TableHead>
-                                <TableHead>Estado</TableHead>
+                                <TableHead>
+                                    <Button variant="ghost" onClick={() => requestSort('property')} className="hover:bg-transparent px-0 font-bold">
+                                        Propiedad
+                                        <ArrowUpDown className="ml-2 h-4 w-4" />
+                                    </Button>
+                                </TableHead>
+                                <TableHead>
+                                    <Button variant="ghost" onClick={() => requestSort('tenant')} className="hover:bg-transparent px-0 font-bold">
+                                        Inquilino
+                                        <ArrowUpDown className="ml-2 h-4 w-4" />
+                                    </Button>
+                                </TableHead>
+                                <TableHead>
+                                    <Button variant="ghost" onClick={() => requestSort('start_date')} className="hover:bg-transparent px-0 font-bold">
+                                        Vigencia
+                                        <ArrowUpDown className="ml-2 h-4 w-4" />
+                                    </Button>
+                                </TableHead>
+                                <TableHead>
+                                    <Button variant="ghost" onClick={() => requestSort('status')} className="hover:bg-transparent px-0 font-bold">
+                                        Estado
+                                        <ArrowUpDown className="ml-2 h-4 w-4" />
+                                    </Button>
+                                </TableHead>
                                 <TableHead className="text-right">Acciones</TableHead>
                             </TableRow>
                         </TableHeader>
@@ -283,9 +394,6 @@ function ContractsContent() {
                             {currentContracts.length > 0 ? (
                                 currentContracts.map((contract) => (
                                     <TableRow key={contract.id}>
-                                        <TableCell className="font-medium text-xs truncate max-w-[100px]" title={contract.id}>
-                                            {contract.id.slice(0, 8)}...
-                                        </TableCell>
                                         <TableCell>
                                             <div className="font-medium">{contract.property.split(" - ")[0]}</div>
                                             <div className="text-xs text-muted-foreground">{contract.property.split(" - ")[1]}</div>
@@ -304,33 +412,23 @@ function ContractsContent() {
                                             </Badge>
                                         </TableCell>
                                         <TableCell className="text-right">
-                                            <DropdownMenu>
-                                                <DropdownMenuTrigger asChild>
-                                                    <Button variant="ghost" className="h-8 w-8 p-0">
-                                                        <span className="sr-only">Abrir menú</span>
-                                                        <MoreHorizontal className="h-4 w-4" />
-                                                    </Button>
-                                                </DropdownMenuTrigger>
-                                                <DropdownMenuContent align="end">
-                                                    <DropdownMenuLabel>Acciones</DropdownMenuLabel>
-                                                    <DropdownMenuItem onClick={() => handleViewDetail(contract)}>
-                                                        <FileText className="mr-2 h-4 w-4" /> Ver Detalle
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuItem onClick={() => handleEdit(contract)}>
-                                                        <Edit className="mr-2 h-4 w-4" /> Editar
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuItem onClick={() => navigator.clipboard.writeText(contract.id)}>
-                                                        Copiar ID
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuSeparator />
-                                                    <DropdownMenuItem onClick={() => handleDownload(contract.id)}>
-                                                        <Download className="mr-2 h-4 w-4" /> Descargar PDF
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuItem onClick={() => handleEmail(contract.id)}>
-                                                        <Mail className="mr-2 h-4 w-4" /> Enviar por Correo
-                                                    </DropdownMenuItem>
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
+                                            <div className="flex items-center justify-end gap-2">
+                                                <Button variant="ghost" size="icon" onClick={() => handleViewDetail(contract)}>
+                                                    <FileText className="h-4 w-4" />
+                                                </Button>
+                                                <Button variant="ghost" size="icon" onClick={() => handleEdit(contract)}>
+                                                    <Edit className="h-4 w-4" />
+                                                </Button>
+                                                <Button variant="ghost" size="icon" onClick={() => handleDownload(contract)}>
+                                                    <Download className="h-4 w-4" />
+                                                </Button>
+                                                <Button variant="ghost" size="icon" onClick={() => handleEmail(contract)}>
+                                                    <Mail className="h-4 w-4" />
+                                                </Button>
+                                                <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => confirmDelete(contract)}>
+                                                    <Trash className="h-4 w-4" />
+                                                </Button>
+                                            </div>
                                         </TableCell>
                                     </TableRow>
                                 ))
@@ -378,6 +476,24 @@ function ContractsContent() {
                 tenants={tenants}
                 onSubmit={handleSaveContract}
             />
+
+            <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>¿Está seguro?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Esta acción no se puede deshacer. Esto eliminará permanentemente el contrato
+                            <strong> {contractToDelete?.id}</strong>.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                            Eliminar
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     )
 }

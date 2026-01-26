@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Plus, Search, Mail, Phone, User, Home, FileText, Building, ChevronLeft, ChevronRight, Edit, Trash, Loader2, DollarSign } from "lucide-react"
+import { Plus, Search, Mail, Phone, User, Home, FileText, Building, ChevronLeft, ChevronRight, Edit, Trash, Loader2, DollarSign, ArrowUpDown } from "lucide-react"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -106,8 +106,34 @@ export default function TenantsPage() {
         return matchesSearch && matchesProperty && matchesOwner
     })
 
-    const totalPages = Math.ceil(filteredTenants.length / ITEMS_PER_PAGE)
-    const currentTenants = filteredTenants.slice(
+    // Sorting State
+    const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null)
+
+    const requestSort = (key: string) => {
+        let direction: 'asc' | 'desc' = 'asc'
+        if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
+            direction = 'desc'
+        }
+        setSortConfig({ key, direction })
+    }
+
+    const sortedTenants = [...filteredTenants]
+    if (sortConfig) {
+        sortedTenants.sort((a, b) => {
+            // @ts-ignore
+            if (a[sortConfig.key] < b[sortConfig.key]) {
+                return sortConfig.direction === 'asc' ? -1 : 1
+            }
+            // @ts-ignore
+            if (a[sortConfig.key] > b[sortConfig.key]) {
+                return sortConfig.direction === 'asc' ? 1 : -1
+            }
+            return 0
+        })
+    }
+
+    const totalPages = Math.ceil(sortedTenants.length / ITEMS_PER_PAGE)
+    const currentTenants = sortedTenants.slice(
         (currentPage - 1) * ITEMS_PER_PAGE,
         currentPage * ITEMS_PER_PAGE
     )
@@ -252,9 +278,24 @@ export default function TenantsPage() {
                             <Table>
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead>Nombre</TableHead>
-                                        <TableHead>Contacto</TableHead>
-                                        <TableHead>Estado</TableHead>
+                                        <TableHead>
+                                            <Button variant="ghost" onClick={() => requestSort('name')} className="hover:bg-transparent px-0 font-bold">
+                                                Nombre
+                                                <ArrowUpDown className="ml-2 h-4 w-4" />
+                                            </Button>
+                                        </TableHead>
+                                        <TableHead>
+                                            <Button variant="ghost" onClick={() => requestSort('phone')} className="hover:bg-transparent px-0 font-bold">
+                                                Contacto
+                                                <ArrowUpDown className="ml-2 h-4 w-4" />
+                                            </Button>
+                                        </TableHead>
+                                        <TableHead>
+                                            <Button variant="ghost" onClick={() => requestSort('status')} className="hover:bg-transparent px-0 font-bold">
+                                                Estado
+                                                <ArrowUpDown className="ml-2 h-4 w-4" />
+                                            </Button>
+                                        </TableHead>
                                         <TableHead className="text-right">Acciones</TableHead>
                                     </TableRow>
                                 </TableHeader>

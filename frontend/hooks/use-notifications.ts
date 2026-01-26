@@ -106,11 +106,12 @@ export function useNotifications() {
         title: string;
         message: string;
         type: 'info' | 'alert' | 'payment' | 'contract';
-        target: { type: 'all' | 'property' | 'tenant'; id?: string }
+        target: { type: 'all' | 'property' | 'tenant'; id?: string };
+        recipientType: 'tenant' | 'contacts' | 'both';
     }) => {
         try {
             let notificationsToInsert: any[] = [];
-            const { title, message, type, target } = data;
+            const { title, message, type, target, recipientType } = data;
             const baseNotification = { title, message, type, user_id: null };
 
             let recipientsData: { email: string, name: string }[] = [];
@@ -118,10 +119,10 @@ export function useNotifications() {
             if (target.type === 'tenant') {
                 if (!target.id) throw new Error("Tenant ID required for single tenant notification");
 
-                // Fetch email, name, and user_id
+                // Fetch email, name, user_id, and contacts if needed
                 const { data: tenant } = await supabase
                     .from('tenants')
-                    .select('id, email, name, user_id')
+                    .select('id, email, name, user_id, tenant_contacts(email, name)')
                     .eq('id', target.id)
                     .single();
 
@@ -133,15 +134,26 @@ export function useNotifications() {
                     user_id: tenant.user_id || null
                 });
 
-                if (tenant.email) recipientsData.push({ email: tenant.email, name: tenant.name });
+                if (recipientType === 'tenant' || recipientType === 'both') {
+                    if (tenant.email) recipientsData.push({ email: tenant.email, name: tenant.name });
+                }
+
+                if (recipientType === 'contacts' || recipientType === 'both') {
+                    const contacts = tenant.tenant_contacts || [];
+                    contacts.forEach((c: any) => {
+                        if (c.email) recipientsData.push({ email: c.email, name: c.name });
+                    });
+                }
             }
             else if (target.type === 'property') {
                 if (!target.id) throw new Error("Property ID required for property notification");
 
-                // Fetch active contracts with tenant emails
+                // Fetch active contracts with tenant emails and contacts
+                // Note: tenant contacts fetching depends on relation structure. 
+                // Assuming tenants has many tenant_contacts. contract has one tenant.
                 const { data: contracts, error: fetchError } = await supabase
                     .from('contracts')
-                    .select('tenant_id, tenant:tenants(id, email, name, user_id), unit:units!inner(property_id)')
+                    .select('tenant_id, tenant:tenants(id, email, name, user_id, tenant_contacts(email, name)), unit:units!inner(property_id)')
                     .eq('unit.property_id', target.id)
                     .eq('status', 'active');
 
@@ -164,15 +176,25 @@ export function useNotifications() {
                     };
                 });
 
-                recipientsData = uniqueContracts.map(c => {
+                uniqueContracts.forEach(c => {
                     const t = c.tenant as any;
-                    return t?.email ? { email: t.email, name: t.name } : null;
-                }).filter(Boolean) as any[];
+                    if (!t) return;
+
+                    if (recipientType === 'tenant' || recipientType === 'both') {
+                        if (t.email) recipientsData.push({ email: t.email, name: t.name });
+                    }
+                    if (recipientType === 'contacts' || recipientType === 'both') {
+                        const contacts = t.tenant_contacts || [];
+                        contacts.forEach((contact: any) => {
+                            if (contact.email) recipientsData.push({ email: contact.email, name: contact.name });
+                        });
+                    }
+                });
             }
             else if (target.type === 'all') {
                 const { data: tenants, error: fetchError } = await supabase
                     .from('tenants')
-                    .select('id, email, name, user_id')
+                    .select('id, email, name, user_id, tenant_contacts(email, name)')
                     .eq('status', 'solvent');
 
                 if (fetchError) throw fetchError;
@@ -186,7 +208,18 @@ export function useNotifications() {
                     if (t.user_id) n.user_id = t.user_id;
                     return n;
                 });
-                recipientsData = tenants.map(t => t.email ? { email: t.email, name: t.name } : null).filter(Boolean) as any[];
+
+                tenants.forEach(t => {
+                    if (recipientType === 'tenant' || recipientType === 'both') {
+                        if (t.email) recipientsData.push({ email: t.email, name: t.name });
+                    }
+                    if (recipientType === 'contacts' || recipientType === 'both') {
+                        const contacts = t.tenant_contacts || [];
+                        contacts.forEach((contact: any) => {
+                            if (contact.email) recipientsData.push({ email: contact.email, name: contact.name });
+                        });
+                    }
+                });
             }
 
             if (notificationsToInsert.length === 0) return;
@@ -198,13 +231,11 @@ export function useNotifications() {
 
             if (error) {
                 console.error("Supabase Insert Error (JSON):", JSON.stringify(error, null, 2));
-                console.error("Supabase Insert Error (Message):", error.message);
-                console.error("Supabase Insert Error (Details):", error.details);
-                console.error("Supabase Insert Error (Hint):", error.hint);
                 throw error;
             }
 
             // 2. Send Email (Async)
+            // console.log("Sending emails to:", recipientsData); // Debug log
             if (recipientsData.length > 0) {
                 try {
                     await fetch('/api/emails/send', {
@@ -213,10 +244,10 @@ export function useNotifications() {
                         body: JSON.stringify({
                             recipients: recipientsData,
                             subject: title,
-                            message: message // Sending raw message, API handles HTML template
+                            message: message
                         })
                     });
-                    toast.success(`Comunicado enviado a ${notificationsToInsert.length} destinatarios`);
+                    toast.success(`Comunicado enviado a ${notificationsToInsert.length} inquilinos (${recipientsData.length} emails)`);
                 } catch (emailErr) {
                     console.error("Failed to send emails:", emailErr);
                     toast.warning("Notificación guardada, pero hubo un error enviando los correos.");
@@ -227,9 +258,7 @@ export function useNotifications() {
 
             fetchNotifications();
         } catch (err: any) {
-            console.error('Error creating notification (Message):', err.message);
-            console.error('Error creating notification (Stack):', err.stack);
-            console.error('Error creating notification (Full):', err);
+            console.error('Error creating notification:', err);
             toast.error(`Error al enviar comunicado: ${err.message || 'Error desconocido'}`);
             throw err;
         }

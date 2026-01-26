@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Input } from "@/components/ui/input"
-import { Plus, Search, Mail, Phone, User, Building, Edit, Trash, FileText } from "lucide-react"
+import { Plus, Search, Mail, Phone, User, Building, Edit, Trash, FileText, ArrowUpDown } from "lucide-react"
 import { toast } from "sonner"
 import { OwnerDialog } from "@/components/owners/owner-dialog"
 import {
@@ -48,12 +48,38 @@ export default function OwnersPage() {
         (owner.email && owner.email.toLowerCase().includes(searchTerm.toLowerCase()))
     )
 
-    const currentPageOwners = filteredOwners.slice(
+    // Sorting State
+    const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null)
+
+    const requestSort = (key: string) => {
+        let direction: 'asc' | 'desc' = 'asc'
+        if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
+            direction = 'desc'
+        }
+        setSortConfig({ key, direction })
+    }
+
+    const sortedOwners = [...filteredOwners]
+    if (sortConfig) {
+        sortedOwners.sort((a, b) => {
+            // @ts-ignore
+            if (a[sortConfig.key] < b[sortConfig.key]) {
+                return sortConfig.direction === 'asc' ? -1 : 1
+            }
+            // @ts-ignore
+            if (a[sortConfig.key] > b[sortConfig.key]) {
+                return sortConfig.direction === 'asc' ? 1 : -1
+            }
+            return 0
+        })
+    }
+
+    const currentPageOwners = sortedOwners.slice(
         (currentPage - 1) * itemsPerPage,
         currentPage * itemsPerPage
     )
 
-    const totalPages = Math.ceil(filteredOwners.length / itemsPerPage)
+    const totalPages = Math.ceil(sortedOwners.length / itemsPerPage)
 
     const handleCreate = () => {
         setDialogMode("create")
@@ -150,8 +176,18 @@ export default function OwnersPage() {
                     <Table>
                         <TableHeader>
                             <TableRow>
-                                <TableHead>Nombre</TableHead>
-                                <TableHead>Identificación</TableHead>
+                                <TableHead>
+                                    <Button variant="ghost" onClick={() => requestSort('name')} className="hover:bg-transparent px-0 font-bold">
+                                        Nombre
+                                        <ArrowUpDown className="ml-2 h-4 w-4" />
+                                    </Button>
+                                </TableHead>
+                                <TableHead>
+                                    <Button variant="ghost" onClick={() => requestSort('doc_id')} className="hover:bg-transparent px-0 font-bold">
+                                        Identificación
+                                        <ArrowUpDown className="ml-2 h-4 w-4" />
+                                    </Button>
+                                </TableHead>
                                 <TableHead>Contacto</TableHead>
                                 <TableHead>Propiedades</TableHead>
                                 <TableHead className="text-right">Acciones</TableHead>

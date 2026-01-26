@@ -16,7 +16,8 @@ interface CreateNotificationDialogProps {
         title: string;
         message: string;
         type: 'info' | 'alert' | 'payment' | 'contract';
-        target: { type: 'all' | 'property' | 'tenant'; id?: string }
+        target: { type: 'all' | 'property' | 'tenant'; id?: string };
+        recipientType: 'tenant' | 'contacts' | 'both';
     }) => Promise<void>
     initialData?: {
         title: string
@@ -38,6 +39,7 @@ export function CreateNotificationDialog({ open, onOpenChange, onSubmit, initial
     const [scope, setScope] = useState<'all' | 'property' | 'tenant'>("all")
     const [tenantId, setTenantId] = useState<string>("")
     const [propertyId, setPropertyId] = useState<string>("")
+    const [recipientType, setRecipientType] = useState<'tenant' | 'contacts' | 'both'>('tenant')
 
     const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -68,7 +70,8 @@ export function CreateNotificationDialog({ open, onOpenChange, onSubmit, initial
                 target: {
                     type: scope,
                     id: scope === 'all' ? undefined : (scope === 'property' ? propertyId : tenantId)
-                }
+                },
+                recipientType
             })
             onOpenChange(false)
             // Reset form
@@ -78,6 +81,7 @@ export function CreateNotificationDialog({ open, onOpenChange, onSubmit, initial
             setScope("all")
             setTenantId("")
             setPropertyId("")
+            setRecipientType("tenant")
         } catch (error) {
             console.error("Error submitting notification:", error)
             // Toast is likely handled in onSubmit (the hook), but we catch here to prevent crash
@@ -156,6 +160,7 @@ export function CreateNotificationDialog({ open, onOpenChange, onSubmit, initial
                         </div>
                     )}
 
+
                     {scope === 'tenant' && (
                         <div className="grid gap-2">
                             <Label htmlFor="tenant">Inquilino</Label>
@@ -173,6 +178,20 @@ export function CreateNotificationDialog({ open, onOpenChange, onSubmit, initial
                             </Select>
                         </div>
                     )}
+
+                    <div className="grid gap-2">
+                        <Label>Destinatarios de Correo</Label>
+                        <Select value={recipientType} onValueChange={(v: any) => setRecipientType(v)}>
+                            <SelectTrigger>
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="tenant">Solo Inquilino</SelectItem>
+                                <SelectItem value="contacts">Solo Contactos</SelectItem>
+                                <SelectItem value="both">Ambos (Inquilino + Contactos)</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
 
                     <div className="grid gap-2">
                         <Label htmlFor="message">Mensaje</Label>

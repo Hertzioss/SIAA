@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Building, Home, Plus, Edit, Trash, MapPin, User, X, Search, MoreHorizontal, FileText, Briefcase, Warehouse, ChevronLeft, ChevronRight, Loader2 } from "lucide-react"
+import { Building, Home, Plus, Edit, Trash, MapPin, User, X, Search, MoreHorizontal, FileText, Briefcase, Warehouse, ChevronLeft, ChevronRight, Loader2, ArrowUpDown } from "lucide-react"
 import { toast } from "sonner"
 import { PropertyDialog } from "@/components/properties/property-dialog"
 import {
@@ -73,8 +73,37 @@ export default function PropertiesPage() {
         property.address.toLowerCase().includes(searchTerm.toLowerCase())
     )
 
-    const totalPages = Math.ceil(filteredProperties.length / ITEMS_PER_PAGE)
-    const currentProperties = filteredProperties.slice(
+    // Sorting State for Properties (List)
+    const [propertySortConfig, setPropertySortConfig] = useState<{ key: string, direction: 'asc' | 'desc' }>({ key: 'name', direction: 'asc' })
+
+    // Sorting State for Units (Table)
+    const [unitSortConfig, setUnitSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null)
+
+    const requestUnitSort = (key: string) => {
+        let direction: 'asc' | 'desc' = 'asc'
+        if (unitSortConfig && unitSortConfig.key === key && unitSortConfig.direction === 'asc') {
+            direction = 'desc'
+        }
+        setUnitSortConfig({ key, direction })
+    }
+
+    const sortedProperties = [...filteredProperties].sort((a: any, b: any) => {
+        const key = propertySortConfig.key
+        let aVal = a[key]
+        let bVal = b[key]
+
+        if (key === 'property_type') {
+            aVal = a.property_type?.label || ''
+            bVal = b.property_type?.label || ''
+        }
+
+        if (aVal < bVal) return propertySortConfig.direction === 'asc' ? -1 : 1
+        if (aVal > bVal) return propertySortConfig.direction === 'asc' ? 1 : -1
+        return 0
+    })
+
+    const totalPages = Math.ceil(sortedProperties.length / ITEMS_PER_PAGE)
+    const currentProperties = sortedProperties.slice(
         (currentPage - 1) * ITEMS_PER_PAGE,
         currentPage * ITEMS_PER_PAGE
     )
@@ -241,17 +270,36 @@ export default function PropertiesPage() {
                             <CardTitle>Portafolio de Inmuebles</CardTitle>
                             <CardDescription>Vista general de propiedades.</CardDescription>
                         </div>
-                        <div className="relative w-64">
-                            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                            <Input
-                                placeholder="Buscar propiedad..."
-                                className="pl-8"
-                                value={searchTerm}
-                                onChange={(e) => {
-                                    setSearchTerm(e.target.value)
-                                    setCurrentPage(1)
+                        <div className="flex items-center gap-2">
+                            <Select
+                                value={`${propertySortConfig.key}-${propertySortConfig.direction}`}
+                                onValueChange={(val) => {
+                                    const [key, direction] = val.split('-')
+                                    setPropertySortConfig({ key, direction: direction as 'asc' | 'desc' })
                                 }}
-                            />
+                            >
+                                <SelectTrigger className="w-[180px]">
+                                    <SelectValue placeholder="Ordenar por" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="name-asc">Nombre (A-Z)</SelectItem>
+                                    <SelectItem value="name-desc">Nombre (Z-A)</SelectItem>
+                                    <SelectItem value="property_type-asc">Tipo (A-Z)</SelectItem>
+                                    <SelectItem value="property_type-desc">Tipo (Z-A)</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <div className="relative w-64">
+                                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                                <Input
+                                    placeholder="Buscar propiedad..."
+                                    className="pl-8"
+                                    value={searchTerm}
+                                    onChange={(e) => {
+                                        setSearchTerm(e.target.value)
+                                        setCurrentPage(1)
+                                    }}
+                                />
+                            </div>
                         </div>
                     </div>
                 </CardHeader>
@@ -260,130 +308,169 @@ export default function PropertiesPage() {
                         <div className="flex justify-center py-8">
                             <Loader2 className="h-8 w-8 animate-spin text-primary" />
                         </div>
-                    ) : filteredProperties.length === 0 ? (
+                    ) : sortedProperties.length === 0 ? (
                         <div className="text-center py-8 text-muted-foreground">
                             No se encontraron propiedades.
                         </div>
                     ) : (
                         <Accordion type="single" collapsible className="w-full">
-                            {currentProperties.map((property) => (
-                                <AccordionItem key={property.id} value={property.id}>
-                                    <AccordionTrigger className="hover:no-underline">
-                                        <div className="flex items-center justify-between w-full pr-4">
-                                            <div className="flex items-center gap-4">
-                                                <div className="bg-primary/10 p-2 rounded-lg">
-                                                    {getPropertyIcon(property.property_type?.name)}
-                                                </div>
-                                                <div className="text-left">
-                                                    <div className="font-semibold text-lg">{property.name}</div>
-                                                    <div className="text-sm text-muted-foreground flex items-center gap-1">
-                                                        <MapPin className="h-3 w-3" /> {property.address}
+                            {currentProperties.map((property) => {
+                                const sortedUnits = property.units ? [...property.units].sort((a: any, b: any) => {
+                                    if (!unitSortConfig) return 0
+
+                                    let aVal = a[unitSortConfig.key]
+                                    let bVal = b[unitSortConfig.key]
+
+                                    // Handle numeric comparison for rent
+                                    if (unitSortConfig.key === 'default_rent_amount') {
+                                        aVal = Number(aVal || 0)
+                                        bVal = Number(bVal || 0)
+                                    }
+
+                                    if (aVal < bVal) return unitSortConfig.direction === 'asc' ? -1 : 1
+                                    if (aVal > bVal) return unitSortConfig.direction === 'asc' ? 1 : -1
+                                    return 0
+                                }) : []
+
+                                return (
+                                    <AccordionItem key={property.id} value={property.id}>
+                                        <AccordionTrigger className="hover:no-underline">
+                                            <div className="flex items-center justify-between w-full pr-4">
+                                                <div className="flex items-center gap-4">
+                                                    <div className="bg-primary/10 p-2 rounded-lg">
+                                                        {getPropertyIcon(property.property_type?.name)}
                                                     </div>
-                                                    <div className="text-xs text-muted-foreground mt-1 capitalize">
-                                                        {property.property_type?.label || 'Sin Clasificar'}
+                                                    <div className="text-left">
+                                                        <div className="font-semibold text-lg">{property.name}</div>
+                                                        <div className="text-sm text-muted-foreground flex items-center gap-1">
+                                                            <MapPin className="h-3 w-3" /> {property.address}
+                                                        </div>
+                                                        <div className="text-xs text-muted-foreground mt-1 capitalize">
+                                                            {property.property_type?.label || 'Sin Clasificar'}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-6 text-sm">
+                                                    <div className="flex flex-col items-end">
+                                                        <span className="text-muted-foreground">Unidades</span>
+                                                        <span className="font-medium">{property.units?.length || 0}</span>
+                                                    </div>
+                                                    <div className="flex flex-col items-end">
+                                                        <span className="text-muted-foreground">Área Total</span>
+                                                        <span className="font-medium">
+                                                            {property.total_area ? `${property.total_area} m²` : '-'}
+                                                        </span>
+                                                    </div>
+
+                                                    {/* Actions */}
+                                                    <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                                                        <div
+                                                            role="button"
+                                                            className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 cursor-pointer"
+                                                            onClick={() => router.push(`/properties/${property.id}`)}
+                                                        >
+                                                            <FileText className="h-4 w-4" />
+                                                        </div>
+                                                        <div
+                                                            role="button"
+                                                            className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 cursor-pointer"
+                                                            onClick={() => handleEdit(property)}
+                                                        >
+                                                            <Edit className="h-4 w-4" />
+                                                        </div>
+                                                        <div
+                                                            role="button"
+                                                            className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 text-destructive hover:text-destructive cursor-pointer"
+                                                            onClick={() => confirmDelete(property.id, property.name, 'property')}
+                                                        >
+                                                            <Trash className="h-4 w-4" />
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
-                                            <div className="flex items-center gap-6 text-sm">
-                                                <div className="flex flex-col items-end">
-                                                    <span className="text-muted-foreground">Unidades</span>
-                                                    <span className="font-medium">{property.units?.length || 0}</span>
-                                                </div>
-                                                <div className="flex flex-col items-end">
-                                                    <span className="text-muted-foreground">Área Total</span>
-                                                    <span className="font-medium">
-                                                        {property.total_area ? `${property.total_area} m²` : '-'}
-                                                    </span>
+                                        </AccordionTrigger>
+                                        <AccordionContent className="px-4 pb-4 pt-2">
+                                            <div className="pl-14 space-y-4">
+                                                <div className="flex justify-between items-center">
+                                                    <h4 className="text-sm font-semibold text-muted-foreground">Unidades / Espacios Arrendables</h4>
+                                                    <Button size="sm" variant="outline" onClick={() => handleOpenCreateUnit(property.id, property.name)}>
+                                                        <Plus className="mr-2 h-3 w-3" /> Agregar Unidad
+                                                    </Button>
                                                 </div>
 
-                                                {/* Actions */}
-                                                <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                                                    <div
-                                                        role="button"
-                                                        className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 cursor-pointer"
-                                                        onClick={() => router.push(`/properties/${property.id}`)}
-                                                    >
-                                                        <FileText className="h-4 w-4" />
-                                                    </div>
-                                                    <div
-                                                        role="button"
-                                                        className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 cursor-pointer"
-                                                        onClick={() => handleEdit(property)}
-                                                    >
-                                                        <Edit className="h-4 w-4" />
-                                                    </div>
-                                                    <div
-                                                        role="button"
-                                                        className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 text-destructive hover:text-destructive cursor-pointer"
-                                                        onClick={() => confirmDelete(property.id, property.name, 'property')}
-                                                    >
-                                                        <Trash className="h-4 w-4" />
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </AccordionTrigger>
-                                    <AccordionContent className="px-4 pb-4 pt-2">
-                                        <div className="pl-14 space-y-4">
-                                            <div className="flex justify-between items-center">
-                                                <h4 className="text-sm font-semibold text-muted-foreground">Unidades / Espacios Arrendables</h4>
-                                                <Button size="sm" variant="outline" onClick={() => handleOpenCreateUnit(property.id, property.name)}>
-                                                    <Plus className="mr-2 h-3 w-3" /> Agregar Unidad
-                                                </Button>
-                                            </div>
-
-                                            {/* Units Table */}
-                                            {property.units && property.units.length > 0 ? (
-                                                <div className="border rounded-md">
-                                                    <Table>
-                                                        <TableHeader>
-                                                            <TableRow>
-                                                                <TableHead>Unidad</TableHead>
-                                                                <TableHead>Tipo</TableHead>
-                                                                <TableHead>Estado</TableHead>
-                                                                <TableHead className="text-right">Canon Base</TableHead>
-                                                                <TableHead className="text-right">Acciones</TableHead>
-                                                            </TableRow>
-                                                        </TableHeader>
-                                                        <TableBody>
-                                                            {property.units.map((unit: any) => (
-                                                                <TableRow key={unit.id}>
-                                                                    <TableCell className="font-medium">{unit.name}</TableCell>
-                                                                    <TableCell className="capitalize">
-                                                                        {unit.type === 'apt' ? 'Apartamento' : unit.type === 'office' ? 'Oficina' : unit.type === 'local' ? 'Local' : 'Bodega'}
-                                                                    </TableCell>
-                                                                    <TableCell>
-                                                                        <Badge variant={unit.status === 'vacant' ? 'secondary' : 'default'} className="capitalize">
-                                                                            {unit.status === 'vacant' ? 'Vacante' : unit.status}
-                                                                        </Badge>
-                                                                    </TableCell>
-                                                                    <TableCell className="text-right">
-                                                                        {unit.default_rent_amount ? `$${unit.default_rent_amount}` : '-'}
-                                                                    </TableCell>
-                                                                    <TableCell className="text-right">
-                                                                        <div className="flex justify-end gap-2">
-                                                                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenEditUnit(unit, property.name)}>
-                                                                                <Edit className="h-4 w-4" />
-                                                                            </Button>
-                                                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => confirmDelete(unit.id, unit.name, 'unit')}>
-                                                                                <Trash className="h-4 w-4" />
-                                                                            </Button>
-                                                                        </div>
-                                                                    </TableCell>
+                                                {/* Units Table */}
+                                                {property.units && property.units.length > 0 ? (
+                                                    <div className="border rounded-md">
+                                                        <Table>
+                                                            <TableHeader>
+                                                                <TableRow>
+                                                                    <TableHead>
+                                                                        <Button variant="ghost" onClick={() => requestUnitSort('name')} className="hover:bg-transparent px-0 font-bold h-auto py-1">
+                                                                            Unidad
+                                                                            <ArrowUpDown className="ml-2 h-3 w-3" />
+                                                                        </Button>
+                                                                    </TableHead>
+                                                                    <TableHead>
+                                                                        <Button variant="ghost" onClick={() => requestUnitSort('type')} className="hover:bg-transparent px-0 font-bold h-auto py-1">
+                                                                            Tipo
+                                                                            <ArrowUpDown className="ml-2 h-3 w-3" />
+                                                                        </Button>
+                                                                    </TableHead>
+                                                                    <TableHead>
+                                                                        <Button variant="ghost" onClick={() => requestUnitSort('status')} className="hover:bg-transparent px-0 font-bold h-auto py-1">
+                                                                            Estado
+                                                                            <ArrowUpDown className="ml-2 h-3 w-3" />
+                                                                        </Button>
+                                                                    </TableHead>
+                                                                    <TableHead className="text-right">
+                                                                        <Button variant="ghost" onClick={() => requestUnitSort('default_rent_amount')} className="hover:bg-transparent px-0 font-bold h-auto py-1">
+                                                                            Canon Base
+                                                                            <ArrowUpDown className="ml-2 h-3 w-3" />
+                                                                        </Button>
+                                                                    </TableHead>
+                                                                    <TableHead className="text-right">Acciones</TableHead>
                                                                 </TableRow>
-                                                            ))}
-                                                        </TableBody>
-                                                    </Table>
-                                                </div>
-                                            ) : (
-                                                <div className="text-sm text-muted-foreground italic">
-                                                    No hay unidades registradas.
-                                                </div>
-                                            )}
-                                        </div>
-                                    </AccordionContent>
-                                </AccordionItem>
-                            ))}
+                                                            </TableHeader>
+                                                            <TableBody>
+                                                                {sortedUnits.map((unit: any) => (
+                                                                    <TableRow key={unit.id}>
+                                                                        <TableCell className="font-medium">{unit.name}</TableCell>
+                                                                        <TableCell className="capitalize">
+                                                                            {unit.type === 'apt' ? 'Apartamento' : unit.type === 'office' ? 'Oficina' : unit.type === 'local' ? 'Local' : 'Bodega'}
+                                                                        </TableCell>
+                                                                        <TableCell>
+                                                                            <Badge variant={unit.status === 'vacant' ? 'secondary' : 'default'} className="capitalize">
+                                                                                {unit.status === 'vacant' ? 'Vacante' : unit.status}
+                                                                            </Badge>
+                                                                        </TableCell>
+                                                                        <TableCell className="text-right">
+                                                                            {unit.default_rent_amount ? `$${unit.default_rent_amount}` : '-'}
+                                                                        </TableCell>
+                                                                        <TableCell className="text-right">
+                                                                            <div className="flex justify-end gap-2">
+                                                                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenEditUnit(unit, property.name)}>
+                                                                                    <Edit className="h-4 w-4" />
+                                                                                </Button>
+                                                                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => confirmDelete(unit.id, unit.name, 'unit')}>
+                                                                                    <Trash className="h-4 w-4" />
+                                                                                </Button>
+                                                                            </div>
+                                                                        </TableCell>
+                                                                    </TableRow>
+                                                                ))}
+                                                            </TableBody>
+                                                        </Table>
+                                                    </div>
+                                                ) : (
+                                                    <div className="text-sm text-muted-foreground italic">
+                                                        No hay unidades registradas.
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </AccordionContent>
+                                    </AccordionItem>
+                                )
+                            })}
                         </Accordion>
                     )}
                 </CardContent>

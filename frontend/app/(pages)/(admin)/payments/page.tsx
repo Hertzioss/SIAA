@@ -12,7 +12,7 @@ import { PaymentActionDialog } from "@/components/payments/payment-action-dialog
 import { PaymentDialog } from "@/components/tenants/payment-dialog"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
-import { Check, X, Search, FileText, Loader2, Edit2, ChevronLeft, ChevronRight, DollarSign } from "lucide-react"
+import { Check, X, Search, FileText, Loader2, Edit2, ChevronLeft, ChevronRight, DollarSign, ArrowUpDown } from "lucide-react"
 import { parseLocalDate, formatDateString } from "@/lib/utils"
 
 /**
@@ -43,6 +43,42 @@ export default function PaymentsPage() {
             payment.unit?.name.toLowerCase().includes(search)
         )
     })
+
+    // Sorting State
+    const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null)
+
+    const requestSort = (key: string) => {
+        let direction: 'asc' | 'desc' = 'asc'
+        if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
+            direction = 'desc'
+        }
+        setSortConfig({ key, direction })
+    }
+
+    const sortedPayments = [...filteredPayments]
+    if (sortConfig) {
+        sortedPayments.sort((a: any, b: any) => {
+            let aValue = a[sortConfig.key]
+            let bValue = b[sortConfig.key]
+
+            // Handle nested properties manually or flattened
+            if (sortConfig.key === 'tenant') {
+                aValue = a.tenant?.name || ''
+                bValue = b.tenant?.name || ''
+            } else if (sortConfig.key === 'unit') {
+                aValue = a.unit?.name || ''
+                bValue = b.unit?.name || ''
+            }
+
+            if (aValue < bValue) {
+                return sortConfig.direction === 'asc' ? -1 : 1
+            }
+            if (aValue > bValue) {
+                return sortConfig.direction === 'asc' ? 1 : -1
+            }
+            return 0
+        })
+    }
 
     const totalPages = Math.ceil(total / pageSize)
 
@@ -98,14 +134,44 @@ export default function PaymentsPage() {
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead>Fecha Registro</TableHead>
-                                    <TableHead>Fecha Pago</TableHead>
-                                    <TableHead>Inquilino</TableHead>
-                                    <TableHead>Propiedad / Unidad</TableHead>
-                                    <TableHead>Monto</TableHead>
+                                    <TableHead>
+                                        <Button variant="ghost" onClick={() => requestSort('created_at')} className="hover:bg-transparent px-0 font-bold">
+                                            Fecha Registro
+                                            <ArrowUpDown className="ml-2 h-4 w-4" />
+                                        </Button>
+                                    </TableHead>
+                                    <TableHead>
+                                        <Button variant="ghost" onClick={() => requestSort('date')} className="hover:bg-transparent px-0 font-bold">
+                                            Fecha Pago
+                                            <ArrowUpDown className="ml-2 h-4 w-4" />
+                                        </Button>
+                                    </TableHead>
+                                    <TableHead>
+                                        <Button variant="ghost" onClick={() => requestSort('tenant')} className="hover:bg-transparent px-0 font-bold">
+                                            Inquilino
+                                            <ArrowUpDown className="ml-2 h-4 w-4" />
+                                        </Button>
+                                    </TableHead>
+                                    <TableHead>
+                                        <Button variant="ghost" onClick={() => requestSort('unit')} className="hover:bg-transparent px-0 font-bold">
+                                            Propiedad / Unidad
+                                            <ArrowUpDown className="ml-2 h-4 w-4" />
+                                        </Button>
+                                    </TableHead>
+                                    <TableHead>
+                                        <Button variant="ghost" onClick={() => requestSort('amount')} className="hover:bg-transparent px-0 font-bold">
+                                            Monto
+                                            <ArrowUpDown className="ml-2 h-4 w-4" />
+                                        </Button>
+                                    </TableHead>
                                     <TableHead>Método</TableHead>
                                     <TableHead>Referencia</TableHead>
-                                    <TableHead>Estado</TableHead>
+                                    <TableHead>
+                                        <Button variant="ghost" onClick={() => requestSort('status')} className="hover:bg-transparent px-0 font-bold">
+                                            Estado
+                                            <ArrowUpDown className="ml-2 h-4 w-4" />
+                                        </Button>
+                                    </TableHead>
                                     <TableHead className="text-right">Acciones</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -116,14 +182,14 @@ export default function PaymentsPage() {
                                             <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
                                         </TableCell>
                                     </TableRow>
-                                ) : filteredPayments.length === 0 ? (
+                                ) : sortedPayments.length === 0 ? (
                                     <TableRow>
                                         <TableCell colSpan={9} className="text-center h-24 text-muted-foreground">
                                             No se encontraron pagos registrados
                                         </TableCell>
                                     </TableRow>
                                 ) : (
-                                    filteredPayments.map((payment) => (
+                                    sortedPayments.map((payment) => (
                                         <TableRow key={payment.id}>
                                             <TableCell className="text-xs text-muted-foreground">
                                                 {payment.created_at ? format(new Date(payment.created_at), "dd-MM-yyyy") : "-"}
