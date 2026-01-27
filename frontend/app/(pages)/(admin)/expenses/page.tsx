@@ -14,6 +14,13 @@ import { OwnerExpense } from "@/types/owner-expense"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
+import {
     AlertDialog,
     AlertDialogAction,
     AlertDialogCancel,
@@ -29,6 +36,7 @@ export default function ExpensesPage() {
     const { properties } = useProperties()
 
     const [searchTerm, setSearchTerm] = useState("")
+    const [selectedOwnerId, setSelectedOwnerId] = useState<string>("all")
     const [isDialogOpen, setIsDialogOpen] = useState(false)
     const [dialogMode, setDialogMode] = useState<"create" | "edit">("create")
     const [selectedExpense, setSelectedExpense] = useState<OwnerExpense | undefined>(undefined)
@@ -37,12 +45,43 @@ export default function ExpensesPage() {
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
     const [expenseToDelete, setExpenseToDelete] = useState<OwnerExpense | null>(null)
 
-    const filteredExpenses = expenses.filter(expense =>
-        expense.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        expense.owner?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        expense.property?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        expense.amount.toString().includes(searchTerm)
-    )
+    const filteredExpenses = expenses.filter(expense => {
+        const matchesSearch = expense.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            expense.owner?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            expense.property?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            expense.amount.toString().includes(searchTerm)
+
+        const matchesOwner = selectedOwnerId === "all" || expense.owner_id === selectedOwnerId
+
+        return matchesSearch && matchesOwner
+    })
+
+    const handleExport = () => {
+        const headers = ["Fecha", "Propietario", "Propiedad", "Categoría", "Descripción", "Estado", "Monto", "Moneda"]
+        const csvContent = [
+            headers.join(","),
+            ...filteredExpenses.map(e => [
+                format(new Date(e.date), 'dd/MM/yyyy'),
+                `"${e.owner?.name || ''}"`,
+                `"${e.property?.name || ''}"`,
+                getCategoryLabel(e.category),
+                `"${e.description || ''}"`,
+                getStatusLabel(e.status),
+                e.amount,
+                e.currency || 'USD',
+                e.exchange_rate || 1
+            ].join(","))
+        ].join("\n")
+
+        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
+        const url = URL.createObjectURL(blob)
+        const link = document.createElement("a")
+        link.setAttribute("href", url)
+        link.setAttribute("download", `egresos_${format(new Date(), 'yyyy-MM-dd')}.csv`)
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+    }
 
     const handleCreate = () => {
         setDialogMode("create")
@@ -119,7 +158,7 @@ export default function ExpensesPage() {
                     </p>
                 </div>
                 <div className="flex gap-2">
-                    <Button color="success" className="bg-green-600 hover:bg-green-700">
+                    <Button color="success" className="bg-green-600 hover:bg-green-700" onClick={handleExport}>
                         <FileSpreadsheet className="mr-2 h-4 w-4" /> Exportar
                     </Button>
                     <Button onClick={handleCreate}>
@@ -159,6 +198,17 @@ export default function ExpensesPage() {
                                 onChange={(e) => setSearchTerm(e.target.value)}
                             />
                         </div>
+                        <Select value={selectedOwnerId} onValueChange={setSelectedOwnerId}>
+                            <SelectTrigger className="w-[200px]">
+                                <SelectValue placeholder="Filtrar por propietario" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">Todos los propietarios</SelectItem>
+                                {owners.map(owner => (
+                                    <SelectItem key={owner.id} value={owner.id}>{owner.name}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                     </div>
                 </CardHeader>
                 <CardContent>
@@ -175,12 +225,11 @@ export default function ExpensesPage() {
                             <TableHeader>
                                 <TableRow>
                                     <TableHead>Fecha</TableHead>
-                                    <TableHead>Propietario</TableHead>
-                                    <TableHead>Propiedad</TableHead>
-                                    <TableHead>Categoría</TableHead>
-                                    <TableHead>Descripción</TableHead>
+                                    <TableHead>Propietario / Inmueble</TableHead>
+                                    <TableHead>Concepto</TableHead>
                                     <TableHead>Estado</TableHead>
                                     <TableHead className="text-right">Monto</TableHead>
+                                    <TableHead className="text-right">Tasa</TableHead>
                                     <TableHead className="text-right">Acciones</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -207,7 +256,11 @@ export default function ExpensesPage() {
                                             </Badge>
                                         </TableCell>
                                         <TableCell className="text-right font-medium">
+                                            <span className="text-xs text-muted-foreground mr-1">{expense.currency || 'USD'}</span>
                                             ${Number(expense.amount).toFixed(2)}
+                                        </TableCell>
+                                        <TableCell className="text-right text-xs text-muted-foreground">
+                                            {expense.currency === 'USD' ? (expense.exchange_rate || '-') : '-'}
                                         </TableCell>
                                         <TableCell className="text-right">
                                             <div className="flex justify-end gap-2">
@@ -253,6 +306,6 @@ export default function ExpensesPage() {
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
-        </div>
+        </div >
     )
 }

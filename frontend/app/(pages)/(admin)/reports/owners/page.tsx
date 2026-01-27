@@ -25,16 +25,17 @@ export default function OwnerReportPage() {
     const [selectedOwner, setSelectedOwner] = useState<OwnerReportItem | null>(null)
 
     // Helper for formatting currency
-    const formatMoney = (amount: number) => {
-        return new Intl.NumberFormat('en-US', {
+    const formatMoney = (amount: number, currency: 'USD' | 'Bs' = 'USD') => {
+        return new Intl.NumberFormat('es-VE', {
             style: 'currency',
-            currency: 'USD',
+            currency: currency === 'Bs' ? 'VES' : 'USD',
+            currencyDisplay: 'symbol'
         }).format(amount)
     }
 
-    const totalIncome = reportData.reduce((acc, curr) => acc + curr.totalIncome, 0)
-    const totalExpenses = reportData.reduce((acc, curr) => acc + curr.totalExpenses, 0)
-    const netTotal = totalIncome - totalExpenses
+    const totalIncomeBs = reportData.reduce((acc, curr) => acc + curr.totalIncomeBs, 0)
+    const totalExpensesBs = reportData.reduce((acc, curr) => acc + curr.totalExpensesBs, 0)
+    const netTotalBs = totalIncomeBs - totalExpensesBs
 
     const handleExport = () => {
         try {
@@ -48,37 +49,52 @@ export default function OwnerReportPage() {
                 "Propietario": item.ownerName,
                 "Documento": item.ownerDocId,
                 "Propiedades": item.propertyCount,
-                "Ingresos (USD)": item.totalIncome,
-                "Egresos (USD)": item.totalExpenses,
-                "Balance Neto (USD)": item.netBalance
+                "Ingresos (Bs)": item.totalIncomeBs,
+                "Egresos (Bs)": item.totalExpensesBs,
+                "Balance Neto (Bs)": item.netBalanceBs
             }))
 
-            // 2. Detail Data
-            const detailData = reportData.flatMap(owner =>
+            // 2. Detail Data (Payments)
+            const paymentsData = reportData.flatMap(owner =>
                 (owner.payments || []).map(p => ({
+                    "Tipo": "Ingreso",
                     "Fecha": p.date,
                     "Propietario": owner.ownerName,
                     "Inquilino": p.tenantName,
                     "Unidad": p.unitName,
-                    "Método": p.method,
-                    "Monto (Cuota)": p.amount
+                    "Concepto": `Pago - ${p.method}`,
+                    "Monto Original": p.amountOriginal,
+                    "Moneda Original": p.currency,
+                    "Tasa": p.exchangeRate,
+                    "Monto (Bs)": p.amount
                 }))
             )
 
+            // 3. Detail Data (Expenses)
+            const expensesData = reportData.flatMap(owner =>
+                (owner.expenses || []).map(e => ({
+                    "Tipo": "Egreso",
+                    "Fecha": e.date,
+                    "Propietario": owner.ownerName,
+                    "Inquilino": "-",
+                    "Unidad": "-",
+                    "Concepto": e.description || e.category,
+                    "Monto Original": e.amountOriginal,
+                    "Moneda Original": e.currency,
+                    "Tasa": e.exchangeRate,
+                    "Monto (Bs)": e.amount
+                }))
+            )
+
+            const combinedDetail = [...paymentsData, ...expensesData].sort((a, b) => new Date(b.Fecha).getTime() - new Date(a.Fecha).getTime())
+
             // Create Worksheets
             const wsSummary = XLSX.utils.json_to_sheet(exportData)
-
-            // Handle Detail Sheet (ensure headers even if empty)
-            let wsDetail
-            if (detailData.length > 0) {
-                wsDetail = XLSX.utils.json_to_sheet(detailData)
-            } else {
-                wsDetail = XLSX.utils.json_to_sheet([{ "Info": "No hay pagos registrados en este periodo" }])
-            }
+            const wsDetail = XLSX.utils.json_to_sheet(combinedDetail)
 
             const wb = XLSX.utils.book_new()
             XLSX.utils.book_append_sheet(wb, wsSummary, "Resumen")
-            XLSX.utils.book_append_sheet(wb, wsDetail, "Detalle Pagos")
+            XLSX.utils.book_append_sheet(wb, wsDetail, "Detalle Completo")
 
             // Generate File Name
             const fileName = `Reporte_Propietarios_${format(filters.startDate, "yyyy-MM-dd")}_${format(filters.endDate, "yyyy-MM-dd")}.xlsx`
@@ -150,38 +166,36 @@ export default function OwnerReportPage() {
                 </CardContent>
             </Card>
 
-            {/* Key Metrics */}
-            <div className="grid gap-4 md:grid-cols-3">
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Ingresos Totales</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold text-green-600">{formatMoney(totalIncome)}</div>
-                        <p className="text-xs text-muted-foreground">En el periodo seleccionado</p>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Egresos Totales</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold text-red-600">{formatMoney(totalExpenses)}</div>
-                        <p className="text-xs text-muted-foreground">Gastos de propiedades asociadas</p>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Balance Neto</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className={cn("text-2xl font-bold", netTotal >= 0 ? "text-blue-600" : "text-yellow-600")}>
-                            {formatMoney(netTotal)}
-                        </div>
-                        <p className="text-xs text-muted-foreground">Utilidad estimada</p>
-                    </CardContent>
-                </Card>
-            </div>
+            <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Ingresos Totales</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div className="text-2xl font-bold text-green-600">Bs {totalIncomeBs.toLocaleString('es-VE', { minimumFractionDigits: 2 })}</div>
+                    <p className="text-xs text-muted-foreground">Normalizado a tasa del día</p>
+                </CardContent>
+            </Card>
+            <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Egresos Totales</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div className="text-2xl font-bold text-red-600">Bs {totalExpensesBs.toLocaleString('es-VE', { minimumFractionDigits: 2 })}</div>
+                    <p className="text-xs text-muted-foreground">Gastos de propiedades asociadas</p>
+                </CardContent>
+            </Card>
+            <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Balance Neto</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div className={cn("text-2xl font-bold", netTotalBs >= 0 ? "text-blue-600" : "text-yellow-600")}>
+                        Bs {netTotalBs.toLocaleString('es-VE', { minimumFractionDigits: 2 })}
+                    </div>
+                    <p className="text-xs text-muted-foreground">Utilidad estimada</p>
+                </CardContent>
+            </Card>
+
 
             {/* Data Table */}
             <Tabs defaultValue="summary" className="w-full">
@@ -189,7 +203,8 @@ export default function OwnerReportPage() {
                     <h2 className="text-xl font-semibold">Detalle por Propietario</h2>
                     <TabsList>
                         <TabsTrigger value="summary">Resumen</TabsTrigger>
-                        <TabsTrigger value="detail">Detalle Completo</TabsTrigger>
+                        <TabsTrigger value="detail">Detalle Pagos</TabsTrigger>
+                        <TabsTrigger value="expenses_detail">Detalle Egresos</TabsTrigger>
                     </TabsList>
                 </div>
 
@@ -206,9 +221,9 @@ export default function OwnerReportPage() {
                                         <TableHead>Propietario</TableHead>
                                         <TableHead>Documento</TableHead>
                                         <TableHead className="text-center">Propiedades</TableHead>
-                                        <TableHead className="text-right">Ingresos</TableHead>
-                                        <TableHead className="text-right">Egresos</TableHead>
-                                        <TableHead className="text-right">Balance</TableHead>
+                                        <TableHead className="text-right">Ingresos (Bs)</TableHead>
+                                        <TableHead className="text-right">Egresos (Bs)</TableHead>
+                                        <TableHead className="text-right">Balance (Bs)</TableHead>
                                         <TableHead className="text-center">Detalle</TableHead>
                                     </TableRow>
                                 </TableHeader>
@@ -232,13 +247,13 @@ export default function OwnerReportPage() {
                                                 <TableCell className="text-muted-foreground text-sm">{item.ownerDocId}</TableCell>
                                                 <TableCell className="text-center">{item.propertyCount}</TableCell>
                                                 <TableCell className="text-right text-green-600 font-medium">
-                                                    {formatMoney(item.totalIncome)}
+                                                    {formatMoney(item.totalIncomeBs, 'Bs')}
                                                 </TableCell>
                                                 <TableCell className="text-right text-red-600 font-medium">
-                                                    {formatMoney(item.totalExpenses)}
+                                                    {formatMoney(item.totalExpensesBs, 'Bs')}
                                                 </TableCell>
                                                 <TableCell className="text-right font-bold">
-                                                    {formatMoney(item.netBalance)}
+                                                    {formatMoney(item.netBalanceBs, 'Bs')}
                                                 </TableCell>
                                                 <TableCell className="text-center">
                                                     <Button variant="ghost" size="sm" onClick={() => setSelectedOwner(item)}>
@@ -269,7 +284,9 @@ export default function OwnerReportPage() {
                                         <TableHead>Inquilino</TableHead>
                                         <TableHead>Unidad</TableHead>
                                         <TableHead>Método</TableHead>
-                                        <TableHead className="text-right">Monto (Cuota)</TableHead>
+                                        <TableHead className="text-right">Monto Original</TableHead>
+                                        <TableHead className="text-right">Tasa</TableHead>
+                                        <TableHead className="text-right">Monto (Bs)</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -295,7 +312,66 @@ export default function OwnerReportPage() {
                                                 <TableCell>{item.tenantName}</TableCell>
                                                 <TableCell>{item.unitName}</TableCell>
                                                 <TableCell className="capitalize">{item.method.replace('_', ' ')}</TableCell>
-                                                <TableCell className="text-right font-medium">{formatMoney(item.amount)}</TableCell>
+                                                <TableCell className="text-right text-muted-foreground mr-2">{item.currency || 'USD'} {Number(item.amountOriginal || item.amount).toLocaleString('es-VE', { minimumFractionDigits: 2 })}</TableCell>
+                                                <TableCell className="text-right text-muted-foreground">{item.exchangeRate}</TableCell>
+                                                <TableCell className="text-right font-medium">{formatMoney(item.amount, 'Bs')}</TableCell>
+                                            </TableRow>
+                                        ))
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+
+                {/* EXPENSES DETAIL VIEW */}
+                <TabsContent value="expenses_detail">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Listado Detallado de Egresos</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Fecha</TableHead>
+                                        <TableHead>Propietario</TableHead>
+                                        <TableHead>Categoría</TableHead>
+                                        <TableHead>Detalle</TableHead>
+                                        <TableHead className="text-right">Monto Original</TableHead>
+                                        <TableHead className="text-right">Tasa</TableHead>
+                                        <TableHead className="text-right">Monto (Bs)</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {loading ? (
+                                        <TableRow>
+                                            <TableCell colSpan={6} className="h-24 text-center">
+                                                <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
+                                            </TableCell>
+                                        </TableRow>
+                                    ) : reportData.flatMap(o => o.expenses).length === 0 ? (
+                                        <TableRow>
+                                            <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
+                                                No se encontraron egresos en este periodo.
+                                            </TableCell>
+                                        </TableRow>
+                                    ) : (
+                                        reportData.flatMap(owner =>
+                                            owner.expenses.map((expense, idx) => ({ ...expense, ownerName: owner.ownerName, uniqueKey: `exp-${owner.ownerId}-${idx}` }))
+                                        ).map((item) => (
+                                            <TableRow key={item.uniqueKey}>
+                                                <TableCell>{item.date ? item.date.split('T')[0] : '-'}</TableCell>
+                                                <TableCell className="font-medium">{item.ownerName}</TableCell>
+                                                <TableCell>{item.category}</TableCell>
+                                                <TableCell>{item.description}</TableCell>
+                                                <TableCell className="text-right text-muted-foreground">
+                                                    {item.currency === 'USD' ? '$' : 'Bs'} {Number(item.amountOriginal).toLocaleString('es-VE', { minimumFractionDigits: 2 })}
+                                                </TableCell>
+                                                <TableCell className="text-right text-muted-foreground">{item.exchangeRate}</TableCell>
+                                                <TableCell className="text-right font-medium">
+                                                    Bs {Number(item.amount).toLocaleString('es-VE', { minimumFractionDigits: 2 })}
+                                                </TableCell>
                                             </TableRow>
                                         ))
                                     )}
@@ -334,7 +410,9 @@ export default function OwnerReportPage() {
                                             <TableCell>{p.tenantName}</TableCell>
                                             <TableCell>{p.unitName}</TableCell>
                                             <TableCell className="capitalize">{p.method.replace('_', ' ')}</TableCell>
-                                            <TableCell className="text-right font-medium">{formatMoney(p.amount)}</TableCell>
+                                            <TableCell className="text-right text-muted-foreground">{p.currency || 'USD'} {Number(p.amountOriginal || p.amount).toLocaleString('es-VE', { minimumFractionDigits: 2 })}</TableCell>
+                                            <TableCell className="text-right text-muted-foreground">{p.exchangeRate}</TableCell>
+                                            <TableCell className="text-right font-medium">{formatMoney(p.amount, 'Bs')}</TableCell>
                                         </TableRow>
                                     ))
                                 )}

@@ -7,16 +7,32 @@ export interface OwnerReportItem {
     ownerId: string;
     ownerName: string;
     ownerDocId: string;
-    totalIncome: number; // Income from Payments
-    totalExpenses: number; // Share of Expenses
-    netBalance: number;
+    totalIncomeBs: number;
+    totalExpensesBs: number;
+    netBalanceBs: number;
     propertyCount: number;
     payments: OwnerPaymentDetail[];
+    expenses: OwnerExpenseDetail[];
+}
+
+export interface OwnerExpenseDetail {
+    date: string;
+    amount: number; // In Bs
+    currency: 'USD' | 'Bs'; // Original currency
+    amountOriginal: number; // Original amount
+    exchangeRate: number; // Rate used for conversion
+    category: string;
+    description: string;
+    ownerName?: string; // For flattened usage
+    uniqueKey?: string; // For list keys
 }
 
 export interface OwnerPaymentDetail {
     date: string;
-    amount: number;
+    amount: number; // In Bs
+    amountOriginal: number;
+    currency: string;
+    exchangeRate: number;
     method: string;
     tenantName: string;
     unitName: string;
@@ -110,7 +126,7 @@ export function useOwnerReport() {
             // 3. Fetch Owner Expenses (Directly linked to owner)
             const { data: expenses, error: expError } = await supabase
                 .from('owner_expenses')
-                .select('amount, owner_id')
+                .select('amount, owner_id, currency, date, category, description, exchange_rate')
                 .eq('status', 'paid')
                 .gte('date', startStr)
                 .lte('date', endStr);
@@ -131,11 +147,12 @@ export function useOwnerReport() {
                         ownerId: id,
                         ownerName: name,
                         ownerDocId: doc,
-                        totalIncome: 0,
-                        totalExpenses: 0,
-                        netBalance: 0,
-                        propertyCount: 0, // To be calculated? 
-                        payments: []
+                        totalIncomeBs: 0,
+                        totalExpensesBs: 0,
+                        netBalanceBs: 0,
+                        propertyCount: 0,
+                        payments: [],
+                        expenses: []
                     };
                 }
                 return ownerStats[id];
@@ -143,11 +160,16 @@ export function useOwnerReport() {
 
             // Process Payments
             payments?.forEach((p: any) => {
-                // Normalize to USD
-                let amountUSD = Number(p.amount);
-                if (p.currency === 'VES' && p.exchange_rate) {
-                    amountUSD = amountUSD / p.exchange_rate;
+                // Normalize to Bs
+                const amount = Number(p.amount);
+                const currency = p.currency || 'USD';
+                const exchangeRate = Number(p.exchange_rate) || 1; // Default to 1 if missing (shouldn't happen for USD)
+
+                let amountBs = amount;
+                if (currency === 'USD') {
+                    amountBs = amount * exchangeRate;
                 }
+                // If currency is Bs, amount is already amountBs.
 
                 // Find Property
                 const propertyId = p.contract?.unit?.property_id;
@@ -156,7 +178,10 @@ export function useOwnerReport() {
                 // Create Detail Object
                 const detail: OwnerPaymentDetail = {
                     date: p.date,
-                    amount: amountUSD, // Using calculated USD amount
+                    amount: amountBs, // Normalized to Bs
+                    amountOriginal: amount,
+                    currency: currency,
+                    exchangeRate: exchangeRate,
                     method: p.payment_method,
                     tenantName: p.tenant?.name || 'Desconocido',
                     unitName: p.contract?.unit?.name || '',
@@ -166,19 +191,12 @@ export function useOwnerReport() {
                 // Distribute to Owners
                 const owners = propertyOwnership[propertyId] || [];
                 owners.forEach(owner => {
-                    const share = amountUSD * (owner.percentage / 100);
+                    const share = amountBs * (owner.percentage / 100);
                     const stats = getStats(owner.ownerId, owner.name, owner.doc_id);
-                    stats.totalIncome += share;
-                    // Add detail copy with share? No, usually they want to see the full payment or their share?
-                    // User asked: "evidenciar el monto pagado".
-                    // If spread across owners, showing the FULL amount might be confusing if we sum it up.
-                    // But usually "Line Items" in a statement show the share. 
-                    // Let's store the SHARE as the amount for this owner's report, 
-                    // but maybe keep a reference to the original total if needed?
-                    // Let's store the share for now as that balances the report.
+                    stats.totalIncomeBs += share;
                     stats.payments.push({
                         ...detail,
-                        amount: share
+                        amount: share // Share in Bs
                     });
                 });
             });
@@ -187,21 +205,17 @@ export function useOwnerReport() {
             expenses?.forEach((e: any) => {
                 const amount = Number(e.amount);
                 const ownerId = e.owner_id;
+                const currency = e.currency || 'USD';
+                const exchangeRate = Number(e.exchange_rate) || 1;
 
-                // We need owner details (name, doc) if not already initialized by payments.
-                // We should probably rely on the pre-fetched ownersList or ensure 'getStats' can find it.
-                // For now, let's assume if they have expenses but no income, they should still appear?
-                // Yes, but we need their name.
-                // Let's Find name in ownersList if not in stats.
+                // We need owner details
                 let ownerName = "Desconocido";
                 let ownerDoc = "";
 
-                // Try to find in existing stats
                 if (ownerStats[ownerId]) {
                     ownerName = ownerStats[ownerId].ownerName;
                     ownerDoc = ownerStats[ownerId].ownerDocId;
                 } else {
-                    // Try to find in fetched owners list
                     const found = ownersList.find((o: any) => o.id === ownerId);
                     if (found) {
                         ownerName = found.name;
@@ -210,7 +224,23 @@ export function useOwnerReport() {
                 }
 
                 const stats = getStats(ownerId, ownerName, ownerDoc);
-                stats.totalExpenses += amount;
+
+                let amountBs = amount;
+                if (currency === 'USD') {
+                    amountBs = amount * exchangeRate;
+                }
+
+                stats.totalExpensesBs += amountBs;
+
+                stats.expenses.push({
+                    date: e.date,
+                    amount: amountBs, // Normalized to Bs
+                    amountOriginal: amount,
+                    currency: currency,
+                    exchangeRate: exchangeRate,
+                    category: e.category,
+                    description: e.description
+                });
             });
 
             // Calculate Net & Property Count
@@ -232,7 +262,7 @@ export function useOwnerReport() {
             // Finalize
             let results = Object.values(ownerStats).map(stat => ({
                 ...stat,
-                netBalance: stat.totalIncome - stat.totalExpenses,
+                netBalanceBs: stat.totalIncomeBs - stat.totalExpensesBs,
                 propertyCount: ownerProperties[stat.ownerId]?.size || 0
             }));
 

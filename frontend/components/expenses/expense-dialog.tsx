@@ -28,6 +28,8 @@ export function ExpenseDialog({ open, onOpenChange, mode, expense, properties, o
     const [category, setCategory] = useState<OwnerExpenseCategory>("other")
     const [description, setDescription] = useState("")
     const [amount, setAmount] = useState("")
+    const [currency, setCurrency] = useState<"USD" | "Bs">("USD")
+    const [exchangeRate, setExchangeRate] = useState("")
     const [date, setDate] = useState(new Date().toISOString().split('T')[0])
     const [status, setStatus] = useState<OwnerExpenseStatus>("paid")
     const [receiptUrl, setReceiptUrl] = useState("")
@@ -45,6 +47,8 @@ export function ExpenseDialog({ open, onOpenChange, mode, expense, properties, o
                 setCustomCategory("") // Reset
                 setDescription(expense.description || "")
                 setAmount(expense.amount.toString())
+                setCurrency(expense.currency || "USD")
+                setExchangeRate(expense.exchange_rate?.toString() || "")
                 setDate(expense.date.split('T')[0])
                 setStatus(expense.status)
                 setReceiptUrl(expense.receipt_url || "")
@@ -55,6 +59,8 @@ export function ExpenseDialog({ open, onOpenChange, mode, expense, properties, o
                 setCustomCategory("")
                 setDescription("")
                 setAmount("")
+                setCurrency("USD")
+                setExchangeRate("")
                 setDate(new Date().toISOString().split('T')[0])
                 setStatus("paid")
                 setReceiptUrl("")
@@ -71,6 +77,8 @@ export function ExpenseDialog({ open, onOpenChange, mode, expense, properties, o
                 category: category === 'other' ? customCategory : category,
                 description,
                 amount: parseFloat(amount),
+                currency,
+                exchange_rate: exchangeRate ? parseFloat(exchangeRate) : null,
                 date,
                 status,
                 receipt_url: receiptUrl || null
@@ -163,8 +171,31 @@ export function ExpenseDialog({ open, onOpenChange, mode, expense, properties, o
 
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="amount" className="text-right">Monto</Label>
-                        <Input id="amount" type="number" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00" className="col-span-3" />
+                        <Input id="amount" type="number" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00" className="col-span-1" />
+                        <Select value={currency} onValueChange={(val: any) => setCurrency(val)}>
+                            <SelectTrigger className="col-span-2">
+                                <SelectValue placeholder="Moneda" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="USD">USD ($)</SelectItem>
+                                <SelectItem value="Bs">Bolívares (Bs)</SelectItem>
+                            </SelectContent>
+                        </Select>
                     </div>
+                    {currency === 'USD' && (
+                        <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="exchangeRate" className="text-right">Tasa (Bs/USD)</Label>
+                            <Input
+                                id="exchangeRate"
+                                type="number"
+                                step="0.01"
+                                value={exchangeRate}
+                                onChange={e => setExchangeRate(e.target.value)}
+                                placeholder="Ej: 36.50"
+                                className="col-span-3"
+                            />
+                        </div>
+                    )}
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="category" className="text-right">Categoría</Label>
                         <Select value={category} onValueChange={(val: any) => setCategory(val)}>
@@ -212,7 +243,7 @@ export function ExpenseDialog({ open, onOpenChange, mode, expense, properties, o
                 </div>
                 <DialogFooter>
                     <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-                    <Button onClick={handleSubmit} disabled={loading || !ownerId || !amount}>
+                    <Button onClick={handleSubmit} disabled={loading || !ownerId || !amount || (currency === 'USD' && !exchangeRate)}>
                         {loading ? "Guardando..." : (mode === 'create' ? "Guardar" : "Actualizar")}
                     </Button>
                 </DialogFooter>
