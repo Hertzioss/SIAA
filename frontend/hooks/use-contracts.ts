@@ -170,14 +170,48 @@ export function useContracts() {
 
     const updateContract = async (id: string, updates: ContractUpdate) => {
         try {
+            const payload = { ...updates };
+
+            // Handle File Upload if present
+            if ((payload as any).file) {
+                const file = (payload as any).file;
+                const fileExt = file.name.split('.').pop();
+                const fileName = `${Math.random()}.${fileExt}`;
+                const filePath = `${fileName}`;
+
+                const { error: uploadError } = await supabase.storage
+                    .from('contracts')
+                    .upload(filePath, file);
+
+                if (uploadError) {
+                    console.error('Error uploading contract file:', uploadError);
+                    toast.warning('Error al subir el archivo del contrato.');
+                } else {
+                    const { data: { publicUrl } } = supabase.storage
+                        .from('contracts')
+                        .getPublicUrl(filePath);
+
+                    // Update file_url
+                    payload.file_url = publicUrl;
+                }
+            }
+
+            // Remove file object
+            delete (payload as any).file;
+
+            console.log("Updating contract with payload:", payload);
+
             const { data, error } = await supabase
                 .from('contracts')
-                .update(updates)
+                .update(payload)
                 .eq('id', id)
                 .select()
                 .single()
 
-            if (error) throw error
+            if (error) {
+                console.error("Supabase Update Error Detail:", error);
+                throw error;
+            }
 
             setContracts((prev) =>
                 prev.map((c) => (c.id === id ? { ...c, ...data } : c))
@@ -187,6 +221,10 @@ export function useContracts() {
             return data
         } catch (err: any) {
             console.error('Error updating contract:', err)
+            // Log properties if it's an object
+            if (typeof err === 'object') {
+                console.error('Error properties:', JSON.stringify(err, null, 2));
+            }
             toast.error('Error al actualizar el contrato')
             throw err
         }
