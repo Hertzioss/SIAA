@@ -228,12 +228,12 @@ export function UserDialog({ open, onOpenChange, user, mode, onSubmit }: UserDia
                                         <SelectContent>
                                             <SelectItem value="admin">Administrador</SelectItem>
                                             <SelectItem value="operator">Operador</SelectItem>
-                                            {(mode === 'create' || selectedRole === 'tenant') && (
+                                            {/* {(mode === 'create' || selectedRole === 'tenant') && (
                                                 <SelectItem value="tenant">Inquilino</SelectItem>
                                             )}
                                             {selectedRole === 'owner' && (
                                                 <SelectItem value="owner">Propietario</SelectItem>
-                                            )}
+                                            )} */}
                                         </SelectContent>
                                     </Select>
                                     <FormMessage />
