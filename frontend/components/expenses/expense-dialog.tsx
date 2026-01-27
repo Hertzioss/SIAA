@@ -83,7 +83,7 @@ export function ExpenseDialog({ open, onOpenChange, mode, expense, properties, o
                 amount: parseFloat(amount),
                 currency,
                 exchange_rate: exchangeRate ? parseFloat(exchangeRate) : null,
-                date: `${date}T12:00:00`,
+                date,
                 status,
                 receipt_url: receiptUrl || null
             }

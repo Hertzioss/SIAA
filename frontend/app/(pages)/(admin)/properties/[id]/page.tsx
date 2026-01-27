@@ -200,7 +200,7 @@ export default function PropertyDetailsPage() {
             amount: parseFloat(expenseAmount),
             currency,
             exchange_rate: exchangeRate,
-            date: `${expenseDate}T12:00:00`,
+            date: expenseDate,
             status: expenseStatus
         })
         setIsExpenseDialogOpen(false)
