@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { ModeToggle } from "./mode-togle"
+import { ExchangeRateDisplay } from "./exchange-rate-display"
 import { usePathname } from "next/navigation";
 
 
@@ -49,6 +50,7 @@ export function SiteHeader() {
         />
         <h1 className="text-base font-medium">{siteHeader.title}</h1>
         <div className="ml-auto flex items-center gap-2">
+          <ExchangeRateDisplay />
           <ModeToggle />
         </div>
       </div>

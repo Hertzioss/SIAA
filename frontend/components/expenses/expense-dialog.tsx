@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react"
+import { fetchBcvRate } from "@/services/exchange-rate"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
@@ -60,7 +61,10 @@ export function ExpenseDialog({ open, onOpenChange, mode, expense, properties, o
                 setDescription("")
                 setAmount("")
                 setCurrency("USD")
-                setExchangeRate("")
+                // Fetch current rate for new entries
+                fetchBcvRate().then(rate => {
+                    if (rate) setExchangeRate(rate.toString())
+                })
                 setDate(new Date().toISOString().split('T')[0])
                 setStatus("paid")
                 setReceiptUrl("")
@@ -79,7 +83,7 @@ export function ExpenseDialog({ open, onOpenChange, mode, expense, properties, o
                 amount: parseFloat(amount),
                 currency,
                 exchange_rate: exchangeRate ? parseFloat(exchangeRate) : null,
-                date,
+                date: `${date}T12:00:00`,
                 status,
                 receipt_url: receiptUrl || null
             }

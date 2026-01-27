@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -62,6 +62,7 @@ import { useProperties } from "@/hooks/use-properties"
 import { useContracts } from "@/hooks/use-contracts"
 import { PropertyDialog } from "@/components/properties/property-dialog"
 import { ExpenseCategory, ExpenseStatus } from "@/types/expense"
+import { fetchBcvRate } from "@/services/exchange-rate"
 
 /**
  * Página de detalle de una propiedad específica.
@@ -121,6 +122,17 @@ export default function PropertyDetailsPage() {
     const [expenseAmount, setExpenseAmount] = useState("")
     const [expenseDate, setExpenseDate] = useState(new Date().toISOString().split('T')[0])
     const [expenseStatus, setExpenseStatus] = useState<ExpenseStatus>("pending")
+    const [currency, setCurrency] = useState<'USD' | 'Bs'>('USD')
+    const [exchangeRate, setExchangeRate] = useState<number>(0)
+
+    // Fetch Rate on Mount
+    useEffect(() => {
+        const loadRate = async () => {
+            const rate = await fetchBcvRate()
+            if (rate) setExchangeRate(rate)
+        }
+        loadRate()
+    }, [])
 
     // Maintenance Form State
     const [isMaintenanceDialogOpen, setIsMaintenanceDialogOpen] = useState(false)
@@ -186,7 +198,9 @@ export default function PropertyDetailsPage() {
             category: expenseCategory,
             description: expenseDescription,
             amount: parseFloat(expenseAmount),
-            date: expenseDate,
+            currency,
+            exchange_rate: exchangeRate,
+            date: `${expenseDate}T12:00:00`,
             status: expenseStatus
         })
         setIsExpenseDialogOpen(false)
@@ -784,6 +798,28 @@ export default function PropertyDetailsPage() {
                                                     <DollarSign className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                                                     <Input type="number" className="pl-8" placeholder="0.00" value={expenseAmount} onChange={e => setExpenseAmount(e.target.value)} />
                                                 </div>
+                                            </div>
+                                            <div className="grid gap-2">
+                                                <Label>Moneda</Label>
+                                                <Select value={currency} onValueChange={(val: 'USD' | 'Bs') => setCurrency(val)}>
+                                                    <SelectTrigger>
+                                                        <SelectValue />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="USD">USD ($)</SelectItem>
+                                                        <SelectItem value="Bs">Bolívares (Bs)</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="grid gap-2">
+                                                <Label>Tasa de Cambio (Bs/USD)</Label>
+                                                <Input
+                                                    type="number"
+                                                    value={exchangeRate}
+                                                    onChange={e => setExchangeRate(parseFloat(e.target.value))}
+                                                />
                                             </div>
                                             <div className="grid gap-2">
                                                 <Label>Estado de Pago</Label>

@@ -8,6 +8,8 @@ export interface Expense {
     category: ExpenseCategory;
     description?: string | null;
     amount: number;
+    currency?: 'USD' | 'Bs';
+    exchange_rate?: number;
     date: string;
     status: ExpenseStatus;
     receipt_url?: string | null;
