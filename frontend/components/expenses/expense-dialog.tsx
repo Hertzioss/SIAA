@@ -29,7 +29,7 @@ export function ExpenseDialog({ open, onOpenChange, mode, expense, properties, o
     const [category, setCategory] = useState<OwnerExpenseCategory>("other")
     const [description, setDescription] = useState("")
     const [amount, setAmount] = useState("")
-    const [currency, setCurrency] = useState<"USD" | "Bs">("USD")
+    const [currency, setCurrency] = useState<"USD" | "Bs" | "VES">("USD")
     const [exchangeRate, setExchangeRate] = useState("")
     const [date, setDate] = useState(new Date().toISOString().split('T')[0])
     const [status, setStatus] = useState<OwnerExpenseStatus>("paid")
@@ -183,6 +183,7 @@ export function ExpenseDialog({ open, onOpenChange, mode, expense, properties, o
                             <SelectContent>
                                 <SelectItem value="USD">USD ($)</SelectItem>
                                 <SelectItem value="Bs">Bolívares (Bs)</SelectItem>
+                                <SelectItem value="VES">Bolívares (VES)</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
