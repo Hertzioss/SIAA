@@ -10,7 +10,7 @@ export interface OwnerExpense {
     description: string;
     category: OwnerExpenseCategory;
     status: OwnerExpenseStatus;
-    currency: 'USD' | 'Bs';
+    currency: 'USD' | 'Bs' | 'VES';
     exchange_rate?: number;
     receipt_url?: string | null;
     created_at: string;

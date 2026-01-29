@@ -267,8 +267,10 @@ export default function ExpensesPage() {
                                             </Badge>
                                         </TableCell>
                                         <TableCell className="text-right font-medium">
-                                            <span className="text-xs text-muted-foreground mr-1">{expense.currency || 'USD'}</span>
-                                            {Number(expense.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                                            <span className="text-xs text-muted-foreground mr-1">
+                                                {expense.currency === 'VES' ? 'Bs.' : (expense.currency || 'USD')}
+                                            </span>
+                                            {expense.currency !== 'VES' && '$'} {Number(expense.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}
                                         </TableCell>
                                         <TableCell className="text-right text-xs text-muted-foreground">
                                             {expense.currency === 'USD' ? (expense.exchange_rate || '-') : '-'}

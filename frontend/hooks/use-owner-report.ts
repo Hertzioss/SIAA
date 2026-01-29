@@ -18,7 +18,7 @@ export interface OwnerReportItem {
 export interface OwnerExpenseDetail {
     date: string;
     amount: number; // In Bs
-    currency: 'USD' | 'Bs'; // Original currency
+    currency: string; // Original currency
     amountOriginal: number; // Original amount
     exchangeRate: number; // Rate used for conversion
     category: string;

@@ -158,8 +158,8 @@ export default function PaymentsPage() {
                                             <ArrowUpDown className="ml-2 h-4 w-4" />
                                         </Button>
                                     </TableHead>
-                                    <TableHead>
-                                        <Button variant="ghost" onClick={() => requestSort('amount')} className="hover:bg-transparent px-0 font-bold">
+                                    <TableHead className="text-right">
+                                        <Button variant="ghost" onClick={() => requestSort('amount')} className="hover:bg-transparent px-0 font-bold w-full justify-end">
                                             Monto
                                             <ArrowUpDown className="ml-2 h-4 w-4" />
                                         </Button>
@@ -208,14 +208,14 @@ export default function PaymentsPage() {
                                                     <span>{payment.unit?.name}</span>
                                                 </div>
                                             </TableCell>
-                                            <TableCell>
+                                            <TableCell className="text-right">
                                                 <span className={payment.status === 'rejected' ? "line-through text-muted-foreground" : ""}>
                                                     {payment.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                                                 </span>
                                             </TableCell>
                                             <TableCell>
                                                 <Badge variant="outline" className={payment.currency === 'USD' ? 'text-green-600 border-green-200' : 'text-blue-600 border-blue-200'}>
-                                                    {payment.currency || 'USD'}
+                                                    {payment.currency === 'VES' ? 'Bs.' : (payment.currency || 'USD')}
                                                 </Badge>
                                             </TableCell>
                                             <TableCell>

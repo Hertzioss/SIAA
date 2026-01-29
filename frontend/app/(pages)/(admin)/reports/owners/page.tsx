@@ -26,9 +26,12 @@ export default function OwnerReportPage() {
 
     // Helper for formatting currency
     const formatMoney = (amount: number, currency: 'USD' | 'Bs' = 'USD') => {
-        return new Intl.NumberFormat('es-VE', {
+        if (currency === 'Bs') {
+            return `Bs. ${amount.toLocaleString('es-VE', { minimumFractionDigits: 2 })}`
+        }
+        return new Intl.NumberFormat('en-US', {
             style: 'currency',
-            currency: currency === 'Bs' ? 'VES' : 'USD',
+            currency: 'USD',
             currencyDisplay: 'symbol'
         }).format(amount)
     }
@@ -312,7 +315,7 @@ export default function OwnerReportPage() {
                                                 <TableCell>{item.tenantName}</TableCell>
                                                 <TableCell>{item.unitName}</TableCell>
                                                 <TableCell className="capitalize">{item.method.replace('_', ' ')}</TableCell>
-                                                <TableCell className="text-right text-muted-foreground mr-2">{item.currency || 'USD'} {Number(item.amountOriginal || item.amount).toLocaleString('es-VE', { minimumFractionDigits: 2 })}</TableCell>
+                                                <TableCell className="text-right text-muted-foreground mr-2">{item.currency === 'VES' ? 'Bs.' : '$'} {Number(item.amountOriginal || item.amount).toLocaleString('es-VE', { minimumFractionDigits: 2 })}</TableCell>
                                                 <TableCell className="text-right text-muted-foreground">{item.exchangeRate}</TableCell>
                                                 <TableCell className="text-right font-medium">{formatMoney(item.amount, 'Bs')}</TableCell>
                                             </TableRow>
@@ -366,7 +369,7 @@ export default function OwnerReportPage() {
                                                 <TableCell>{item.category}</TableCell>
                                                 <TableCell>{item.description}</TableCell>
                                                 <TableCell className="text-right text-muted-foreground">
-                                                    {item.currency === 'USD' ? '$' : 'Bs'} {Number(item.amountOriginal).toLocaleString('es-VE', { minimumFractionDigits: 2 })}
+                                                    {item.currency === 'VES' ? 'Bs.' : '$'} {Number(item.amountOriginal).toLocaleString('es-VE', { minimumFractionDigits: 2 })}
                                                 </TableCell>
                                                 <TableCell className="text-right text-muted-foreground">{item.exchangeRate}</TableCell>
                                                 <TableCell className="text-right font-medium">
@@ -410,7 +413,7 @@ export default function OwnerReportPage() {
                                             <TableCell>{p.tenantName}</TableCell>
                                             <TableCell>{p.unitName}</TableCell>
                                             <TableCell className="capitalize">{p.method.replace('_', ' ')}</TableCell>
-                                            <TableCell className="text-right text-muted-foreground">{p.currency || 'USD'} {Number(p.amountOriginal || p.amount).toLocaleString('es-VE', { minimumFractionDigits: 2 })}</TableCell>
+                                            <TableCell className="text-right text-muted-foreground">{p.currency === 'VES' ? 'Bs.' : '$'} {Number(p.amountOriginal || p.amount).toLocaleString('es-VE', { minimumFractionDigits: 2 })}</TableCell>
                                             <TableCell className="text-right text-muted-foreground">{p.exchangeRate}</TableCell>
                                             <TableCell className="text-right font-medium">{formatMoney(p.amount, 'Bs')}</TableCell>
                                         </TableRow>
