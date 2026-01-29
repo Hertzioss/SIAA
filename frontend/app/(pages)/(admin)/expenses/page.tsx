@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { Search, Plus, Loader2, Edit, Trash, FileSpreadsheet, TrendingDown } from "lucide-react"
+import { Search, Plus, Loader2, Edit, Trash, FileSpreadsheet, TrendingDown, Building2 } from "lucide-react"
 import { useOwnerExpenses } from "@/hooks/use-owner-expenses"
 import { useProperties } from "@/hooks/use-properties"
 import { ExpenseDialog } from "@/components/expenses/expense-dialog"
@@ -168,7 +168,7 @@ export default function ExpensesPage() {
             </div>
 
             {/* Summary Cards */}
-            <div className="grid gap-4 md:grid-cols-3">
+            {/* <div className="grid gap-4 md:grid-cols-3">
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">
@@ -183,7 +183,7 @@ export default function ExpensesPage() {
                         </p>
                     </CardContent>
                 </Card>
-            </div>
+            </div> */}
 
             <Card>
                 <CardHeader>
@@ -237,18 +237,29 @@ export default function ExpensesPage() {
                                 {filteredExpenses.map((expense) => (
                                     <TableRow key={expense.id}>
                                         <TableCell>
-                                            {format(new Date(expense.date), 'dd MMM yyyy', { locale: es })}
+                                            {/* Parse YYYY-MM-DD string directly to avoid timezone shift */}
+                                            {(() => {
+                                                if (!expense.date) return '-'
+                                                const [y, m, d] = expense.date.toString().split('T')[0].split('-')
+                                                return `${d}/${m}/${y}`
+                                            })()}
                                         </TableCell>
                                         <TableCell>
                                             <div className="font-medium">{expense.owner?.name}</div>
-                                            <div className="text-xs text-muted-foreground">{expense.owner?.doc_id}</div>
+                                            {expense.property && (
+                                                <div className="text-xs text-muted-foreground flex items-center gap-1">
+                                                    <Building2 className="h-3 w-3" />
+                                                    {expense.property.name}
+                                                </div>
+                                            )}
                                         </TableCell>
-                                        <TableCell>
-                                            {expense.property?.name || <span className="text-muted-foreground italic">-</span>}
-                                        </TableCell>
-                                        <TableCell>{getCategoryLabel(expense.category)}</TableCell>
-                                        <TableCell className="max-w-[200px] truncate" title={expense.description || ""}>
-                                            {expense.description || "-"}
+                                        <TableCell className="max-w-[200px]">
+                                            <div className="font-medium">{getCategoryLabel(expense.category)}</div>
+                                            {expense.description && (
+                                                <div className="text-xs text-muted-foreground truncate" title={expense.description}>
+                                                    {expense.description}
+                                                </div>
+                                            )}
                                         </TableCell>
                                         <TableCell>
                                             <Badge variant={getStatusVariant(expense.status) as any}>
@@ -257,7 +268,7 @@ export default function ExpensesPage() {
                                         </TableCell>
                                         <TableCell className="text-right font-medium">
                                             <span className="text-xs text-muted-foreground mr-1">{expense.currency || 'USD'}</span>
-                                            ${Number(expense.amount).toFixed(2)}
+                                            {Number(expense.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}
                                         </TableCell>
                                         <TableCell className="text-right text-xs text-muted-foreground">
                                             {expense.currency === 'USD' ? (expense.exchange_rate || '-') : '-'}

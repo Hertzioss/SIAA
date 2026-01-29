@@ -17,6 +17,7 @@ export default function NewPaymentPage() {
                 </CardHeader>
                 <CardContent>
                     <PaymentForm
+                        isAdmin={true}
                         onSuccess={() => {
                             toast.success("Pago registrado correctamente")
                             router.push('/payments')

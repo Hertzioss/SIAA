@@ -323,6 +323,13 @@ export default function PaymentsPage() {
                 action={dialogAction}
                 paymentId={selectedPaymentId}
                 tenantEmail={payments.find(p => p.id === selectedPaymentId)?.tenant?.email}
+                // Pass details
+                amount={payments.find(p => p.id === selectedPaymentId)?.amount}
+                currency={payments.find(p => p.id === selectedPaymentId)?.currency}
+                paymentDate={payments.find(p => p.id === selectedPaymentId)?.date}
+                exchangeRate={payments.find(p => p.id === selectedPaymentId)?.exchange_rate}
+                registrationDate={payments.find(p => p.id === selectedPaymentId)?.created_at}
+
                 onConfirm={updatePaymentStatus}
             />
 

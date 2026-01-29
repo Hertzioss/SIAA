@@ -12,6 +12,12 @@ interface PaymentActionDialogProps {
     action: 'approve' | 'reject' | null
     paymentId: string | null
     tenantEmail?: string
+    // Details for verification
+    amount?: number
+    currency?: string
+    paymentDate?: string
+    exchangeRate?: number
+    registrationDate?: string
     onConfirm: (id: string, action: 'approved' | 'rejected', notes: string, sendEmail: boolean) => Promise<void>
 }
 
@@ -19,7 +25,11 @@ interface PaymentActionDialogProps {
  * Diálogo para aprobar o rechazar un pago.
  * Permite añadir notas y enviar confirmación por correo al inquilino.
  */
-export function PaymentActionDialog({ open, onOpenChange, action, paymentId, tenantEmail, onConfirm }: PaymentActionDialogProps) {
+export function PaymentActionDialog({
+    open, onOpenChange, action, paymentId, tenantEmail,
+    amount, currency, paymentDate, exchangeRate, registrationDate,
+    onConfirm
+}: PaymentActionDialogProps) {
     const [loading, setLoading] = useState(false)
     const [notes, setNotes] = useState("")
     const [sendEmail, setSendEmail] = useState(false)
@@ -69,6 +79,29 @@ export function PaymentActionDialog({ open, onOpenChange, action, paymentId, ten
                         </Label>
                     </div>
 
+                    {/* Payment Details for Verification */}
+                    {action === 'approve' && (
+                        <div className="text-sm bg-muted/50 p-3 rounded-md space-y-1">
+                            <div className="font-semibold text-muted-foreground mb-2">Detalles del Pago</div>
+                            <div className="flex justify-between">
+                                <span>Fecha Pago:</span>
+                                <span>{paymentDate ? paymentDate.split('T')[0] : '-'}</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span>Fecha Registro:</span>
+                                <span>{registrationDate ? registrationDate.split('T')[0] : '-'}</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span>Monto:</span>
+                                <span className="font-medium">{amount?.toLocaleString('en-US')} {currency}</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span>Tasa:</span>
+                                <span>{exchangeRate || '-'}</span>
+                            </div>
+                        </div>
+                    )}
+
                     <div className="grid gap-2">
                         <Label htmlFor="notes">Notas / Motivo {action === 'reject' && '*'}</Label>
                         <Textarea
@@ -93,7 +126,7 @@ export function PaymentActionDialog({ open, onOpenChange, action, paymentId, ten
                         {action === 'approve' ? 'Confirmar Aprobación' : 'Confirmar Rechazo'}
                     </Button>
                 </DialogFooter>
-            </DialogContent>
-        </Dialog>
+            </DialogContent >
+        </Dialog >
     )
 }

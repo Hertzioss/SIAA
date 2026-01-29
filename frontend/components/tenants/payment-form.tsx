@@ -33,9 +33,10 @@ interface PaymentFormProps {
     onSuccess?: () => void
     onCancel?: () => void
     className?: string
+    isAdmin?: boolean
 }
 
-export function PaymentForm({ defaultTenant, onSuccess, onCancel, className }: PaymentFormProps) {
+export function PaymentForm({ defaultTenant, onSuccess, onCancel, className, isAdmin = false }: PaymentFormProps) {
     const { tenants } = useTenants() // Fetch all tenants for search
     const { registerPayment, isLoading: isSubmitting } = useTenantPayments()
     const { contracts, isLoading: isLoadingContracts } = useContracts()
@@ -56,6 +57,10 @@ export function PaymentForm({ defaultTenant, onSuccess, onCancel, className }: P
     const [month, setMonth] = useState('enero')
     const [year, setYear] = useState('2023')
     const [date, setDate] = useState('')
+
+    // Admin features
+    const [referenceAmountUSD, setReferenceAmountUSD] = useState('')
+    const [autoConciliate, setAutoConciliate] = useState(false)
 
     // Initialize date on client side to avoid hydration mismatch and use local time
     useEffect(() => {
@@ -228,7 +233,8 @@ export function PaymentForm({ defaultTenant, onSuccess, onCancel, className }: P
                 reference_number: part.reference,
                 notes: notes,
                 proof_file: selectedFile || undefined,
-                owner_bank_account_id: part.accountId !== 'na' ? part.accountId : undefined
+                owner_bank_account_id: part.accountId !== 'na' ? part.accountId : undefined,
+                status: (isAdmin && autoConciliate) ? 'approved' : 'pending'
             }
 
             if (await registerPayment(paymentData)) {
@@ -369,7 +375,17 @@ export function PaymentForm({ defaultTenant, onSuccess, onCancel, className }: P
                         <Input
                             type="date"
                             value={date}
-                            onChange={(e) => setDate(e.target.value)}
+                            onChange={(e) => {
+                                const newDate = e.target.value
+                                setDate(newDate)
+
+                                // Check if date is in the past (simple comparison)
+                                const today = new Date().toLocaleDateString('en-CA') // YYYY-MM-DD local
+                                if (newDate < today && isAdmin) {
+                                    setExchangeRate('')
+                                    toast.warning("Fecha histórica. Verifique la tasa.")
+                                }
+                            }}
                             className="pl-9"
                         />
                     </div>
@@ -468,6 +484,45 @@ export function PaymentForm({ defaultTenant, onSuccess, onCancel, className }: P
                                     </div>
                                 )}
                             </div>
+
+                            {/* Admin Rate Helper */}
+                            {isAdmin && part.currency === 'VES' && (
+                                <div className="mt-2 p-3 bg-blue-50 border border-blue-100 rounded-md">
+                                    <Label className="text-xs text-blue-700 font-semibold mb-2 block">Calculadora de Tasa (Admin)</Label>
+                                    <div className="flex items-end gap-2">
+                                        <div className="space-y-1 flex-1">
+                                            <Label htmlFor={`ref-usd-${index}`} className="text-xs">Monto Referencial ($)</Label>
+                                            <Input
+                                                id={`ref-usd-${index}`}
+                                                type="number"
+                                                placeholder="Ej. 100"
+                                                className="h-8 text-sm"
+                                                value={referenceAmountUSD}
+                                                onChange={(e) => setReferenceAmountUSD(e.target.value)}
+                                            />
+                                        </div>
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            variant="secondary"
+                                            className="h-8"
+                                            onClick={() => {
+                                                const vesAmount = parseFloat(part.amount)
+                                                const refUsd = parseFloat(referenceAmountUSD)
+                                                if (vesAmount && refUsd && refUsd > 0) {
+                                                    const calculatedRate = (vesAmount / refUsd).toFixed(4)
+                                                    setExchangeRate(calculatedRate)
+                                                    toast.success(`Tasa calculada: ${calculatedRate}`)
+                                                } else {
+                                                    toast.error("Ingrese monto en Bs y referencia en USD válida")
+                                                }
+                                            }}
+                                        >
+                                            Calcular Tasa
+                                        </Button>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     ))}
 
@@ -546,6 +601,27 @@ export function PaymentForm({ defaultTenant, onSuccess, onCancel, className }: P
                 </div>
             </div>
 
+            {/* Admin Auto-Conciliate Option */}
+            {
+                isAdmin && (
+                    <div className="flex items-center space-x-2 p-4 bg-yellow-50 border border-yellow-200 rounded-lg mt-4">
+                        <Check
+                            className={cn(
+                                "h-5 w-5 cursor-pointer text-muted-foreground",
+                                autoConciliate ? "text-green-600" : "text-gray-300"
+                            )}
+                            onClick={() => setAutoConciliate(!autoConciliate)}
+                        />
+                        <Label
+                            className="cursor-pointer font-medium text-yellow-900"
+                            onClick={() => setAutoConciliate(!autoConciliate)}
+                        >
+                            Conciliar Inmediatamente (Marcar como Aprobado)
+                        </Label>
+                    </div>
+                )
+            }
+
             <div className="flex justify-end gap-2 mt-4">
                 {onCancel && <Button variant="outline" onClick={onCancel}>Cancelar</Button>}
                 <Button
@@ -587,6 +663,6 @@ export function PaymentForm({ defaultTenant, onSuccess, onCancel, className }: P
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
-        </div>
+        </div >
     )
 }

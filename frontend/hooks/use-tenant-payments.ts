@@ -17,6 +17,7 @@ export interface PaymentInsert {
     proof_file?: File
     owner_bank_account_id?: string
     metadata?: any
+    status?: 'pending' | 'approved' | 'rejected'
 }
 
 export function useTenantPayments() {
@@ -71,7 +72,7 @@ export function useTenantPayments() {
                     reference_number: data.reference_number,
                     notes: data.notes,
                     proof_url: proof_url,
-                    status: 'pending', // Default status
+                    status: data.status || 'pending', // Use provided status or default
                     owner_bank_account_id: data.owner_bank_account_id,
                     metadata: data.metadata // JSONB for extra details (mixed currency, multi-month)
                 })

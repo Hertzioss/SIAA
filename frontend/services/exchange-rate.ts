@@ -10,7 +10,7 @@ export interface ExchangeRate {
 export const fetchBcvRate = async (): Promise<number | null> => {
     try {
         const url = process.env.NEXT_PUBLIC_DOLAR_API_URL || 'https://ve.dolarapi.com/v1/dolares';
-        const response = await fetch(url, { next: { revalidate: 3600 } }); // Cache for 1 hour
+        const response = await fetch(url, { cache: 'no-store' }); // Disable cache to get latest rate
         if (!response.ok) throw new Error('Failed to fetch rates');
 
         const data: ExchangeRate[] = await response.json();
