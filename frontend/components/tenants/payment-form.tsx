@@ -672,7 +672,7 @@ export function PaymentForm({ defaultTenant, onSuccess, onCancel, className, isA
             {/* Admin Auto-Conciliate Option */}
             {
                 isAdmin && (
-                    <div className="flex items-center space-x-2 p-4 bg-yellow-50 border border-yellow-200 rounded-lg mt-4">
+                    <div className="flex items-center space-x-2 mt-4">
                         <Checkbox
                             id="auto-conciliate"
                             checked={autoConciliate}
@@ -681,7 +681,7 @@ export function PaymentForm({ defaultTenant, onSuccess, onCancel, className, isA
                         />
                         <Label
                             htmlFor="auto-conciliate"
-                            className="cursor-pointer font-medium text-yellow-900"
+                            className="cursor-pointer font-medium"
                         >
                             Conciliar Inmediatamente (Marcar como Aprobado)
                         </Label>
