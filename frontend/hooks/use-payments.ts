@@ -15,6 +15,7 @@ export interface Payment {
     created_at: string;
     currency?: 'USD' | 'VES';
     exchange_rate?: number;
+    billing_period: string; // YYYY-MM-DD (First day of month)
     // Relations joined
     tenant?: {
         name: string;
@@ -64,6 +65,10 @@ export function usePayments() {
                 .order('date', { ascending: false })
                 .limit(1000);
 
+            if (data && data.length > 0) {
+                console.log("Raw Payment Data (First Item):", data[0]);
+            }
+
             if (error) throw error;
 
             // Transform data
@@ -71,6 +76,7 @@ export function usePayments() {
                 ...p,
                 // Map DB columns to Frontend Interface
                 reference: p.reference_number,
+                billing_period: p.billing_period, // Ensure this is passed
                 tenant: p.tenant, // Direct fetch
                 unit: {
                     name: p.contract?.unit?.name,

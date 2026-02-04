@@ -141,8 +141,8 @@ export default function PaymentsPage() {
                                         </Button>
                                     </TableHead>
                                     <TableHead>
-                                        <Button variant="ghost" onClick={() => requestSort('date')} className="hover:bg-transparent px-0 font-bold">
-                                            Fecha Pago
+                                        <Button variant="ghost" onClick={() => requestSort('billing_period')} className="hover:bg-transparent px-0 font-bold">
+                                            Mes pagado
                                             <ArrowUpDown className="ml-2 h-4 w-4" />
                                         </Button>
                                     </TableHead>
@@ -193,11 +193,15 @@ export default function PaymentsPage() {
                                     sortedPayments.map((payment) => (
                                         <TableRow key={payment.id}>
                                             <TableCell className="text-xs text-muted-foreground">
-                                                {payment.created_at ? format(new Date(payment.created_at), "dd-MM-yyyy") : "-"}
+                                                {payment.created_at ? format(new Date(payment.created_at), "dd/MM/yyyy HH:mm") : "-"}
                                             </TableCell>
                                             <TableCell>
-                                                {/* Fix date timezone issue by explicitly parsing the YYYY-MM-DD string */}
-                                                {payment.date ? formatFn(parseISO(payment.date), 'dd/MM/yyyy') : '-'}
+                                                {/* Billing Period formatted as Month Year */}
+                                                <span className="capitalize">
+                                                    {payment.billing_period
+                                                        ? formatFn(parseISO(payment.billing_period), 'MMMM yyyy', { locale: es })
+                                                        : (payment.date ? formatFn(parseISO(payment.date), 'MMMM yyyy', { locale: es }) : '-')}
+                                                </span>
                                             </TableCell>
                                             <TableCell className="font-medium">
                                                 {payment.tenant?.name || "Desconocido"}

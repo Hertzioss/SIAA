@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Download, ExternalLink, Loader2, Calendar, Printer, ChevronLeft, ChevronRight } from "lucide-react"
 import { useTenantPayments } from "@/hooks/use-tenant-payments"
 import { useContracts } from "@/hooks/use-contracts"
+import { useCurrentTenant } from "@/hooks/use-current-tenant"
 import { format, addMonths } from "date-fns"
 import { es } from "date-fns/locale"
 import { PrintableReceiptHandler } from "@/components/printable-receipt-handler"
@@ -23,6 +24,7 @@ import { parseLocalDate } from "@/lib/utils"
 export default function PaymentHistoryPage() {
     const { history, isLoading, fetchPaymentHistory, getMonthlyBalance, getNextPaymentDate } = useTenantPayments()
     const { contracts, isLoading: isLoadingContracts } = useContracts()
+    const { currentTenant, loading: loadingTenant } = useCurrentTenant()
     const [tenantId, setTenantId] = useState<string | null>(null)
     const [balanceData, setBalanceData] = useState<any>(null)
     const [nextPaymentDate, setNextPaymentDate] = useState<Date | null>(null)
@@ -32,16 +34,13 @@ export default function PaymentHistoryPage() {
     const [totalPages, setTotalPages] = useState(1)
     const pageSize = 5
 
-    // Effect to get tenantId from contracts (active or most recent)
+    // Effect to get tenantId from current user
+    // We strictly use the authenticated user's tenant profile to avoid data leaks.
     useEffect(() => {
-        if (contracts.length > 0) {
-            // Prefer active contract, otherwise take the first one
-            const active = contracts.find(c => c.status === 'active') || contracts[0]
-            if (active && active.tenant_id) {
-                setTenantId(active.tenant_id)
-            }
+        if (currentTenant?.id) {
+            setTenantId(currentTenant.id)
         }
-    }, [contracts])
+    }, [currentTenant?.id])
 
     // Effect to fetch history once we have tenantId
     useEffect(() => {

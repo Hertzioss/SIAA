@@ -37,24 +37,35 @@ export default function PaymentForm() {
 
     // Form States
     const [exchangeRate, setExchangeRate] = useState<string>('')
-    const [paymentParts, setPaymentParts] = useState<{ amount: string, currency: 'USD' | 'VES', reference: string }[]>([
-        { amount: '', currency: 'USD', reference: '' }
+
+    const currentYear = new Date().getFullYear()
+    const currentMonthIndex = new Date().getMonth()
+
+    const [paymentParts, setPaymentParts] = useState<{
+        amount: string,
+        currency: 'USD' | 'VES',
+        reference: string,
+        month: string,
+        year: string
+    }[]>([
+        {
+            amount: '',
+            currency: 'USD',
+            reference: '',
+            month: (currentMonthIndex + 1).toString(),
+            year: currentYear.toString()
+        }
     ])
-    // const [amount, setAmount] = useState('') // Removed
-    // const [currency, setCurrency] = useState<'USD' | 'VES'>('USD') // Removed
-    // const [reference, setReference] = useState('') // Removed
 
     // Validation State
     const [isSubmitted, setIsSubmitted] = useState(false)
-
     const [notes, setNotes] = useState('')
     const [previewUrl, setPreviewUrl] = useState<string | null>(null)
     const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd'))
 
-    // Month/Year Selection
-    const currentYear = new Date().getFullYear()
-    const [month, setMonth] = useState<string>((new Date().getMonth() + 1).toString())
-    const [year, setYear] = useState<string>(currentYear.toString())
+    // "View Balance For" selector (Decoupled from payment parts)
+    const [viewMonth, setViewMonth] = useState<string>((currentMonthIndex + 1).toString())
+    const [viewYear, setViewYear] = useState<string>(currentYear.toString())
 
 
     useEffect(() => {
@@ -81,12 +92,12 @@ export default function PaymentForm() {
     useEffect(() => {
         const fetchBalance = async () => {
             if (activeContract) {
-                const data = await getMonthlyBalance(activeContract.tenant_id, parseInt(month), parseInt(year))
+                const data = await getMonthlyBalance(activeContract.tenant_id, parseInt(viewMonth), parseInt(viewYear))
                 setBalanceData(data)
             }
         }
         fetchBalance()
-    }, [activeContract, month, year, getMonthlyBalance])
+    }, [activeContract, viewMonth, viewYear, getMonthlyBalance])
 
     useEffect(() => {
         const getRate = async () => {
@@ -114,7 +125,22 @@ export default function PaymentForm() {
     }
 
     const addPaymentPart = () => {
-        setPaymentParts([...paymentParts, { amount: '', currency: 'USD', reference: '' }])
+        // Default to next month of the last part
+        const lastPart = paymentParts[paymentParts.length - 1]
+        let nextMonth = parseInt(lastPart.month) + 1
+        let nextYear = parseInt(lastPart.year)
+        if (nextMonth > 12) {
+            nextMonth = 1
+            nextYear++
+        }
+
+        setPaymentParts([...paymentParts, {
+            amount: '',
+            currency: 'USD',
+            reference: lastPart.reference,
+            month: nextMonth.toString(),
+            year: nextYear.toString()
+        }])
     }
 
     const removePaymentPart = (index: number) => {
@@ -138,7 +164,7 @@ export default function PaymentForm() {
         }
 
         // Validate all parts
-        const missingFields = []
+        const missingFields: string[] = []
         if (!date) missingFields.push("Fecha")
 
         let hasErrors = false
@@ -147,7 +173,8 @@ export default function PaymentForm() {
                 missingFields.push(`Monto (Opción ${idx + 1})`)
                 hasErrors = true
             }
-            if (!part.reference) {
+            // Reference is mandatory only for VES (Bolivares)
+            if (part.currency === 'VES' && !part.reference) {
                 missingFields.push(`Referencia (Opción ${idx + 1})`)
                 hasErrors = true
             }
@@ -167,52 +194,57 @@ export default function PaymentForm() {
                 totalUSD += partUSD
             })
 
-            // Allow a small epsilon for floating point comp
-            if (totalUSD > (balanceData.remainingDebt + 0.01)) {
-                toast.error(`El monto total excede la deuda restante ($${balanceData.remainingDebt.toFixed(2)})`)
-                return
-            }
+            // Warning only? Or block? Let's warn but allow for now as they might pay advance.
+            // if (totalUSD > (balanceData.remainingDebt + 0.01)) { ... }
         }
 
         let successCount = 0
-        // Sequential submission
-        for (const part of paymentParts) {
-            const paymentData: PaymentInsert = {
+
+        // Prepare bulk insert
+        const paymentsToInsert: PaymentInsert[] = paymentParts.map(part => {
+            // Construct billing period date (YYYY-MM-01)
+            // Ensure month is 0-padded
+            const m = part.month.padStart(2, '0')
+            const billingPeriod = `${part.year}-${m}-01`
+
+            return {
                 contract_id: activeContract.id,
                 tenant_id: activeContract.tenant_id!,
                 date: date,
                 amount: parseFloat(part.amount),
                 currency: part.currency,
                 exchange_rate: part.currency === 'VES' ? parseFloat(exchangeRate) : undefined,
-                concept: `Renta ${month} ${year}` + (paymentParts.length > 1 ? ` (Parte)` : ''),
+                concept: `Renta ${part.month}/${part.year}` + (paymentParts.length > 1 ? ` (Parte)` : ''),
                 payment_method: 'Transferencia',
                 reference_number: part.reference,
                 notes: notes,
-                proof_file: selectedFile || undefined // Attach proof to all? Or just first? Ideally backend handles duplicate file uploads optimization or we upload once. 
-                // For MVP: Attach to all, backend uploads new file each time or we reuse URL if we refactor useTenantPayments. 
-                // The hook uploads file inside registerPayment. It will produce duplicate files. 
-                // Acceptable for now.
+                proof_file: selectedFile || undefined,
+                billing_period: billingPeriod,
+                metadata: {
+                    month: part.month,
+                    year: part.year
+                }
             }
+        })
 
-            // For subsequent parts, maybe don't re-upload file if we could help it?
-            // But hook logic is coupled.
-            if (await registerPayment(paymentData)) {
-                successCount++
-            }
-        }
+        const result = await registerPayment(paymentsToInsert)
 
-        if (successCount === paymentParts.length) {
-            toast.message("Todos los pagos registrados exitosamente", {
+        if (result) {
+            toast.message("Pagos registrados exitosamente", {
                 description: "Una vez conciliado, le enviaremos el recibo. Revise SPAM si no lo ve en su bandeja de entrada."
             })
             // Reset form
-            setPaymentParts([{ amount: '', currency: 'USD', reference: '' }])
+            setPaymentParts([{
+                amount: '',
+                currency: 'USD',
+                reference: '',
+                month: (currentMonthIndex + 1).toString(),
+                year: currentYear.toString()
+            }])
             setNotes('')
             setSelectedFile(null)
             setIsSubmitted(false)
             if (fileInputRef.current) fileInputRef.current.value = ''
-        } else {
-            toast.error(`Se registraron ${successCount} de ${paymentParts.length} pagos. Verifique su historial.`)
         }
     }
 
@@ -227,13 +259,47 @@ export default function PaymentForm() {
                 <p className="text-muted-foreground">Ingrese los detalles para registrar un nuevo pago de su arrendamiento.</p>
             </div>
             {activeContract?.tenants && (
-                <div className="mb-6 p-4 bg-card rounded-lg border shadow-sm flex items-center gap-4 animate-in fade-in slide-in-from-top-2">
-                    <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                        <User className="h-6 w-6 text-primary" />
+                <div className="mb-6 p-4 bg-muted/40 rounded-lg border flex flex-col md:flex-row items-center gap-4 justify-between">
+                    <div className="flex items-center gap-4">
+                        <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                            <User className="h-6 w-6 text-primary" />
+                        </div>
+                        <div>
+                            <h3 className="font-semibold text-lg">{activeContract.tenants.name}</h3>
+                            <p className="text-sm text-muted-foreground">{activeContract.tenants.email}</p>
+                        </div>
                     </div>
-                    <div>
-                        <h3 className="font-semibold text-lg">{activeContract.tenants.name}</h3>
-                        <p className="text-sm text-muted-foreground">{activeContract.tenants.email}</p>
+
+                    <div className="flex gap-2 items-end">
+                        {/* View Balance Selector */}
+                        <div className="space-y-1">
+                            <Label className="text-xs">Ver Deuda de:</Label>
+                            <div className="flex gap-2">
+                                <Select value={viewMonth} onValueChange={setViewMonth}>
+                                    <SelectTrigger className="w-[110px] h-9">
+                                        <SelectValue placeholder="Mes" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {Array.from({ length: 12 }, (_, i) => (
+                                            <SelectItem key={i + 1} value={(i + 1).toString()}>
+                                                {format(new Date(2000, i, 1), 'MMMM', { locale: es })}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                <Select value={viewYear} onValueChange={setViewYear}>
+                                    <SelectTrigger className="w-[80px] h-9">
+                                        <SelectValue placeholder="Año" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {Array.from({ length: 5 }, (_, i) => {
+                                            const y = currentYear - 1 + i
+                                            return <SelectItem key={y} value={y.toString()}>{y}</SelectItem>
+                                        })}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
                     </div>
                 </div>
             )}
@@ -258,58 +324,8 @@ export default function PaymentForm() {
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label>Año del Pago</Label>
-                                    <Select value={year} onValueChange={setYear}>
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Seleccione año" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {Array.from({ length: 5 }, (_, i) => {
-                                                const currentYear = new Date().getFullYear()
-                                                const y = currentYear - 1 + i // Show last year to future
-                                                return (
-                                                    <SelectItem key={y} value={y.toString()}>
-                                                        {y}
-                                                    </SelectItem>
-                                                )
-                                            })}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>Mes del Pago</Label>
-                                    <Select value={month} onValueChange={setMonth}>
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Seleccione mes" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {(() => {
-                                                const allMonths = [
-                                                    { value: 'enero', label: 'Enero', index: 0 },
-                                                    { value: 'febrero', label: 'Febrero', index: 1 },
-                                                    { value: 'marzo', label: 'Marzo', index: 2 },
-                                                    { value: 'abril', label: 'Abril', index: 3 },
-                                                    { value: 'mayo', label: 'Mayo', index: 4 },
-                                                    { value: 'junio', label: 'Junio', index: 5 },
-                                                    { value: 'julio', label: 'Julio', index: 6 },
-                                                    { value: 'agosto', label: 'Agosto', index: 7 },
-                                                    { value: 'septiembre', label: 'Septiembre', index: 8 },
-                                                    { value: 'octubre', label: 'Octubre', index: 9 },
-                                                    { value: 'noviembre', label: 'Noviembre', index: 10 },
-                                                    { value: 'diciembre', label: 'Diciembre', index: 11 },
-                                                ]
-
-                                                return allMonths.map((m) => (
-                                                    <SelectItem key={m.value} value={m.value}>
-                                                        {m.label}
-                                                    </SelectItem>
-                                                ))
-                                            })()}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
+                            <div className="hidden">
+                                {/* Hidden Logic: Global selectors removed, specific selectors moved to rows */}
                             </div>
 
                             <div className="space-y-4">
@@ -344,13 +360,50 @@ export default function PaymentForm() {
                                         </div>
 
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div className="space-y-2 col-span-2 md:col-span-2">
+                                                <Label>Periodo a Pagar</Label>
+                                                <div className="flex gap-2">
+                                                    <Select
+                                                        value={part.month}
+                                                        onValueChange={(val) => updatePaymentPart(index, 'month', val)}
+                                                    >
+                                                        <SelectTrigger className="flex-1">
+                                                            <SelectValue placeholder="Mes" />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            {Array.from({ length: 12 }, (_, i) => (
+                                                                <SelectItem key={i + 1} value={(i + 1).toString()}>
+                                                                    {format(new Date(2000, i, 1), 'MMMM', { locale: es })}
+                                                                </SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                    <Select
+                                                        value={part.year}
+                                                        onValueChange={(val) => updatePaymentPart(index, 'year', val)}
+                                                    >
+                                                        <SelectTrigger className="w-[100px]">
+                                                            <SelectValue placeholder="Año" />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            {Array.from({ length: 5 }, (_, i) => {
+                                                                const y = currentYear - 1 + i
+                                                                return <SelectItem key={y} value={y.toString()}>{y}</SelectItem>
+                                                            })}
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+                                            </div>
+
                                             <div className="space-y-2">
-                                                <Label className={isSubmitted && !part.reference ? "text-red-500" : ""}>Número de Referencia *</Label>
+                                                <Label className={isSubmitted && part.currency === 'VES' && !part.reference ? "text-red-500" : ""}>
+                                                    Ref. Bancaria {part.currency === 'VES' && '*'}
+                                                </Label>
                                                 <Input
                                                     value={part.reference}
                                                     onChange={(e) => updatePaymentPart(index, 'reference', e.target.value)}
-                                                    placeholder="Ej: 0123456789"
-                                                    className={isSubmitted && !part.reference ? "border-red-500" : ""}
+                                                    placeholder={part.currency === 'VES' ? "Ej: 0123456789" : "Opcional para USD"}
+                                                    className={isSubmitted && part.currency === 'VES' && !part.reference ? "border-red-500" : ""}
                                                 />
                                             </div>
 

@@ -18,38 +18,38 @@ export interface PaymentInsert {
     owner_bank_account_id?: string
     metadata?: any
     status?: 'pending' | 'approved' | 'rejected'
+    billing_period: string
 }
 
 export function useTenantPayments() {
     const [isLoading, setIsLoading] = useState(false)
     const [history, setHistory] = useState<any[]>([])
 
-    const registerPayment = useCallback(async (data: PaymentInsert) => {
+    const registerPayment = useCallback(async (data: PaymentInsert | PaymentInsert[]) => {
         setIsLoading(true)
         try {
-            let proof_url = null
+            const payments = Array.isArray(data) ? data : [data]
+            if (payments.length === 0) return false
 
-            // 1. Upload Proof if exists
-            if (data.proof_file) {
-                const fileExt = data.proof_file.name.split('.').pop()
+            let proof_url = null
+            const firstPayment = payments[0]
+
+            // 1. Upload Proof if exists (only once, using the first file found)
+            if (firstPayment.proof_file) {
+                const fileExt = firstPayment.proof_file.name.split('.').pop()
                 const fileName = `${uuidv4()}.${fileExt}`
                 const filePath = `proofs/${fileName}`
 
                 const { error: uploadError } = await supabase.storage
                     .from('payment-proofs')
-                    .upload(filePath, data.proof_file)
+                    .upload(filePath, firstPayment.proof_file)
 
                 if (uploadError) {
-                    // Start buckets don't exist by default, warn user but continue? 
-                    // ideally we should handle bucket creation orassume it exists.
-                    // For now, let's log and throw/show error
                     console.error('Upload error:', uploadError)
                     toast.error('Error al subir el comprobante')
-                    // Proceeding without file URL or returning? Let's stop to ensure data integrity perception
                     throw uploadError
                 }
 
-                // Get Public URL
                 const { data: { publicUrl } } = supabase.storage
                     .from('payment-proofs')
                     .getPublicUrl(filePath)
@@ -57,29 +57,38 @@ export function useTenantPayments() {
                 proof_url = publicUrl
             }
 
-            // 2. Insert Payment Record
-            const { error: insertError } = await supabase
-                .from('payments')
-                .insert({
-                    contract_id: data.contract_id,
-                    tenant_id: data.tenant_id,
-                    date: data.date,
-                    amount: data.amount,
-                    currency: data.currency,
-                    exchange_rate: data.exchange_rate,
-                    concept: data.concept,
-                    payment_method: data.payment_method,
-                    reference_number: data.reference_number,
-                    notes: data.notes,
-                    proof_url: proof_url,
-                    status: data.status || 'pending', // Use provided status or default
-                    owner_bank_account_id: data.owner_bank_account_id,
-                    metadata: data.metadata // JSONB for extra details (mixed currency, multi-month)
-                })
+            // 2. Insert Payment Records
+            const insertPromises = payments.map(p =>
+                supabase
+                    .from('payments')
+                    .insert({
+                        contract_id: p.contract_id,
+                        tenant_id: p.tenant_id,
+                        date: p.date,
+                        amount: p.amount,
+                        currency: p.currency,
+                        exchange_rate: p.exchange_rate,
+                        concept: p.concept,
+                        payment_method: p.payment_method,
+                        reference_number: p.reference_number,
+                        notes: p.notes,
+                        proof_url: proof_url, // Shared URL
+                        status: p.status || 'pending',
+                        owner_bank_account_id: p.owner_bank_account_id,
+                        metadata: p.metadata,
+                        billing_period: p.billing_period // New Column
+                    })
+            )
 
-            if (insertError) throw insertError
+            const results = await Promise.all(insertPromises)
+            const errors = results.filter(r => r.error)
 
-            toast.success('Pago registrado exitosamente')
+            if (errors.length > 0) {
+                console.error('Errors inserting payments:', JSON.stringify(errors, null, 2))
+                throw errors[0].error
+            }
+
+            toast.success('Pago(s) registrado(s) exitosamente')
             return true
 
         } catch (error: any) {
@@ -91,13 +100,14 @@ export function useTenantPayments() {
         }
     }, [])
 
-    const fetchPaymentHistory = useCallback(async (tenantId?: string, page: number = 1, pageSize: number = 5) => {
+    const fetchPaymentHistory = useCallback(async (tenantId?: string, page: number = 1, pageSize: number = 50) => {
         setIsLoading(true)
         try {
             let query = supabase
                 .from('payments')
                 .select('*, tenants(name, doc_id), contracts(units(name, properties(name, property_owners(owners(name, doc_id)))))', { count: 'exact' })
                 .order('date', { ascending: false })
+                .order('created_at', { ascending: false })
 
             if (tenantId) {
                 query = query.eq('tenant_id', tenantId)
@@ -109,7 +119,10 @@ export function useTenantPayments() {
             query = query.range(from, to)
 
             const { data, count, error } = await query
-            if (error) throw error
+
+            if (error) {
+                throw error
+            }
 
             setHistory(data || [])
             return {
@@ -185,31 +198,46 @@ export function useTenantPayments() {
 
             const rent = contract.rent_amount
 
-            // 2. Get payments for target month (or current)
+            // 2. Format Target Billing Period
             const targetDate = new Date()
             if (month) targetDate.setMonth(month - 1) // 0-indexed
             if (year) targetDate.setFullYear(year)
+            
+            const billingPeriod = `${targetDate.getFullYear()}-${String(targetDate.getMonth() + 1).padStart(2, '0')}-01`
 
+            // Date fallback range
             const startOfMonth = new Date(targetDate.getFullYear(), targetDate.getMonth(), 1).toISOString().split('T')[0]
-            // Safe month addition
             const endOfMonthDate = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 1)
             const endOfMonth = endOfMonthDate.toISOString().split('T')[0]
 
+            // 3. Fetch potentially relevant payments
+            // We fetch payments that match the billing period OR are in the date range (for fallback)
+            // To be safe and simple given Supabase OR syntax limitations with filters, we can fetch by contract
+            // and filter in memory. Assuming < 1000 payments per contract.
             const { data: payments, error: paymentsError } = await supabase
                 .from('payments')
-                .select('amount, exchange_rate, currency, status')
+                .select('amount, exchange_rate, currency, status, billing_period, date')
                 .eq('contract_id', contract.id)
-                .gte('date', startOfMonth)
-                .lt('date', endOfMonth)
-                .in('status', ['approved', 'paid', 'pending']) // Include pending
+                .in('status', ['approved', 'paid', 'pending']) 
 
             if (paymentsError) throw paymentsError
 
-            // 3. Sum payments (Normalizing to USD)
+            // 4. Calculate Totals
             let paid = 0
             let pending = 0
 
             payments?.forEach(p => {
+                // Determine if this payment belongs to the target month
+                let isMatch = false
+                if (p.billing_period) {
+                    isMatch = p.billing_period === billingPeriod
+                } else {
+                    // Fallback to Date
+                    isMatch = p.date >= startOfMonth && p.date < endOfMonth
+                }
+
+                if (!isMatch) return
+
                 let amountUSD = 0
                 if (p.currency === 'USD') {
                     amountUSD = p.amount
@@ -232,8 +260,8 @@ export function useTenantPayments() {
                 pendingPayments: pending,
                 totalCovered: totalCovered,
                 remainingDebt: Math.max(0, rent - totalCovered),
-                isPartial: totalCovered > 0 && totalCovered < rent,
-                isCompete: totalCovered >= rent
+                isPartial: totalCovered > 0 && totalCovered < rent - 0.01,
+                isCompete: totalCovered >= rent - 0.01 
             }
         } catch (err) {
             console.error('Error fetching balance:', err)
@@ -276,6 +304,45 @@ export function useTenantPayments() {
         }
     }, [])
 
+    /**
+     * Calculates how a total payment amount splits across multiple months based on rent.
+     */
+    const calculatePaymentDistribution = useCallback((totalAmount: number, startMonth: number, startYear: number, rentAmount: number) => {
+        if (totalAmount <= 0 || rentAmount <= 0) return []
+
+        const distribution: { month: number, year: number, amount: number, isFull: boolean }[] = []
+        let remaining = totalAmount
+        let currentMonth = startMonth // 1-indexed (1 = Jan)
+        let currentYear = startYear
+
+        while (remaining > 0.01) {
+            // How much does this month "need" to be full? 
+            // In a more complex system, we'd check if this specific month already has partial payments.
+            // For MVP, we assume we are paying "forward" into empty slots or filling the "current" slot.
+            // If the user selects "January", we assume they want to pay Jan, then Feb, etc.
+            
+            const allocatable = Math.min(remaining, rentAmount)
+            
+            distribution.push({
+                month: currentMonth,
+                year: currentYear,
+                amount: parseFloat(allocatable.toFixed(2)),
+                isFull: allocatable >= (rentAmount - 0.01)
+            })
+
+            remaining -= allocatable
+            
+            // Move to next month
+            currentMonth++
+            if (currentMonth > 12) {
+                currentMonth = 1
+                currentYear++
+            }
+        }
+
+        return distribution
+    }, [])
+
     return {
         isLoading,
         history,
@@ -283,6 +350,7 @@ export function useTenantPayments() {
         fetchPaymentHistory,
         getMonthlyBalance,
         getNextPaymentDate,
-        getPaidMonths
+        getPaidMonths,
+        calculatePaymentDistribution
     }
 }

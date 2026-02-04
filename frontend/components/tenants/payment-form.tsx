@@ -5,13 +5,14 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { CloudUpload, Loader2, DollarSign, Search, User, Check, Building2, Calendar as CalendarIcon } from "lucide-react"
+import { CloudUpload, Loader2, DollarSign, Search, User, Check, Building2, Calendar as CalendarIcon, FileText } from "lucide-react"
 import { useTenantPayments, PaymentInsert } from "@/hooks/use-tenant-payments"
 import { useTenants } from "@/hooks/use-tenants"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
 import { useContracts } from "@/hooks/use-contracts"
+import { Checkbox } from "@/components/ui/checkbox"
 import { fetchBcvRate } from "@/services/exchange-rate"
 import { supabase } from "@/lib/supabase"
 import { toast } from "sonner"
@@ -38,7 +39,7 @@ interface PaymentFormProps {
 
 export function PaymentForm({ defaultTenant, onSuccess, onCancel, className, isAdmin = false }: PaymentFormProps) {
     const { tenants } = useTenants() // Fetch all tenants for search
-    const { registerPayment, isLoading: isSubmitting } = useTenantPayments()
+    const { registerPayment, isLoading: isSubmitting, calculatePaymentDistribution } = useTenantPayments()
     const { contracts, isLoading: isLoadingContracts } = useContracts()
 
     // Internal state for selected tenant (either prop or search)
@@ -52,6 +53,7 @@ export function PaymentForm({ defaultTenant, onSuccess, onCancel, className, isA
 
     // Confirmation Dialog State
     const [isConfirmationOpen, setIsConfirmationOpen] = useState(false)
+    const [distributionPreview, setDistributionPreview] = useState<any[]>([])
 
     // Form State
     const [month, setMonth] = useState('enero')
@@ -62,7 +64,7 @@ export function PaymentForm({ defaultTenant, onSuccess, onCancel, className, isA
     const [referenceAmountUSD, setReferenceAmountUSD] = useState('')
     const [autoConciliate, setAutoConciliate] = useState(false)
 
-    // Initialize date on client side to avoid hydration mismatch and use local time
+    // Initialize date on client side
     useEffect(() => {
         setDate(format(new Date(), 'yyyy-MM-dd'))
     }, [])
@@ -210,8 +212,48 @@ export function PaymentForm({ defaultTenant, onSuccess, onCancel, className, isA
         return true
     }
 
+    const monthMap: Record<string, number> = {
+        'enero': 1, 'febrero': 2, 'marzo': 3, 'abril': 4, 'mayo': 5, 'junio': 6,
+        'julio': 7, 'agosto': 8, 'septiembre': 9, 'octubre': 10, 'noviembre': 11, 'diciembre': 12
+    }
+
+    // ...
+
     const handlePreSubmit = () => {
-        if (validateForm()) {
+        if (validateForm() && activeContract) {
+            // Calculate Distribution Preview
+            const rent = activeContract.rent_amount || 0
+            const startMonth = monthMap[month.toLowerCase()] || 1
+            const startYear = parseInt(year) || new Date().getFullYear()
+            const rate = parseFloat(exchangeRate) || 1
+
+            let allSplits: any[] = []
+
+            paymentParts.forEach((part, partIndex) => {
+                const amount = parseFloat(part.amount)
+                let partSplits: any[] = []
+                
+                if (part.currency === 'USD') {
+                    partSplits = calculatePaymentDistribution(amount, startMonth, startYear, rent)
+                } else {
+                    // Calculate Equivalent Rent in VES
+                    // We distribute the VES amount based on the VES equivalent of the rent
+                    const rentInVes = rent * rate
+                    partSplits = calculatePaymentDistribution(amount, startMonth, startYear, rentInVes)
+                }
+
+                partSplits.forEach(split => {
+                    allSplits.push({
+                        ...split,
+                        currency: part.currency,
+                        partIndex: partIndex,
+                        reference: part.reference,
+                        originalAmount: part.amount
+                    })
+                })
+            })
+            
+            setDistributionPreview(allSplits)
             setIsConfirmationOpen(true)
         }
     }
@@ -219,35 +261,49 @@ export function PaymentForm({ defaultTenant, onSuccess, onCancel, className, isA
     const handleConfirmPayment = async () => {
         if (!activeContract) return
 
-        let successCount = 0
-        for (const part of paymentParts) {
-            const paymentData: PaymentInsert = {
+        const inserts: PaymentInsert[] = []
+
+        // Use the preview, but we need to map it back to the original parts logic if needed? 
+        // No, we can just iterate the preview items and group them or just create inserts directly.
+        // Wait, each split is a payment row.
+
+        // We need to map `distributionPreview` to `PaymentInsert`
+        for (const item of distributionPreview) {
+             // Find original part info for bank accounts etc
+             const originalPart = paymentParts[item.partIndex || 0]
+
+             // Format YYYY-MM-01
+             const billingPeriod = `${item.year}-${String(item.month).padStart(2, '0')}-01`
+             
+             // Concept
+             const monthName = Object.keys(monthMap).find(key => monthMap[key] === item.month)
+             const concept = `Canon ${monthName?.charAt(0).toUpperCase()}${monthName?.slice(1)} ${item.year} (${item.isFull ? 'Completo' : 'Parcial'})`
+
+             const paymentData: PaymentInsert = {
                 contract_id: activeContract.id,
                 tenant_id: selectedTenant!.id,
                 date: date,
-                amount: parseFloat(part.amount),
-                currency: part.currency,
+                amount: item.amount,
+                currency: item.currency,
                 exchange_rate: parseFloat(exchangeRate),
-                concept: `Canon ${month} ${year}` + (paymentParts.length > 1 ? ` (Parte)` : ''),
-                payment_method: 'Transferencia',
-                reference_number: part.reference,
+                concept: concept,
+                payment_method: 'Transferencia', // Should be dynamic? The form has 'reference' implies transfer/pago movil. 
+                reference_number: item.reference,
                 notes: notes,
                 proof_file: selectedFile || undefined,
-                owner_bank_account_id: part.accountId !== 'na' ? part.accountId : undefined,
-                status: (isAdmin && autoConciliate) ? 'approved' : 'pending'
+                owner_bank_account_id: originalPart.accountId !== 'na' ? originalPart.accountId : undefined,
+                status: (isAdmin && autoConciliate) ? 'approved' : 'pending',
+                billing_period: billingPeriod
             }
-
-            if (await registerPayment(paymentData)) {
-                successCount++
-            }
+            inserts.push(paymentData)
         }
+
+        const success = await registerPayment(inserts) // registerPayment handles arrays now
 
         setIsConfirmationOpen(false)
 
-        if (successCount === paymentParts.length) {
+        if (success) {
             if (onSuccess) onSuccess()
-        } else {
-            toast.error(`Hubo problemas registrando algunos pagos (${successCount}/${paymentParts.length})`)
         }
     }
 
@@ -368,26 +424,38 @@ export function PaymentForm({ defaultTenant, onSuccess, onCancel, className, isA
             </div>
 
             <div className="space-y-4">
-                <div className="space-y-2">
-                    <Label>Fecha del Pago</Label>
-                    <div className="relative">
-                        <CalendarIcon className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                        <Input
-                            type="date"
-                            value={date}
-                            onChange={(e) => {
-                                const newDate = e.target.value
-                                setDate(newDate)
+                <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                        <Label>Fecha del Pago</Label>
+                        <div className="relative">
+                            <CalendarIcon className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Input
+                                type="date"
+                                value={date}
+                                onChange={(e) => {
+                                    const newDate = e.target.value
+                                    setDate(newDate)
 
-                                // Check if date is in the past (simple comparison)
-                                const today = new Date().toLocaleDateString('en-CA') // YYYY-MM-DD local
-                                if (newDate < today && isAdmin) {
-                                    setExchangeRate('')
-                                    toast.warning("Fecha histórica. Verifique la tasa.")
-                                }
-                            }}
-                            className="pl-9"
-                        />
+                                    // Check if date is in the past (simple comparison)
+                                    const today = new Date().toLocaleDateString('en-CA') // YYYY-MM-DD local
+                                    if (newDate < today && isAdmin) {
+                                        // setExchangeRate('') // Don't clear it, just warn
+                                        toast.warning("Fecha histórica. Verifique la tasa.")
+                                    }
+                                }}
+                                className="pl-9"
+                            />
+                        </div>
+                    </div>
+                    <div className="space-y-2">
+                         <Label>Tasa de Cambio (Bs/USD)</Label>
+                         <Input 
+                            type="number" 
+                            step="0.01"
+                            value={exchangeRate}
+                            onChange={(e) => setExchangeRate(e.target.value)}
+                            placeholder="0.00"
+                         />
                     </div>
                 </div>
                 <div className="space-y-4">
@@ -538,7 +606,7 @@ export function PaymentForm({ defaultTenant, onSuccess, onCancel, className, isA
 
                 {/* VES Calculation Preview Total */}
                 <div className="text-xs text-muted-foreground text-right mt-1">
-                    Tasa: {exchangeRate} VES/USD | Total Eq: <span className="font-medium text-foreground">
+                    Total Eq: <span className="font-medium text-foreground">
                         {(() => {
                             const totalVES = paymentParts.reduce((acc, part) => {
                                 const amount = parseFloat(part.amount || '0')
@@ -605,16 +673,15 @@ export function PaymentForm({ defaultTenant, onSuccess, onCancel, className, isA
             {
                 isAdmin && (
                     <div className="flex items-center space-x-2 p-4 bg-yellow-50 border border-yellow-200 rounded-lg mt-4">
-                        <Check
-                            className={cn(
-                                "h-5 w-5 cursor-pointer text-muted-foreground",
-                                autoConciliate ? "text-green-600" : "text-gray-300"
-                            )}
-                            onClick={() => setAutoConciliate(!autoConciliate)}
+                        <Checkbox
+                            id="auto-conciliate"
+                            checked={autoConciliate}
+                            onCheckedChange={(checked) => setAutoConciliate(checked === true)}
+                            className="data-[state=checked]:bg-green-600 data-[state=checked]:border-green-600"
                         />
                         <Label
+                            htmlFor="auto-conciliate"
                             className="cursor-pointer font-medium text-yellow-900"
-                            onClick={() => setAutoConciliate(!autoConciliate)}
                         >
                             Conciliar Inmediatamente (Marcar como Aprobado)
                         </Label>
@@ -624,6 +691,13 @@ export function PaymentForm({ defaultTenant, onSuccess, onCancel, className, isA
 
             <div className="flex justify-end gap-2 mt-4">
                 {onCancel && <Button variant="outline" onClick={onCancel}>Cancelar</Button>}
+                <Button
+                    variant="secondary"
+                    onClick={handlePreSubmit}
+                    disabled={isSubmitting || !activeContract}
+                >
+                    <FileText className="mr-2 h-4 w-4" /> Previsualizar
+                </Button>
                 <Button
                     onClick={handlePreSubmit}
                     disabled={isSubmitting || !activeContract}
@@ -639,16 +713,29 @@ export function PaymentForm({ defaultTenant, onSuccess, onCancel, className, isA
                         <AlertDialogTitle>¿Confirmar Registro de Pago?</AlertDialogTitle>
                         <AlertDialogDescription asChild>
                             <div>
-                                Esta a punto de registrar <strong>{paymentParts.length}</strong> pago(s).
-                                <ul className="list-disc pl-5 mt-2 space-y-1 text-xs">
-                                    {paymentParts.map((p, i) => (
-                                        <li key={i}>
-                                            Ref: {p.reference} - <strong>{p.currency} {p.amount}</strong>
-                                        </li>
-                                    ))}
-                                </ul>
-                                <br />
-                                Verifique que los datos sean correctos antes de continuar, esta acción afectará el estado de cuenta del inquilino.
+                                Se registrarán <strong>{distributionPreview.length}</strong> pago(s) individuales:
+                                <div className="max-h-[300px] overflow-y-auto mt-4 border rounded-md p-2 bg-muted/20">
+                                    <ul className="space-y-2 text-sm">
+                                        {distributionPreview.map((item, i) => {
+                                             const monthName = Object.keys(monthMap).find(key => monthMap[key] === item.month)
+                                             return (
+                                                <li key={i} className="flex justify-between items-center border-b pb-1 last:border-0 last:pb-0">
+                                                    <div>
+                                                        <span className="font-semibold capitalize">{monthName} {item.year}</span>
+                                                        <span className="text-xs text-muted-foreground ml-2">({item.isFull ? 'Completo' : 'Parcial'})</span>
+                                                        {item.reference && <div className="text-xs text-muted-foreground">Ref: {item.reference}</div>}
+                                                    </div>
+                                                    <div className="font-mono font-medium">
+                                                        {item.currency} {item.amount.toLocaleString()}
+                                                    </div>
+                                                </li>
+                                             )
+                                        })}
+                                    </ul>
+                                </div>
+                                <div className="mt-4 text-xs text-muted-foreground text-center">
+                                    Verifique la distribución antes de continuar.
+                                </div>
                             </div>
                         </AlertDialogDescription>
                     </AlertDialogHeader>
