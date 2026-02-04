@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { usePayments } from "@/hooks/use-payments"
+import { usePayments, PaymentStatusFilter } from "@/hooks/use-payments"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -104,7 +104,7 @@ export default function PaymentsPage() {
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
                     <CardTitle>Historial de Pagos</CardTitle>
                     <div className="flex flex-col sm:flex-row w-full max-w-xl items-center gap-4">
-                        <Select value={statusFilter} onValueChange={(val: any) => setStatusFilter(val)}>
+                        <Select value={statusFilter} onValueChange={(val: PaymentStatusFilter) => setStatusFilter(val)}>
                             <SelectTrigger className="w-[180px]">
                                 <SelectValue placeholder="Estado" />
                             </SelectTrigger>

@@ -28,6 +28,8 @@ export interface Payment {
     };
 }
 
+export type PaymentStatusFilter = 'all' | 'pending' | 'approved' | 'rejected';
+
 export function usePayments() {
     const [payments, setPayments] = useState<Payment[]>([]);
     const [loading, setLoading] = useState(true);
@@ -36,7 +38,7 @@ export function usePayments() {
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(10);
     const [total, setTotal] = useState(0);
-    const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
+    const [statusFilter, setStatusFilter] = useState<PaymentStatusFilter>('all');
 
     // We can't search text easily on joined relations server-side with standard Supabase client in one go without complex RPC or multiple queries.
     // For simplicity/speed in this MVP, let's keep client-side filtering for search text, but server-side for status/pagination?
