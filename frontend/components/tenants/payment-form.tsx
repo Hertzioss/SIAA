@@ -54,6 +54,8 @@ export function PaymentForm({ defaultTenant, onSuccess, onCancel, className, isA
     // Confirmation Dialog State
     const [isConfirmationOpen, setIsConfirmationOpen] = useState(false)
     const [distributionPreview, setDistributionPreview] = useState<any[]>([])
+    const [isPreviewMode, setIsPreviewMode] = useState(false)
+
 
     // Form State
     const [month, setMonth] = useState('enero')
@@ -693,13 +695,19 @@ export function PaymentForm({ defaultTenant, onSuccess, onCancel, className, isA
                 {onCancel && <Button variant="outline" onClick={onCancel}>Cancelar</Button>}
                 <Button
                     variant="secondary"
-                    onClick={handlePreSubmit}
+                    onClick={() => {
+                        setIsPreviewMode(true)
+                        handlePreSubmit()
+                    }}
                     disabled={isSubmitting || !activeContract}
                 >
                     <FileText className="mr-2 h-4 w-4" /> Previsualizar
                 </Button>
                 <Button
-                    onClick={handlePreSubmit}
+                    onClick={() => {
+                        setIsPreviewMode(false)
+                        handlePreSubmit()
+                    }}
                     disabled={isSubmitting || !activeContract}
                     className="bg-green-600 hover:bg-green-700"
                 >
@@ -710,7 +718,7 @@ export function PaymentForm({ defaultTenant, onSuccess, onCancel, className, isA
             <AlertDialog open={isConfirmationOpen} onOpenChange={setIsConfirmationOpen}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                        <AlertDialogTitle>¿Confirmar Registro de Pago?</AlertDialogTitle>
+                        <AlertDialogTitle>{isPreviewMode ? 'Previsualización de Distribución' : '¿Confirmar Registro de Pago?'}</AlertDialogTitle>
                         <AlertDialogDescription asChild>
                             <div>
                                 Se registrarán <strong>{distributionPreview.length}</strong> pago(s) individuales:
@@ -733,20 +741,24 @@ export function PaymentForm({ defaultTenant, onSuccess, onCancel, className, isA
                                         })}
                                     </ul>
                                 </div>
-                                <div className="mt-4 text-xs text-muted-foreground text-center">
-                                    Verifique la distribución antes de continuar.
-                                </div>
+                                {!isPreviewMode && (
+                                    <div className="mt-4 text-xs text-muted-foreground text-center">
+                                        Verifique la distribución antes de continuar.
+                                    </div>
+                                )}
                             </div>
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                        <AlertDialogCancel disabled={isSubmitting}>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction onClick={(e) => {
-                            e.preventDefault()
-                            handleConfirmPayment()
-                        }} disabled={isSubmitting} className="bg-green-600 hover:bg-green-700">
-                            {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Confirmar y Guardar"}
-                        </AlertDialogAction>
+                        <AlertDialogCancel disabled={isSubmitting}>{isPreviewMode ? 'Cerrar' : 'Cancelar'}</AlertDialogCancel>
+                        {!isPreviewMode && (
+                            <AlertDialogAction onClick={(e) => {
+                                e.preventDefault()
+                                handleConfirmPayment()
+                            }} disabled={isSubmitting} className="bg-green-600 hover:bg-green-700">
+                                {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Confirmar y Guardar"}
+                            </AlertDialogAction>
+                        )}
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
