@@ -270,7 +270,7 @@ export default function ExpensesPage() {
                                             <span className="text-xs text-muted-foreground mr-1">
                                                 {expense.currency === 'VES' ? 'Bs.' : (expense.currency || 'USD')}
                                             </span>
-                                            {expense.currency !== 'VES' && '$'} {Number(expense.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                                            {(expense.currency === 'USD' || !expense.currency) && '$'} {Number(expense.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}
                                         </TableCell>
                                         <TableCell className="text-right text-xs text-muted-foreground">
                                             {expense.currency === 'USD' ? (expense.exchange_rate || '-') : '-'}

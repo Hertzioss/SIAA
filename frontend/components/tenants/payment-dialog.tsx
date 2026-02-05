@@ -44,13 +44,14 @@ interface PaymentDialogProps {
     open: boolean
     onOpenChange: (open: boolean) => void
     tenant: Tenant | undefined
+    isAdmin?: boolean
 }
 
 /**
  * Diálogo para registrar pagos manuales de inquilinos.
  * Permite ingresar montos en Bs/USD, referencia bancaria y adjuntar comprobantes.
  */
-export function PaymentDialog({ open, onOpenChange, tenant }: PaymentDialogProps) {
+export function PaymentDialog({ open, onOpenChange, tenant, isAdmin = false }: PaymentDialogProps) {
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
@@ -65,6 +66,7 @@ export function PaymentDialog({ open, onOpenChange, tenant }: PaymentDialogProps
                     defaultTenant={tenant}
                     onSuccess={() => onOpenChange(false)}
                     onCancel={() => onOpenChange(false)}
+                    isAdmin={isAdmin}
                 />
             </DialogContent>
         </Dialog>

@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Download, ExternalLink, Loader2, Calendar, Printer, ChevronLeft, ChevronRight } from "lucide-react"
 import { useTenantPayments } from "@/hooks/use-tenant-payments"
+import { PaymentWithDetails, MonthlyBalance } from "@/types/payment"
 import { useContracts } from "@/hooks/use-contracts"
 import { useCurrentTenant } from "@/hooks/use-current-tenant"
 import { format, addMonths } from "date-fns"
@@ -25,8 +26,7 @@ export default function PaymentHistoryPage() {
     const { history, isLoading, fetchPaymentHistory, getMonthlyBalance, getNextPaymentDate } = useTenantPayments()
     const { contracts, isLoading: isLoadingContracts } = useContracts()
     const { currentTenant, loading: loadingTenant } = useCurrentTenant()
-    const [tenantId, setTenantId] = useState<string | null>(null)
-    const [balanceData, setBalanceData] = useState<any>(null)
+    const [balanceData, setBalanceData] = useState<MonthlyBalance | null>(null)
     const [nextPaymentDate, setNextPaymentDate] = useState<Date | null>(null)
 
     // Pagination State
@@ -34,26 +34,18 @@ export default function PaymentHistoryPage() {
     const [totalPages, setTotalPages] = useState(1)
     const pageSize = 5
 
-    // Effect to get tenantId from current user
-    // We strictly use the authenticated user's tenant profile to avoid data leaks.
+    // Effect to fetch history once we have currentTenant
     useEffect(() => {
         if (currentTenant?.id) {
-            setTenantId(currentTenant.id)
-        }
-    }, [currentTenant?.id])
-
-    // Effect to fetch history once we have tenantId
-    useEffect(() => {
-        if (tenantId) {
             const loadData = async () => {
-                const { totalPages: fetchedTotalPages } = await fetchPaymentHistory(tenantId, currentPage, pageSize)
+                const { totalPages: fetchedTotalPages } = await fetchPaymentHistory(currentTenant.id, currentPage, pageSize)
                 setTotalPages(fetchedTotalPages)
-                getMonthlyBalance(tenantId).then(setBalanceData)
-                getNextPaymentDate(tenantId).then(setNextPaymentDate)
+                getMonthlyBalance(currentTenant.id).then(setBalanceData)
+                getNextPaymentDate(currentTenant.id).then(setNextPaymentDate)
             }
             loadData()
         }
-    }, [tenantId, currentPage, fetchPaymentHistory, getMonthlyBalance, getNextPaymentDate])
+    }, [currentTenant?.id, currentPage, fetchPaymentHistory, getMonthlyBalance, getNextPaymentDate])
 
     const handlePageChange = (newPage: number) => {
         if (newPage >= 1 && newPage <= totalPages) {
@@ -72,9 +64,9 @@ export default function PaymentHistoryPage() {
     const activeContract = contracts.find(c => c.status === 'active')
 
     // Receipt Printing
-    const [selectedPayment, setSelectedPayment] = useState<any>(null)
+    const [selectedPayment, setSelectedPayment] = useState<PaymentWithDetails | null>(null)
 
-    const generateReceipt = (payment: any) => {
+    const generateReceipt = (payment: PaymentWithDetails) => {
         setSelectedPayment(payment)
     }
 

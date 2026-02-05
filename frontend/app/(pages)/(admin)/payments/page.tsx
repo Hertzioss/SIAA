@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { usePayments, PaymentStatusFilter } from "@/hooks/use-payments"
+import { usePayments, PaymentStatusFilter, Payment } from "@/hooks/use-payments"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -12,7 +12,7 @@ import { PaymentActionDialog } from "@/components/payments/payment-action-dialog
 import { PaymentDialog } from "@/components/tenants/payment-dialog"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
-import { Check, X, Search, FileText, Loader2, Edit2, ChevronLeft, ChevronRight, DollarSign, ArrowUpDown, Calendar } from "lucide-react"
+import { Check, X, Search, FileText, Loader2, Edit2, ChevronLeft, ChevronRight, ArrowUpDown } from "lucide-react"
 import { parseISO, format as formatFn } from "date-fns"
 
 /**
@@ -57,9 +57,9 @@ export default function PaymentsPage() {
 
     const sortedPayments = [...filteredPayments]
     if (sortConfig) {
-        sortedPayments.sort((a: any, b: any) => {
-            let aValue = a[sortConfig.key]
-            let bValue = b[sortConfig.key]
+        sortedPayments.sort((a: Payment, b: Payment) => {
+            let aValue = a[sortConfig.key as keyof Payment]
+            let bValue = b[sortConfig.key as keyof Payment]
 
             // Handle nested properties manually or flattened
             if (sortConfig.key === 'tenant') {
@@ -70,17 +70,20 @@ export default function PaymentsPage() {
                 bValue = b.unit?.name || ''
             }
 
-            if (aValue < bValue) {
+            const valA = aValue ?? ''
+            const valB = bValue ?? ''
+
+            if (valA < valB) {
                 return sortConfig.direction === 'asc' ? -1 : 1
             }
-            if (aValue > bValue) {
+            if (valA > valB) {
                 return sortConfig.direction === 'asc' ? 1 : -1
             }
             return 0
         })
     }
 
-    const totalPages = Math.ceil(total / pageSize)
+    // const totalPages = Math.ceil(total / pageSize)
 
     const handleActionClick = (id: string, action: 'approve' | 'reject') => {
         setSelectedPaymentId(id)
@@ -341,6 +344,7 @@ export default function PaymentsPage() {
                 open={isRegisterDialogOpen}
                 onOpenChange={setIsRegisterDialogOpen}
                 tenant={undefined}
+                isAdmin={true}
             />
         </div>
     )

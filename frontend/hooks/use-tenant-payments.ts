@@ -3,27 +3,13 @@ import { supabase } from '@/lib/supabase'
 import { toast } from 'sonner'
 import { v4 as uuidv4 } from 'uuid'
 
-export interface PaymentInsert {
-    contract_id: string
-    tenant_id: string
-    date: string
-    amount: number
-    currency: 'USD' | 'VES'
-    exchange_rate?: number
-    concept: string
-    payment_method: string
-    reference_number: string
-    notes?: string
-    proof_file?: File
-    owner_bank_account_id?: string
-    metadata?: any
-    status?: 'pending' | 'approved' | 'rejected'
-    billing_period: string
-}
+import { PaymentInsert, PaymentWithDetails, MonthlyBalance } from '@/types/payment'
+
+export type { PaymentInsert, PaymentWithDetails, MonthlyBalance }
 
 export function useTenantPayments() {
     const [isLoading, setIsLoading] = useState(false)
-    const [history, setHistory] = useState<any[]>([])
+    const [history, setHistory] = useState<PaymentWithDetails[]>([])
 
     const registerPayment = useCallback(async (data: PaymentInsert | PaymentInsert[]) => {
         setIsLoading(true)
@@ -78,6 +64,7 @@ export function useTenantPayments() {
                         metadata: p.metadata,
                         billing_period: p.billing_period // New Column
                     })
+                    .select('id')
             )
 
             const results = await Promise.all(insertPromises)
@@ -88,12 +75,38 @@ export function useTenantPayments() {
                 throw errors[0].error
             }
 
+            // 3. Send Emails if requested
+            // We reuse the update-status API for this since it encapsulates the email logic.
+            // We only do this if status is approved and sendEmail is true.
+            const successfulPayments = results.map(r => r.data?.[0]).filter((p): p is { id: string } => !!p)
+
+            if (payments[0]?.sendEmail && payments[0]?.status === 'approved') {
+                await Promise.all(successfulPayments.map(async (payment) => {
+                    if (!payment?.id) return
+                    try {
+                        await fetch('/api/payments/update-status', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                id: payment.id,
+                                status: 'approved', // Re-assert status to trigger email
+                                notes: payments[0].notes, // Pass notes potentially
+                                sendEmail: true
+                            })
+                        })
+                    } catch (e) {
+                        console.error("Failed to trigger email for payment", payment.id, e)
+                    }
+                }))
+            }
+
             toast.success('Pago(s) registrado(s) exitosamente')
             return true
 
-        } catch (error: any) {
+        } catch (error) {
             console.error('Error registering payment:', error)
-            toast.error('Error al registrar el pago: ' + error.message)
+            const message = error instanceof Error ? error.message : 'Unknown error'
+            toast.error('Error al registrar el pago: ' + message)
             return false
         } finally {
             setIsLoading(false)
@@ -130,7 +143,7 @@ export function useTenantPayments() {
                 count: count || 0,
                 totalPages: Math.ceil((count || 0) / pageSize)
             }
-        } catch (err: any) {
+        } catch (err) {
             console.error('Error fetching history:', err)
             return { data: [], count: 0, totalPages: 0 }
         } finally {
@@ -184,7 +197,7 @@ export function useTenantPayments() {
         }
     }, [])
 
-    const getMonthlyBalance = useCallback(async (tenantId: string, month?: number, year?: number) => {
+    const getMonthlyBalance = useCallback(async (tenantId: string, month?: number, year?: number): Promise<MonthlyBalance | null> => {
         try {
             // 1. Get active contract
             const { data: contract, error: contractError } = await supabase

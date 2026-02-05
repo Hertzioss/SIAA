@@ -68,14 +68,15 @@ export function PaymentActionDialog({
                             <span className="font-semibold">Email del inquilino:</span> {tenantEmail}
                         </Label>
                     </div>
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center space-x-2 bg-yellow-50 border border-yellow-200 p-4 rounded-md">
                         <Checkbox
                             id="sendEmail"
                             checked={sendEmail}
                             onCheckedChange={(c) => setSendEmail(!!c)}
+                            className="h-5 w-5"
                         />
-                        <Label htmlFor="sendEmail" className="text-sm font-normal cursor-pointer">
-                            Enviar correo al inquilino informando el cambio
+                        <Label htmlFor="sendEmail" className="text-sm font-medium cursor-pointer flex-1">
+                            Enviar correo al inquilino informando la Aprobación del pago
                         </Label>
                     </div>
 

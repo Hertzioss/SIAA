@@ -65,6 +65,7 @@ export function PaymentForm({ defaultTenant, onSuccess, onCancel, className, isA
     // Admin features
     const [referenceAmountUSD, setReferenceAmountUSD] = useState('')
     const [autoConciliate, setAutoConciliate] = useState(false)
+    const [sendEmail, setSendEmail] = useState(false)
 
     // Initialize date on client side
     useEffect(() => {
@@ -295,7 +296,8 @@ export function PaymentForm({ defaultTenant, onSuccess, onCancel, className, isA
                 proof_file: selectedFile || undefined,
                 owner_bank_account_id: originalPart.accountId !== 'na' ? originalPart.accountId : undefined,
                 status: (isAdmin && autoConciliate) ? 'approved' : 'pending',
-                billing_period: billingPeriod
+                billing_period: billingPeriod,
+                sendEmail: (isAdmin && autoConciliate && sendEmail)
             }
             inserts.push(paymentData)
         }
@@ -674,16 +676,16 @@ export function PaymentForm({ defaultTenant, onSuccess, onCancel, className, isA
             {/* Admin Auto-Conciliate Option */}
             {
                 isAdmin && (
-                    <div className="flex items-center space-x-2 mt-4">
+                    <div className="flex items-center space-x-2 mt-4 bg-yellow-50 border border-yellow-200 p-4 rounded-md">
                         <Checkbox
                             id="auto-conciliate"
                             checked={autoConciliate}
                             onCheckedChange={(checked) => setAutoConciliate(checked === true)}
-                            className="data-[state=checked]:bg-green-600 data-[state=checked]:border-green-600"
+                            className="h-5 w-5"
                         />
                         <Label
                             htmlFor="auto-conciliate"
-                            className="cursor-pointer font-medium"
+                            className="cursor-pointer font-medium flex-1"
                         >
                             Conciliar Inmediatamente (Marcar como Aprobado)
                         </Label>
@@ -746,6 +748,24 @@ export function PaymentForm({ defaultTenant, onSuccess, onCancel, className, isA
                                         Verifique la distribución antes de continuar.
                                     </div>
                                 )}
+                                
+                                {isAdmin && autoConciliate && !isPreviewMode && (
+                                     <div className="flex items-center space-x-2 mt-4 bg-yellow-50 border border-yellow-200 p-4 rounded-md">
+                                        <Checkbox
+                                            id="confirm-send-email"
+                                            checked={sendEmail}
+                                            onCheckedChange={(checked) => setSendEmail(checked === true)}
+                                            className="h-5 w-5"
+                                        />
+                                        <Label
+                                            htmlFor="confirm-send-email"
+                                            className="cursor-pointer font-medium flex-1"
+                                        >
+                                            Enviar confirmación por correo al inquilino
+                                        </Label>
+                                    </div>
+                                )}
+
                             </div>
                         </AlertDialogDescription>
                     </AlertDialogHeader>
