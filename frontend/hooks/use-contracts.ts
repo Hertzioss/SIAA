@@ -125,7 +125,7 @@ export function useContracts() {
             // Upload File if provided
             let fileUrl = null;
             if (contract.file) {
-                const file = contract.file;
+                const file: File = contract.file;
                 const fileExt = file.name.split('.').pop();
                 const fileName = `${Math.random()}.${fileExt}`;
                 const filePath = `${fileName}`;
@@ -181,7 +181,7 @@ export function useContracts() {
 
             // Handle File Upload if present
             if (updates.file) {
-                const file = updates.file;
+                const file: File = updates.file;
                 const fileExt = file.name.split('.').pop();
                 const fileName = `${Math.random()}.${fileExt}`;
                 const filePath = `${fileName}`;
