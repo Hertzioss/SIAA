@@ -22,12 +22,36 @@ ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Users view own profile" ON public.users;
 CREATE POLICY "Users view own profile" ON public.users FOR
 SELECT USING (auth.uid() = id);
--- 2. PROPERTIES
+-- 2. PROPERTY TYPES (Catalog)
+CREATE TABLE IF NOT EXISTS public.property_types (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(50) NOT NULL UNIQUE,
+    label VARCHAR(100) NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+ALTER TABLE public.property_types ENABLE ROW LEVEL SECURITY;
+-- Allow read access
+CREATE POLICY "Enable read access for authenticated users" ON public.property_types
+    FOR SELECT USING (auth.role() = 'authenticated');
+
+-- Seed Property Types immediately
+INSERT INTO public.property_types (name, label) VALUES
+('building', 'Edificio Residencial'),
+('commercial_center', 'Centro Comercial'),
+('standalone', 'Unidad Independiente'),
+('multifamily', 'Conjunto Residencial'),
+('office_building', 'Torre de Oficinas')
+ON CONFLICT (name) DO NOTHING;
+
+-- 3. PROPERTIES
 CREATE TABLE IF NOT EXISTS public.properties (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name VARCHAR(200) NOT NULL,
     address TEXT NOT NULL,
-    type VARCHAR(50) NOT NULL CHECK (type IN ('residential', 'commercial')),
+    property_type_id UUID REFERENCES public.property_types(id), -- Linked to Catalog
+    total_area DECIMAL(10,2),
+    floors INTEGER,
+    description TEXT,
     created_at TIMESTAMP DEFAULT NOW()
 );
 ALTER TABLE public.properties ENABLE ROW LEVEL SECURITY;
