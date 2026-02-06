@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://desarrollo-siaa-db.jnvzha.easypanel.host"
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://data.escritorio.legal"
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
 
 
