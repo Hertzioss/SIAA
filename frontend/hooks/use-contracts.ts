@@ -225,7 +225,7 @@ export function useContracts() {
             setContracts((prev) =>
                 prev.map((c) => (c.id === id ? { ...c, ...data } : c))
             )
-            toast.success('Contrato actualizado exitosamente')
+            toast.success('Contrato actualizado éxitosamente')
             fetchContracts() // Refresh to get joined data
             return data
         } catch (err: unknown) {
@@ -249,7 +249,7 @@ export function useContracts() {
             if (error) throw error
 
             setContracts((prev) => prev.filter((c) => c.id !== id))
-            toast.success('Contrato eliminado exitosamente')
+            toast.success('Contrato eliminado éxitosamente')
         } catch (err: unknown) {
             console.error('Error deleting contract:', err)
             toast.error('Error al eliminar el contrato')
