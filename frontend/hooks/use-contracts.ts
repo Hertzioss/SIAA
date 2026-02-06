@@ -46,6 +46,7 @@ export function useContracts() {
                     units (
                         name,
                         properties (
+                            id,
                             name
                         )
                     ),
@@ -59,9 +60,10 @@ export function useContracts() {
             if (error) throw error
 
             setContracts(data as Contract[])
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('Error fetching contracts:', err)
-            setError(err.message)
+            const message = (err as { message?: string })?.message || 'Error desconocido'
+            setError(message)
             toast.error('Error al cargar contratos')
         } finally {
             setIsLoading(false)
@@ -79,6 +81,7 @@ export function useContracts() {
                     units (
                         name,
                         properties (
+                            id,
                             name
                         )
                     ),
@@ -92,16 +95,17 @@ export function useContracts() {
 
             if (error) throw error
             setContracts(data as Contract[])
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('Error fetching tenant contracts:', err)
-            setError(err.message)
+            const message = (err as { message?: string })?.message || 'Error desconocido'
+            setError(message)
             toast.error('Error al cargar contratos del inquilino')
         } finally {
             setIsLoading(false)
         }
     }, [])
 
-    const createContract = async (contract: ContractInsert) => {
+    const createContract = async (contract: ContractInsert & { file?: File | null }) => {
         try {
             // Validate availability
             if (contract.unit_id) {
@@ -120,8 +124,8 @@ export function useContracts() {
 
             // Upload File if provided
             let fileUrl = null;
-            if ((contract as any).file) {
-                const file = (contract as any).file;
+            if (contract.file) {
+                const file = contract.file;
                 const fileExt = file.name.split('.').pop();
                 const fileName = `${Math.random()}.${fileExt}`;
                 const filePath = `${fileName}`;
@@ -147,7 +151,9 @@ export function useContracts() {
                 file_url: fileUrl // Add URL to payload
             };
             // Remove file object from payload
-            delete (payload as any).file;
+            if ('file' in payload) {
+                delete (payload as { file?: File }).file;
+            }
 
             const { data, error } = await supabase
                 .from('contracts')
@@ -161,20 +167,21 @@ export function useContracts() {
             toast.success('Contrato creado exitosamente')
             fetchContracts() // Refresh to get joined data/ensure consistency
             return data
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('Error creating contract:', err)
-            toast.error(err.message || 'Error al crear el contrato')
+            const message = (err as { message?: string })?.message || 'Error al crear el contrato'
+            toast.error(message)
             throw err
         }
     }
 
-    const updateContract = async (id: string, updates: ContractUpdate) => {
+    const updateContract = async (id: string, updates: ContractUpdate & { file?: File }) => {
         try {
             const payload = { ...updates };
 
             // Handle File Upload if present
-            if ((payload as any).file) {
-                const file = (payload as any).file;
+            if (updates.file) {
+                const file = updates.file;
                 const fileExt = file.name.split('.').pop();
                 const fileName = `${Math.random()}.${fileExt}`;
                 const filePath = `${fileName}`;
@@ -197,7 +204,9 @@ export function useContracts() {
             }
 
             // Remove file object
-            delete (payload as any).file;
+            if ('file' in payload) {
+                delete (payload as { file?: File }).file;
+            }
 
             console.log("Updating contract with payload:", payload);
 
@@ -219,10 +228,10 @@ export function useContracts() {
             toast.success('Contrato actualizado exitosamente')
             fetchContracts() // Refresh to get joined data
             return data
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('Error updating contract:', err)
             // Log properties if it's an object
-            if (typeof err === 'object') {
+            if (typeof err === 'object' && err !== null) {
                 console.error('Error properties:', JSON.stringify(err, null, 2));
             }
             toast.error('Error al actualizar el contrato')
@@ -241,7 +250,7 @@ export function useContracts() {
 
             setContracts((prev) => prev.filter((c) => c.id !== id))
             toast.success('Contrato eliminado exitosamente')
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('Error deleting contract:', err)
             toast.error('Error al eliminar el contrato')
             throw err
