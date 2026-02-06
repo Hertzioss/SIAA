@@ -10,9 +10,10 @@ import { Separator } from "@/components/ui/separator"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Plus, Trash2, Edit, Building, CreditCard, DollarSign, Save } from "lucide-react"
+import { Plus, Trash2, Edit, Building, CreditCard, DollarSign, Save, Lock } from "lucide-react"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
+import { SecurityForm } from "@/components/security-form"
 
 // Mock Data for Bank Accounts
 const BANK_ACCOUNTS_DATA = [
@@ -67,7 +68,7 @@ export default function AccountPage() {
         <div className="container mx-auto p-6 space-y-8">
             <div className="flex justify-between items-center">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight">Configuración de Empresa</h1>
+                    <h1 className="text-3xl font-bold tracking-tight">Configuración</h1>
                     <p className="text-muted-foreground">
                         Administre la información de la empresa, cuentas bancarias y contabilidad.
                     </p>
@@ -75,7 +76,7 @@ export default function AccountPage() {
             </div>
 
             <Tabs defaultValue="profile" className="w-full">
-                <TabsList className="grid w-full grid-cols-3 max-w-[600px]">
+                <TabsList className="grid w-full grid-cols-4 max-w-[800px]">
                     <TabsTrigger value="profile">
                         <Building className="mr-2 h-4 w-4" /> Perfil
                     </TabsTrigger>
@@ -85,11 +86,16 @@ export default function AccountPage() {
                     <TabsTrigger value="accounting">
                         <DollarSign className="mr-2 h-4 w-4" /> Contabilidad
                     </TabsTrigger>
+                    <TabsTrigger value="security">
+                        <Lock className="mr-2 h-4 w-4" /> Seguridad
+                    </TabsTrigger>
                 </TabsList>
 
                 {/* PROFILE TAB */}
                 <TabsContent value="profile" className="mt-6 space-y-6">
                     <Card>
+                        {/* ... existing profile content ... */}
+
                         <CardHeader>
                             <CardTitle>Información General</CardTitle>
                             <CardDescription>Datos legales y de contacto de la empresa administradora.</CardDescription>
@@ -299,6 +305,19 @@ export default function AccountPage() {
                                     <Save className="mr-2 h-4 w-4" /> Guardar Configuración
                                 </Button>
                             </div>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+
+                {/* SECURITY TAB */}
+                <TabsContent value="security" className="mt-6 space-y-6">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Seguridad</CardTitle>
+                            <CardDescription>Gestione su contraseña y opciones de acceso.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <SecurityForm />
                         </CardContent>
                     </Card>
                 </TabsContent>

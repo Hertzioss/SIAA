@@ -21,7 +21,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Loader2 } from "lucide-react"
+import { Loader2, Eye, EyeOff } from "lucide-react"
 import { User } from "@/hooks/use-users"
 import { getUnlinkedTenants } from "@/actions/users"
 
@@ -51,6 +51,7 @@ interface UserDialogProps {
  */
 export function UserDialog({ open, onOpenChange, user, mode, onSubmit }: UserDialogProps) {
     const [unlinkedTenants, setUnlinkedTenants] = useState<{ id: string, name: string, doc_id: string }[]>([])
+    const [showPassword, setShowPassword] = useState(false)
 
     const form = useForm<UserFormValues>({
         resolver: zodResolver(userSchema),
@@ -201,7 +202,29 @@ export function UserDialog({ open, onOpenChange, user, mode, onSubmit }: UserDia
                                 <FormItem>
                                     <FormLabel>{mode === 'create' ? 'Contraseña' : 'Nueva Contraseña (Opcional)'}</FormLabel>
                                     <FormControl>
-                                        <Input type="password" placeholder={mode === 'create' ? "******" : "Dejar en blanco para mantener actual"} {...field} />
+                                        <div className="relative">
+                                            <Input
+                                                type={showPassword ? "text" : "password"}
+                                                placeholder={mode === 'create' ? "******" : "Dejar en blanco para mantener actual"}
+                                                {...field}
+                                            />
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="icon"
+                                                className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                                                onClick={() => setShowPassword(!showPassword)}
+                                            >
+                                                {showPassword ? (
+                                                    <EyeOff className="h-4 w-4 text-muted-foreground" />
+                                                ) : (
+                                                    <Eye className="h-4 w-4 text-muted-foreground" />
+                                                )}
+                                                <span className="sr-only">
+                                                    {showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                                                </span>
+                                            </Button>
+                                        </div>
                                     </FormControl>
                                     <FormMessage />
                                 </FormItem>
