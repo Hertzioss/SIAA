@@ -61,6 +61,7 @@ export default function AdminLayout({
                     {
                         "--sidebar-width": "calc(var(--spacing) * 72)",
                         "--header-height": "calc(var(--spacing) * 12)",
+                        "--sidebar-top": "1.5rem",
                     } as React.CSSProperties
                 }
             >

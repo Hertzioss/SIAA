@@ -2,7 +2,7 @@
 
 export function TopBanner() {
     return (
-        <div className="bg-primary px-4 py-3 text-primary-foreground sm:px-6 lg:px-8 w-full z-50 relative">
+        <div className="bg-primary px-4 py-3 text-primary-foreground sm:px-6 lg:px-8 w-full z-50 sticky top-0">
             <div className="flex items-center justify-center gap-x-6">
                 <p className="text-base font-medium leading-6 text-center">
                     {/* <strong className="font-semibold">Aviso importante</strong> */}
