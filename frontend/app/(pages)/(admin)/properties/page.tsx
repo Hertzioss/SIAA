@@ -470,7 +470,7 @@ export default function PropertiesPage() {
                                                                     <TableRow key={unit.id}>
                                                                         <TableCell className="font-medium">{unit.name}</TableCell>
                                                                         <TableCell className="capitalize">
-                                                                            {unit.type === 'apt' ? 'Apartamento' : unit.type === 'office' ? 'Oficina' : unit.type === 'local' ? 'Local' : 'Bodega'}
+                                                                            {unit.type === 'apartment' ? 'Apartamento' : unit.type === 'office' ? 'Oficina' : unit.type === 'local' ? 'Local' : 'Bodega'}
                                                                         </TableCell>
                                                                         <TableCell>
                                                                             <Badge variant={unit.status === 'vacant' ? 'secondary' : 'default'} className="capitalize">
