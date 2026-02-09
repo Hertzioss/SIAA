@@ -1,48 +1,60 @@
+export type PaymentMethod = 'transfer' | 'cash' | 'zelle' | 'pago_movil'
+export type PaymentStatus = 'pending' | 'approved' | 'rejected' | 'paid' | 'overdue'
+export type Currency = 'USD' | 'VES'
+
 export interface Payment {
   id: string
-  created_at: string
-  contract_id: string
-  tenant_id: string
+  contract_id: string | null
   amount: number
-  currency: 'USD' | 'VES'
-  exchange_rate?: number
-  concept: string
-  payment_method: string
-  reference_number: string
   date: string
-  status: 'pending' | 'approved' | 'rejected' | 'paid'
-  notes?: string
-  proof_url?: string
-  owner_bank_account_id?: string
-  metadata?: Record<string, unknown>
-  billing_period?: string
+  method: PaymentMethod | null
+  reference: string | null
+  status: PaymentStatus
+  proof_url: string | null
+  notes: string | null
+  created_at: string
+  owner_bank_account_id: string | null
+  exchange_rate: number | null
+  tenant_id: string | null
+  currency: Currency | null
+  concept: string | null
+  payment_method: string | null
+  metadata: Record<string, any> | null
+  billing_period: string | null
+  reference_number: string | null
 }
 
 export interface PaymentInsert {
-    contract_id: string
-    tenant_id: string
-    date: string
-    amount: number
-    currency: 'USD' | 'VES'
-    exchange_rate?: number
-    concept: string
-    payment_method: string
-    reference_number: string
-    notes?: string
-    proof_file?: File
-    owner_bank_account_id?: string
-    metadata?: Record<string, unknown>
-    status?: 'pending' | 'approved' | 'rejected' | 'paid'
-    billing_period: string
-    sendEmail?: boolean
+  contract_id?: string | null
+  amount: number
+  date: string
+  method?: PaymentMethod | null
+  reference?: string | null
+  status?: PaymentStatus
+  proof_url?: string | null
+  notes?: string | null
+  owner_bank_account_id?: string | null
+  exchange_rate?: number | null
+  tenant_id?: string | null
+  currency?: Currency | null
+  concept?: string | null
+  payment_method?: string | null
+  metadata?: Record<string, any> | null
+  billing_period?: string | null
+  reference_number?: string | null
+  
+  // Frontend only
+  proof_file?: File
+  sendEmail?: boolean
 }
 
 export interface PaymentWithDetails extends Payment {
-  tenants: {
+  tenants?: {
     name: string
     doc_id: string
+    email?: string
   }
-  contracts: {
+  contracts?: {
     units: {
       name: string
       properties: {

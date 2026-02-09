@@ -53,7 +53,7 @@ export default function PaymentHistoryPage() {
         }
     }
 
-    const formatCurrency = (amount: number, currency: string) => {
+    const formatCurrency = (amount: number, currency: string | null | undefined) => {
         return new Intl.NumberFormat('en-US', {
             style: 'currency',
             currency: currency || 'USD',

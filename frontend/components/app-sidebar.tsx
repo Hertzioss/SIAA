@@ -92,7 +92,7 @@ const data = {
       ],
     },
     {
-      title: "Egresos",
+      title: "Ingresos y Egresos",
       url: "/expenses",
       icon: IconTrendingDown,
     },

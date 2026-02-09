@@ -30,6 +30,8 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { OwnerIncomesView } from "@/components/expenses/owner-incomes-view"
 
 export default function ExpensesPage() {
     const { expenses, owners, loading, createExpense, updateExpense, deleteExpense } = useOwnerExpenses()
@@ -152,173 +154,171 @@ export default function ExpensesPage() {
         <div className="container mx-auto p-6 space-y-8">
             <div className="flex justify-between items-center">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight">Egresos de Propietarios</h1>
+                    <h1 className="text-3xl font-bold tracking-tight">Ingresos y Egresos de Propietarios</h1>
                     <p className="text-muted-foreground">
-                        Registro de pagos, adelantos y gastos de propietarios.
+                        Gestión de movimientos financieros de propietarios.
                     </p>
-                </div>
-                <div className="flex gap-2">
-                    <Button color="success" className="bg-green-600 hover:bg-green-700" onClick={handleExport}>
-                        <FileSpreadsheet className="mr-2 h-4 w-4" /> Exportar
-                    </Button>
-                    <Button onClick={handleCreate}>
-                        <Plus className="mr-2 h-4 w-4" /> Registrar Egreso
-                    </Button>
                 </div>
             </div>
 
-            {/* Summary Cards */}
-            {/* <div className="grid gap-4 md:grid-cols-3">
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">
-                            Total Egresos (Vista Actual)
-                        </CardTitle>
-                        <TrendingDown className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">${totalExpenses.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
-                        <p className="text-xs text-muted-foreground">
-                            {filteredExpenses.length} registros encontrados
-                        </p>
-                    </CardContent>
-                </Card>
-            </div> */}
-
-            <Card>
-                <CardHeader>
-                    <div className="flex items-center justify-between">
-                        <CardTitle>Historial de Egresos</CardTitle>
-                        <div className="relative w-64">
-                            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                            <Input
-                                placeholder="Buscar egreso..."
-                                className="pl-8"
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                            />
+            <Tabs defaultValue="expenses" className="w-full">
+                <TabsList className="grid w-full grid-cols-2 lg:w-[400px]">
+                    <TabsTrigger value="expenses">Egresos</TabsTrigger>
+                    <TabsTrigger value="incomes">Ingresos</TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="expenses" className="space-y-4">
+                    <div className="flex justify-between items-center">
+                         <div /> {/* Spacer or left content if needed */}
+                        <div className="flex gap-2">
+                            <Button color="success" className="bg-green-600 hover:bg-green-700" onClick={handleExport}>
+                                <FileSpreadsheet className="mr-2 h-4 w-4" /> Exportar
+                            </Button>
+                            <Button onClick={handleCreate}>
+                                <Plus className="mr-2 h-4 w-4" /> Registrar Egreso
+                            </Button>
                         </div>
-                        <Select value={selectedOwnerId} onValueChange={setSelectedOwnerId}>
-                            <SelectTrigger className="w-[200px]">
-                                <SelectValue placeholder="Filtrar por propietario" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">Todos los propietarios</SelectItem>
-                                {owners.map(owner => (
-                                    <SelectItem key={owner.id} value={owner.id}>{owner.name}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
                     </div>
-                </CardHeader>
-                <CardContent>
-                    {loading ? (
-                        <div className="flex justify-center py-8">
-                            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                        </div>
-                    ) : filteredExpenses.length === 0 ? (
-                        <div className="text-center py-8 text-muted-foreground">
-                            No se encontraron egresos.
-                        </div>
-                    ) : (
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Fecha</TableHead>
-                                    <TableHead>Propietario / Inmueble</TableHead>
-                                    <TableHead>Concepto</TableHead>
-                                    <TableHead>Estado</TableHead>
-                                    <TableHead className="text-right">Monto</TableHead>
-                                    <TableHead className="text-right">Tasa</TableHead>
-                                    <TableHead className="text-right">Acciones</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {filteredExpenses.map((expense) => (
-                                    <TableRow key={expense.id}>
-                                        <TableCell>
-                                            {/* Parse YYYY-MM-DD string directly to avoid timezone shift */}
-                                            {(() => {
-                                                if (!expense.date) return '-'
-                                                const [y, m, d] = expense.date.toString().split('T')[0].split('-')
-                                                return `${d}/${m}/${y}`
-                                            })()}
-                                        </TableCell>
-                                        <TableCell>
-                                            <div className="font-medium">{expense.owner?.name}</div>
-                                            {expense.property && (
-                                                <div className="text-xs text-muted-foreground flex items-center gap-1">
-                                                    <Building2 className="h-3 w-3" />
-                                                    {expense.property.name}
-                                                </div>
-                                            )}
-                                        </TableCell>
-                                        <TableCell className="max-w-[200px]">
-                                            <div className="font-medium">{getCategoryLabel(expense.category)}</div>
-                                            {expense.description && (
-                                                <div className="text-xs text-muted-foreground truncate" title={expense.description}>
-                                                    {expense.description}
-                                                </div>
-                                            )}
-                                        </TableCell>
-                                        <TableCell>
-                                            <Badge variant={getStatusVariant(expense.status) as any}>
-                                                {getStatusLabel(expense.status)}
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell className="text-right font-medium">
-                                            <span className="text-xs text-muted-foreground mr-1">
-                                                {expense.currency === 'VES' ? 'Bs.' : (expense.currency || 'USD')}
-                                            </span>
-                                            {(expense.currency === 'USD' || !expense.currency) && '$'} {Number(expense.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                                        </TableCell>
-                                        <TableCell className="text-right text-xs text-muted-foreground">
-                                            {expense.currency === 'USD' ? (expense.exchange_rate || '-') : '-'}
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            <div className="flex justify-end gap-2">
-                                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(expense)}>
-                                                    <Edit className="h-4 w-4" />
-                                                </Button>
-                                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => confirmDelete(expense)}>
-                                                    <Trash className="h-4 w-4" />
-                                                </Button>
-                                            </div>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    )}
-                </CardContent>
-            </Card>
 
-            <ExpenseDialog
-                open={isDialogOpen}
-                onOpenChange={setIsDialogOpen}
-                mode={dialogMode}
-                expense={selectedExpense}
-                properties={properties}
-                owners={owners}
-                onSubmit={handleSubmit}
-            />
+                    <Card>
+                        <CardHeader>
+                            <div className="flex items-center justify-between">
+                                <CardTitle>Historial de Egresos</CardTitle>
+                                <div className="relative w-64">
+                                    <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                                    <Input
+                                        placeholder="Buscar egreso..."
+                                        className="pl-8"
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                    />
+                                </div>
+                                <Select value={selectedOwnerId} onValueChange={setSelectedOwnerId}>
+                                    <SelectTrigger className="w-[200px]">
+                                        <SelectValue placeholder="Filtrar por propietario" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">Todos los propietarios</SelectItem>
+                                        {owners.map(owner => (
+                                            <SelectItem key={owner.id} value={owner.id}>{owner.name}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </CardHeader>
+                        <CardContent>
+                            {loading ? (
+                                <div className="flex justify-center py-8">
+                                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                                </div>
+                            ) : filteredExpenses.length === 0 ? (
+                                <div className="text-center py-8 text-muted-foreground">
+                                    No se encontraron egresos.
+                                </div>
+                            ) : (
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Fecha</TableHead>
+                                            <TableHead>Propietario / Inmueble</TableHead>
+                                            <TableHead>Concepto</TableHead>
+                                            <TableHead>Estado</TableHead>
+                                            <TableHead className="text-right">Monto</TableHead>
+                                            <TableHead className="text-right">Tasa</TableHead>
+                                            <TableHead className="text-right">Acciones</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {filteredExpenses.map((expense) => (
+                                            <TableRow key={expense.id}>
+                                                <TableCell>
+                                                    {(() => {
+                                                        if (!expense.date) return '-'
+                                                        const [y, m, d] = expense.date.toString().split('T')[0].split('-')
+                                                        return `${d}/${m}/${y}`
+                                                    })()}
+                                                </TableCell>
+                                                <TableCell>
+                                                    <div className="font-medium">{expense.owner?.name}</div>
+                                                    {expense.property && (
+                                                        <div className="text-xs text-muted-foreground flex items-center gap-1">
+                                                            <Building2 className="h-3 w-3" />
+                                                            {expense.property.name}
+                                                        </div>
+                                                    )}
+                                                </TableCell>
+                                                <TableCell className="max-w-[200px]">
+                                                    <div className="font-medium">{getCategoryLabel(expense.category)}</div>
+                                                    {expense.description && (
+                                                        <div className="text-xs text-muted-foreground truncate" title={expense.description}>
+                                                            {expense.description}
+                                                        </div>
+                                                    )}
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Badge variant={getStatusVariant(expense.status) as any}>
+                                                        {getStatusLabel(expense.status)}
+                                                    </Badge>
+                                                </TableCell>
+                                                <TableCell className="text-right font-medium">
+                                                    <span className="text-xs text-muted-foreground mr-1">
+                                                        {expense.currency === 'VES' ? 'Bs.' : (expense.currency || 'USD')}
+                                                    </span>
+                                                    {(expense.currency === 'USD' || !expense.currency) && '$'} {Number(expense.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                                                </TableCell>
+                                                <TableCell className="text-right text-xs text-muted-foreground">
+                                                    {expense.currency === 'USD' ? (expense.exchange_rate || '-') : '-'}
+                                                </TableCell>
+                                                <TableCell className="text-right">
+                                                    <div className="flex justify-end gap-2">
+                                                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(expense)}>
+                                                            <Edit className="h-4 w-4" />
+                                                        </Button>
+                                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => confirmDelete(expense)}>
+                                                            <Trash className="h-4 w-4" />
+                                                        </Button>
+                                                    </div>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            )}
+                        </CardContent>
+                    </Card>
 
-            <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>¿Está seguro?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            Esta acción no se puede deshacer. Esto eliminará permanentemente el registro del egreso.
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                            Eliminar
-                        </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
+                    <ExpenseDialog
+                        open={isDialogOpen}
+                        onOpenChange={setIsDialogOpen}
+                        mode={dialogMode}
+                        expense={selectedExpense}
+                        properties={properties}
+                        owners={owners}
+                        onSubmit={handleSubmit}
+                    />
+
+                    <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                                <AlertDialogTitle>¿Está seguro?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    Esta acción no se puede deshacer. Esto eliminará permanentemente el registro del egreso.
+                                </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                                    Eliminar
+                                </AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
+                </TabsContent>
+
+                <TabsContent value="incomes">
+                    <OwnerIncomesView />
+                </TabsContent>
+            </Tabs>
         </div >
     )
 }

@@ -32,7 +32,10 @@ export function useProperties() {
                   property_type:property_types(*),
                   units(
                     *,
-                    contracts(status)
+                    contracts(
+                      status,
+                      tenant:tenants(name)
+                    )
                   ),
                   property_owners(
                     percentage,
@@ -46,10 +49,15 @@ export function useProperties() {
             // Transform data to flat structure expected by UI
             const formattedProperties: Property[] = (data || []).map((p: any) => ({
                 ...p,
-                units: p.units?.map((u: any) => ({
-                    ...u,
-                    isOccupied: u.contracts?.some((c: any) => c.status === 'active')
-                })),
+                units: p.units?.map((u: any) => {
+                    const activeContract = u.contracts?.find((c: any) => c.status === 'active');
+                    return {
+                        ...u,
+                        status: activeContract ? 'occupied' : u.status,
+                        isOccupied: !!activeContract,
+                        tenantName: activeContract?.tenant?.name
+                    };
+                }),
                 owners: p.property_owners?.map((po: any) => ({
                     owner_id: po.owner?.id,
                     name: po.owner?.name,

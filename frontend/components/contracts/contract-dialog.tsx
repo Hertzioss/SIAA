@@ -90,7 +90,7 @@ export function ContractDialog({
         } else {
             setFormData({
                 unit_id: "",
-                tenant_id: "",
+                tenant_id: tenants.length === 1 ? tenants[0].id : "",
                 start_date: "",
                 end_date: "",
                 amount: "",
@@ -98,7 +98,7 @@ export function ContractDialog({
                 isIndefinite: false
             })
         }
-    }, [contract, open])
+    }, [contract, open, tenants])
 
     // Flatten units for selection
     const units = properties.flatMap(p =>
@@ -249,6 +249,7 @@ export function ContractDialog({
                                 <Select
                                     value={formData.tenant_id}
                                     onValueChange={(val) => setFormData((prev: any) => ({ ...prev, tenant_id: val }))}
+                                    disabled={tenants.length === 1}
                                 >
                                     <SelectTrigger id="tenant">
                                         <SelectValue placeholder="Seleccionar Inquilino" />

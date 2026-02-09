@@ -12,6 +12,7 @@ import { Property } from "@/types/property"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { PaymentHistoryList } from "./payment-history-list"
 import { Separator } from "@/components/ui/separator"
+import { ContractDialog } from "@/components/contracts/contract-dialog"
 import {
     AlertDialog,
     AlertDialogAction,
@@ -70,7 +71,12 @@ export function TenantDialog({ open, onOpenChange, mode, tenant, properties, onS
 
     // Hooks
     const { contacts, createContact, deleteContact, fetchContacts, isLoading: loadingContacts } = useTenantContacts(tenant?.id)
-    const { contracts, fetchTenantContracts } = useContracts()
+    const { contracts, fetchTenantContracts, createContract, updateContract } = useContracts()
+
+    // Contract Dialog State
+    const [isContractDialogOpen, setIsContractDialogOpen] = useState(false)
+    const [contractDialogMode, setContractDialogMode] = useState<"create" | "edit" | "view">("create")
+    const [selectedContract, setSelectedContract] = useState<any>(undefined)
 
     // New Contact Form State
     const [newContact, setNewContact] = useState<Partial<TenantContact>>({
@@ -237,6 +243,22 @@ export function TenantDialog({ open, onOpenChange, mode, tenant, properties, onS
             toast.error(err.message)
         } finally {
             setLoading(false)
+        }
+    }
+
+    const handleContractSubmit = async (data: any) => {
+        try {
+            if (contractDialogMode === 'create' && tenant) {
+                await createContract({
+                    ...data,
+                    tenant_id: tenant.id // Force tenant ID
+                })
+            } else if (contractDialogMode === 'edit' && selectedContract) {
+                await updateContract(selectedContract.id, data)
+            }
+            if (tenant) fetchTenantContracts(tenant.id) // Refresh list
+        } catch (error) {
+            console.error("Error saving contract from tenant dialog:", error)
         }
     }
 
@@ -496,6 +518,16 @@ export function TenantDialog({ open, onOpenChange, mode, tenant, properties, onS
                         </TabsContent>
 
                         <TabsContent value="contracts" className="py-4 space-y-4">
+                            <div className="flex justify-end mb-2">
+                                <Button size="sm" onClick={() => {
+                                    setContractDialogMode("create")
+                                    setSelectedContract(undefined)
+                                    setIsContractDialogOpen(true)
+                                }}>
+                                    <Plus className="mr-2 h-4 w-4" /> Asignar Propiedad / Crear Contrato
+                                </Button>
+                            </div>
+
                             {contracts.length === 0 ? (
                                 <div className="text-center py-8 text-muted-foreground border rounded-md border-dashed">
                                     No hay contratos registrados.
@@ -518,10 +550,17 @@ export function TenantDialog({ open, onOpenChange, mode, tenant, properties, onS
                                             <CardContent className="py-3 text-sm grid grid-cols-2 gap-2">
                                                 <div><span className="text-muted-foreground">Inicio:</span> {format(new Date(contract.start_date), 'dd MMM yyyy', { locale: es })}</div>
                                                 <div><span className="text-muted-foreground">Fin:</span> {contract.end_date ? format(new Date(contract.end_date), 'dd MMM yyyy', { locale: es }) : "Indefinido"}</div>
-                                                <div className="col-span-2 mt-2">
-                                                    <Link href={`/contracts?view=${contract.id}`}>
+                                                <div className="col-span-2 mt-2 flex gap-2">
+                                                    <Link href={`/contracts?view=${contract.id}`} className="flex-1">
                                                         <Button variant="outline" size="sm" className="w-full">Ver Detalles</Button>
                                                     </Link>
+                                                    <Button variant="secondary" size="sm" onClick={() => {
+                                                        setSelectedContract(contract)
+                                                        setContractDialogMode("edit")
+                                                        setIsContractDialogOpen(true)
+                                                    }}>
+                                                        Editar
+                                                    </Button>
                                                 </div>
                                             </CardContent>
                                         </Card>
@@ -682,6 +721,16 @@ export function TenantDialog({ open, onOpenChange, mode, tenant, properties, onS
                     )}
                 </DialogFooter>
             </DialogContent>
+
+            <ContractDialog
+                open={isContractDialogOpen}
+                onOpenChange={setIsContractDialogOpen}
+                mode={contractDialogMode}
+                contract={selectedContract}
+                properties={properties}
+                tenants={tenant ? [tenant] : []}
+                onSubmit={handleContractSubmit}
+            />
 
             <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
                 <AlertDialogContent>

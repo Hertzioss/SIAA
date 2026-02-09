@@ -1,19 +1,34 @@
+
+
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { startOfMonth, endOfMonth, subMonths, format, isSameMonth, parseISO, differenceInDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 
-export function useDashboardData(propertyId: string) {
+export function useDashboardData(propertyId: string, ownerId: string = 'all') {
     const [loading, setLoading] = useState(true);
     const [data, setData] = useState<any>(null);
 
     const fetchData = useCallback(async () => {
         setLoading(true);
         try {
+            // 0. If ownerId is selected, fetch their properties first to filter
+            let ownerPropertyIds: string[] | null = null;
+            if (ownerId !== 'all') {
+                const { data: ownerProps } = await supabase
+                    .from('property_owners')
+                    .select('property_id')
+                    .eq('owner_id', ownerId);
+                
+                if (ownerProps) {
+                    ownerPropertyIds = ownerProps.map(p => p.property_id);
+                }
+            }
+
             // 1. Fetch Payments (Approved & Pending)
             let paymentsQuery = supabase
                 .from('payments')
-                .select('amount, date, status, contract:contracts(unit:units(property_id, name), tenant:tenants(name))');
+                .select('amount, date, status, currency, contract:contracts(unit:units(property_id, name), tenant:tenants(name))');
 
             // 2. Fetch Contracts (Active)
             let contractsQuery = supabase
@@ -32,38 +47,60 @@ export function useDashboardData(propertyId: string) {
                 .select('id, property_id, status, priority, title, created_at, unit:units(name)')
                 .in('status', ['open', 'in_progress', 'urgent']);
 
+            // 5. Fetch Owner Expenses (NEW)
+            let expensesQuery = supabase
+                .from('owner_expenses')
+                .select('id, amount, date, property_id, owner_id'); // Note: Expenses schema might need currency too if multi-currency supported
+
             // Execute queries
-            const [paymentsRes, contractsRes, unitsRes, maintenanceRes] = await Promise.all([
+            const [paymentsRes, contractsRes, unitsRes, maintenanceRes, expensesRes] = await Promise.all([
                 paymentsQuery,
                 contractsQuery,
                 unitsQuery,
-                maintenanceQuery
+                maintenanceQuery,
+                expensesQuery
             ]);
 
             const payments = paymentsRes.data || [];
             const contracts = contractsRes.data || [];
             const units = unitsRes.data || [];
             const maintenance = maintenanceRes.data || [];
+            const expenses = expensesRes.data || [];
 
-            // FILTER BY PROPERTY ID IF NOT 'all'
-            const filteredPayments = propertyId === 'all'
-                ? payments
-                : payments.filter((p: any) => p.contract?.unit?.property_id === propertyId);
+            // FILTERING LOGIC
+            const filterByOwner = (itemPropertyId: string) => {
+                if (ownerId === 'all') return true;
+                return ownerPropertyIds?.includes(itemPropertyId);
+            };
 
-            const filteredContracts = propertyId === 'all'
-                ? contracts
-                : contracts.filter((c: any) => c.unit?.property_id === propertyId);
+            const filterByProperty = (itemPropertyId: string) => {
+                if (propertyId === 'all') return true;
+                return itemPropertyId === propertyId;
+            };
 
-            const filteredUnits = propertyId === 'all'
-                ? units
-                : units.filter((u: any) => u.property_id === propertyId);
+            const isVisible = (itemPropertyId: any) => {
+                if (!itemPropertyId) return false;
+                return filterByOwner(itemPropertyId) && filterByProperty(itemPropertyId);
+            };
 
-            const filteredMaintenance = propertyId === 'all'
-                ? maintenance
-                : maintenance.filter((m: any) => m.property_id === propertyId);
+            // Enhanced filter for expenses
+            const filterExpense = (e: any) => {
+                const ownerMatch = ownerId === 'all' || e.owner_id === ownerId;
+                const propertyMatch = propertyId === 'all' || e.property_id === propertyId;
+                return ownerMatch && propertyMatch;
+            }
+
+            const filteredPayments = payments.filter((p: any) => isVisible(p.contract?.unit?.property_id));
+            const filteredContracts = contracts.filter((c: any) => isVisible(c.unit?.property_id));
+            const filteredUnits = units.filter((u: any) => isVisible(u.property_id));
+            const filteredMaintenance = maintenance.filter((m: any) => isVisible(m.property_id));
+            const filteredExpenses = expenses.filter(filterExpense);
 
 
             // --- CALCULATE STATS ---
+            // Note: Mixing currencies in stats sum is tricky. For now assuming base currency or converting? 
+            // The prompt only mentioned "Recent Activity" display issue. 
+            // I will fix the display in recent activity first.
 
             // Revenue (Approved Payments)
             const revenue = filteredPayments
@@ -74,10 +111,14 @@ export function useDashboardData(propertyId: string) {
             const pending = filteredPayments
                 .filter((p: any) => p.status === 'pending')
                 .reduce((sum: number, p: any) => sum + Number(p.amount), 0);
+            
+            // Total Expenses (NEW)
+            const totalExpenses = filteredExpenses
+                .reduce((sum: number, e: any) => sum + Number(e.amount), 0);
 
             // Occupancy
             const totalUnits = filteredUnits.length;
-            const occupiedUnits = filteredContracts.length; // Active contracts ~ occupied units
+            const occupiedUnits = filteredContracts.length;
             const occupancyRate = totalUnits > 0 ? Math.round((occupiedUnits / totalUnits) * 100) : 0;
 
             // Requests
@@ -85,27 +126,32 @@ export function useDashboardData(propertyId: string) {
 
 
             // --- CHARTS DATA ---
+            // ... (Charts logic remains same for now)
 
-            // Revenue vs Expenses (Last 6 Months)
+             // Payment Status Pie Chart
+            const paymentStatusData = [
+                { name: "Cobrado", value: revenue, color: "#22c55e" },
+                { name: "Por Cobrar", value: pending, color: "#eab308" },
+                { name: "Atrasado", value: 0, color: "#ef4444" }, 
+            ];
+
+             // Revenue vs Expenses (Last 6 Months)
             const last6Months = Array.from({ length: 6 }).map((_, i) => subMonths(new Date(), 5 - i));
             const revenueExpensesData = last6Months.map(date => {
                 const monthRevenue = filteredPayments
                     .filter((p: any) => p.status === 'approved' && isSameMonth(parseISO(p.date), date))
                     .reduce((sum: number, p: any) => sum + Number(p.amount), 0);
 
+                const monthExpenses = filteredExpenses
+                    .filter((e: any) => isSameMonth(parseISO(e.date), date))
+                    .reduce((sum: number, e: any) => sum + Number(e.amount), 0);
+
                 return {
-                    name: format(date, 'MMM', { locale: es }), // "Nov"
+                    name: format(date, 'MMM', { locale: es }), 
                     ingresos: monthRevenue,
-                    gastos: 0 // No expenses table yet
+                    gastos: monthExpenses
                 };
             });
-
-            // Payment Status Pie Chart
-            const paymentStatusData = [
-                { name: "Cobrado", value: revenue, color: "#22c55e" },
-                { name: "Por Cobrar", value: pending, color: "#eab308" },
-                { name: "Atrasado", value: 0, color: "#ef4444" }, // Todo: Implement arrears logic
-            ];
 
             // Lease Expirations (Next 30-60 days)
             const today = new Date();
@@ -128,16 +174,22 @@ export function useDashboardData(propertyId: string) {
             const recentPayments = filteredPayments
                 .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())
                 .slice(0, 5)
-                .map((p: any) => ({
-                    type: "payment",
-                    title: "Pago Registrado",
-                    desc: `${p.contract?.tenant?.name} - ${p.contract?.unit?.name}`,
-                    amount: `$${p.amount}`,
-                    status: p.status === 'approved' ? 'success' : 'warning',
-                    date: p.date
-                }));
-
-            // Map maintenance to activity format
+                .map((p: any) => {
+                    // Currency formatting
+                    const symbol = p.currency === 'VES' || p.currency === 'Bs' ? 'Bs' : '$';
+                    return {
+                        type: "payment",
+                        title: "Pago Registrado",
+                        desc: `${p.contract?.tenant?.name} - ${p.contract?.unit?.name}`,
+                        amount: `${symbol} ${p.amount}`,
+                        status: p.status === 'approved' ? 'success' : 'warning',
+                        date: p.date
+                    };
+                });
+            
+             // Recent Maintenance (Usually no amount in request list, just status)
+             // If we want to show amount for completed maintenance with expense? 
+             // Currently dashboard just lists status.
             const recentMaintenance = filteredMaintenance
                 .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
                 .slice(0, 5)
@@ -166,9 +218,9 @@ export function useDashboardData(propertyId: string) {
                 stats: {
                     revenue,
                     revenueTrend: 0, // Need historical comparison
-                    occupancy: occupancyRate,
-                    occupancyTrend: 0,
-                    properties: propertyId === 'all' ? new Set(filteredUnits.map((u: any) => u.property_id)).size : 1,
+                    expenses: totalExpenses, // REPLACED OCCUPANCY
+                    expensesTrend: 0,
+                    properties: (propertyId === 'all' && ownerId === 'all') ? new Set(filteredUnits.map((u: any) => u.property_id)).size : 1,
                     propertiesTrend: 0,
                     requests: pendingRequests,
                     requestsTrend: pendingRequests > 0 ? "Activas" : "Sin pendientes"
@@ -186,7 +238,7 @@ export function useDashboardData(propertyId: string) {
         } finally {
             setLoading(false);
         }
-    }, [propertyId]);
+    }, [propertyId, ownerId]);
 
     useEffect(() => {
         fetchData();

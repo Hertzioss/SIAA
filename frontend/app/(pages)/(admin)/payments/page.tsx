@@ -14,6 +14,7 @@ import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import { Check, X, Search, FileText, Loader2, Edit2, ChevronLeft, ChevronRight, ArrowUpDown } from "lucide-react"
 import { parseISO, format as formatFn } from "date-fns"
+import { ExportButtons } from "@/components/export-buttons"
 
 /**
  * Página para la gestión y conciliación de pagos.
@@ -98,9 +99,28 @@ export default function PaymentsPage() {
         <div className="space-y-6 p-6">
             <div className="flex justify-between items-center">
                 <h1 className="text-3xl font-bold tracking-tight">Conciliación de Pagos</h1>
-                {/* <Button onClick={() => setIsRegisterDialogOpen(true)} className="bg-green-600 hover:bg-green-700">
-                    <DollarSign className="mr-2 h-4 w-4" /> Registrar Pago
-                </Button> */}
+                <div className="flex gap-2">
+                     <ExportButtons
+                        data={sortedPayments}
+                        filename="reporte_pagos"
+                        title="Reporte de Pagos"
+                        columns={[
+                            { header: "Fecha Registro", key: "created_at", transform: (val: string) => val ? format(new Date(val), "dd/MM/yyyy HH:mm") : "-" },
+                            { header: "Fecha Pago", key: "date", transform: (val: string) => val ? formatFn(parseISO(val), 'dd/MM/yyyy') : "-" },
+                            { header: "Mes Pagado", key: "billing_period", transform: (val: string) => val ? formatFn(parseISO(val), 'MMMM yyyy', { locale: es }) : "-" },
+                            { header: "Inquilino", key: "tenant.name" },
+                            { header: "Unidad", key: "unit", transform: (u: Payment['unit']) => u ? `${u.name} (${u.property_name || ''})` : '-' },
+                            { header: "Monto", key: "amount" },
+                            { header: "Moneda", key: "currency" },
+                            { header: "Tasa", key: "exchange_rate" },
+                            { header: "Referencia", key: "reference" },
+                            { header: "Estado", key: "status", transform: (val: string) => val === 'approved' ? 'Conciliado' : val === 'rejected' ? 'Rechazado' : 'Pendiente' }
+                        ]}
+                    />
+                    {/* <Button onClick={() => setIsRegisterDialogOpen(true)} className="bg-green-600 hover:bg-green-700">
+                        <DollarSign className="mr-2 h-4 w-4" /> Registrar Pago
+                    </Button> */}
+                </div>
             </div>
 
             <Card>
@@ -140,6 +160,12 @@ export default function PaymentsPage() {
                                     <TableHead>
                                         <Button variant="ghost" onClick={() => requestSort('created_at')} className="hover:bg-transparent px-0 font-bold">
                                             Fecha Registro
+                                            <ArrowUpDown className="ml-2 h-4 w-4" />
+                                        </Button>
+                                    </TableHead>
+                                    <TableHead>
+                                        <Button variant="ghost" onClick={() => requestSort('date')} className="hover:bg-transparent px-0 font-bold">
+                                            Fecha Pago
                                             <ArrowUpDown className="ml-2 h-4 w-4" />
                                         </Button>
                                     </TableHead>
@@ -199,11 +225,14 @@ export default function PaymentsPage() {
                                                 {payment.created_at ? format(new Date(payment.created_at), "dd/MM/yyyy HH:mm") : "-"}
                                             </TableCell>
                                             <TableCell>
+                                                {payment.date ? formatFn(parseISO(payment.date), 'dd/MM/yyyy') : "-"}
+                                            </TableCell>
+                                            <TableCell>
                                                 {/* Billing Period formatted as Month Year */}
                                                 <span className="capitalize">
                                                     {payment.billing_period
                                                         ? formatFn(parseISO(payment.billing_period), 'MMMM yyyy', { locale: es })
-                                                        : (payment.date ? formatFn(parseISO(payment.date), 'MMMM yyyy', { locale: es }) : '-')}
+                                                        : '-'}
                                                 </span>
                                             </TableCell>
                                             <TableCell className="font-medium">
@@ -332,10 +361,10 @@ export default function PaymentsPage() {
                 tenantEmail={payments.find(p => p.id === selectedPaymentId)?.tenant?.email}
                 // Pass details
                 amount={payments.find(p => p.id === selectedPaymentId)?.amount}
-                currency={payments.find(p => p.id === selectedPaymentId)?.currency}
-                paymentDate={payments.find(p => p.id === selectedPaymentId)?.date}
-                exchangeRate={payments.find(p => p.id === selectedPaymentId)?.exchange_rate}
-                registrationDate={payments.find(p => p.id === selectedPaymentId)?.created_at}
+                currency={payments.find(p => p.id === selectedPaymentId)?.currency || undefined}
+                paymentDate={payments.find(p => p.id === selectedPaymentId)?.date || undefined}
+                exchangeRate={payments.find(p => p.id === selectedPaymentId)?.exchange_rate || undefined}
+                registrationDate={payments.find(p => p.id === selectedPaymentId)?.created_at || undefined}
 
                 onConfirm={updatePaymentStatus}
             />

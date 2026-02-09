@@ -28,8 +28,6 @@ import { ExportButtons } from "@/components/export-buttons"
 import { useProperties } from "@/hooks/use-properties"
 import { Property } from "@/types/property"
 
-const ITEMS_PER_PAGE = 5
-
 /**
  * Página principal de administración de propiedades.
  * Permite listar, crear, editar y eliminar propiedades y sus unidades.
@@ -64,6 +62,7 @@ export default function PropertiesPage() {
 
     // Pagination State
     const [currentPage, setCurrentPage] = useState(1)
+    const [itemsPerPage, setItemsPerPage] = useState(5)
     const [searchTerm, setSearchTerm] = useState("")
 
     // Filtered Data
@@ -102,10 +101,10 @@ export default function PropertiesPage() {
         return 0
     })
 
-    const totalPages = Math.ceil(sortedProperties.length / ITEMS_PER_PAGE)
+    const totalPages = Math.ceil(sortedProperties.length / itemsPerPage)
     const currentProperties = sortedProperties.slice(
-        (currentPage - 1) * ITEMS_PER_PAGE,
-        currentPage * ITEMS_PER_PAGE
+        (currentPage - 1) * itemsPerPage,
+        currentPage * itemsPerPage
     )
 
     const router = useRouter()
@@ -250,10 +249,32 @@ export default function PropertiesPage() {
                         filename="propiedades"
                         columns={[
                             { header: "Nombre", key: "name" },
-                            { header: "Tipo", key: "property_type.label" }, // Updated key
+                            { header: "Tipo", key: "property_type.label" },
                             { header: "Dirección", key: "address" },
                             { header: "Niveles", key: "floors" },
-                            { header: "Unidades", key: "units", transform: (u: any[]) => u?.length || 0 },
+                            { 
+                                header: "Resumen Unidades", 
+                                key: "units", 
+                                transform: (u: any[]) => {
+                                    if (!u) return "0";
+                                    const total = u.length;
+                                    const occ = u.filter((getItem: any) => getItem.status === 'occupied').length;
+                                    const vac = u.filter((getItem: any) => getItem.status === 'vacant').length;
+                                    return `${total} (${occ} Oc, ${vac} Vac)`;
+                                }
+                            },
+                            { 
+                                header: "Detalle Unidades", 
+                                key: "units", 
+                                transform: (u: any[]) => {
+                                    if (!u) return "-";
+                                    return u.map((unit: any) => {
+                                        const status = unit.status === 'occupied' ? 'Ocupada' : 'Vacante';
+                                        const tenant = unit.tenantName ? ` - ${unit.tenantName}` : '';
+                                        return `${unit.name} (${status})${tenant}`;
+                                    }).join('\n');
+                                }
+                            },
                         ]}
                         title="Reporte de Propiedades"
                     />
@@ -351,12 +372,25 @@ export default function PropertiesPage() {
                                                     </div>
                                                 </div>
                                                 <div className="flex items-center gap-6 text-sm">
-                                                    <div className="flex flex-col items-end">
-                                                        <span className="text-muted-foreground">Unidades</span>
-                                                        <span className="font-medium">{property.units?.length || 0}</span>
+                                                    <div className="flex flex-col items-end min-w-[100px]">
+                                                        <span className="text-muted-foreground text-xs">Unidades</span>
+                                                        <div className="flex flex-col items-end">
+                                                            <span className="font-medium text-base">{property.units?.length || 0}</span>
+                                                            {property.units && property.units.length > 0 && (
+                                                                <div className="flex gap-2 text-[10px] text-muted-foreground">
+                                                                    <span className="text-green-600 font-medium">
+                                                                        {property.units.filter((u: any) => u.status === 'occupied').length} Oc
+                                                                    </span>
+                                                                    <span className="text-muted-foreground">/</span>
+                                                                    <span>
+                                                                        {property.units.filter((u: any) => u.status === 'vacant').length} Vac
+                                                                    </span>
+                                                                </div>
+                                                            )}
+                                                        </div>
                                                     </div>
                                                     <div className="flex flex-col items-end">
-                                                        <span className="text-muted-foreground">Área Total</span>
+                                                        <span className="text-muted-foreground text-xs">Área Total</span>
                                                         <span className="font-medium">
                                                             {property.total_area ? `${property.total_area} m²` : '-'}
                                                         </span>
@@ -442,6 +476,14 @@ export default function PropertiesPage() {
                                                                             <Badge variant={unit.status === 'vacant' ? 'secondary' : 'default'} className="capitalize">
                                                                                 {unit.status === 'vacant' ? 'Vacante' : unit.status}
                                                                             </Badge>
+                                                                            {unit.isOccupied && unit.tenantName && (
+                                                                                <div className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                                                                                    <User className="h-3 w-3" />
+                                                                                    <span className="truncate max-w-[150px]" title={unit.tenantName}>
+                                                                                        {unit.tenantName}
+                                                                                    </span>
+                                                                                </div>
+                                                                            )}
                                                                         </TableCell>
                                                                         <TableCell className="text-right">
                                                                             {unit.default_rent_amount ? `$${unit.default_rent_amount}` : '-'}
@@ -476,8 +518,31 @@ export default function PropertiesPage() {
                 </CardContent>
                 {totalPages > 1 && (
                     <CardFooter className="flex justify-between items-center">
-                        <div className="text-sm text-muted-foreground">
-                            Mostrando {((currentPage - 1) * ITEMS_PER_PAGE) + 1} a {Math.min(currentPage * ITEMS_PER_PAGE, filteredProperties.length)} de {filteredProperties.length} propiedades
+                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                            <span>
+                                Mostrando {((currentPage - 1) * itemsPerPage) + 1} a {Math.min(currentPage * itemsPerPage, filteredProperties.length)} de {filteredProperties.length} propiedades
+                            </span>
+                            <div className="flex items-center gap-2">
+                                <span>Filas por página:</span>
+                                <Select
+                                    value={itemsPerPage.toString()}
+                                    onValueChange={(val) => {
+                                        setItemsPerPage(Number(val))
+                                        setCurrentPage(1)
+                                    }}
+                                >
+                                    <SelectTrigger className="h-8 w-[70px]">
+                                        <SelectValue placeholder={itemsPerPage.toString()} />
+                                    </SelectTrigger>
+                                    <SelectContent side="top">
+                                        {[5, 10, 20, 50, 100].map((pageSize) => (
+                                            <SelectItem key={pageSize} value={pageSize.toString()}>
+                                                {pageSize}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
                         </div>
                         <div className="flex items-center gap-2">
                             <Button

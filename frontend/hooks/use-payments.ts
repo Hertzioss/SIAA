@@ -1,22 +1,12 @@
 import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
+import { Payment as BasePayment, PaymentStatus } from '@/types/payment';
 
-export interface Payment {
-    id: string;
-    contract_id: string;
-    amount: number;
-    date: string;
-    method: 'transfer' | 'cash' | 'zelle' | 'pago_movil';
-    reference?: string;
-    status: 'pending' | 'approved' | 'rejected';
-    notes?: string;
-    proof_url?: string;
-    created_at: string;
-    currency?: 'USD' | 'VES';
-    exchange_rate?: number;
-    billing_period: string; // YYYY-MM-DD (First day of month)
-    // Relations joined
+export type PaymentStatusFilter = 'all' | PaymentStatus;
+
+// Extend the base payment type with the flattened display fields used in the UI
+export interface Payment extends BasePayment {
     tenant?: {
         name: string;
         doc_id: string;
@@ -27,8 +17,6 @@ export interface Payment {
         property_name?: string;
     };
 }
-
-export type PaymentStatusFilter = 'all' | 'pending' | 'approved' | 'rejected';
 
 export function usePayments() {
     const [payments, setPayments] = useState<Payment[]>([]);
@@ -74,17 +62,37 @@ export function usePayments() {
             if (error) throw error;
 
             // Transform data
-            const formatted = data?.map((p: any) => ({
-                ...p,
-                // Map DB columns to Frontend Interface
-                reference: p.reference_number,
-                billing_period: p.billing_period, // Ensure this is passed
-                tenant: p.tenant, // Direct fetch
-                unit: {
-                    name: p.contract?.unit?.name,
-                    property_name: p.contract?.unit?.property?.name
-                }
-            })) || [];
+            const formatted: Payment[] = data?.map((p: any) => {
+                const contractData = Array.isArray(p.contract) ? p.contract[0] : p.contract;
+                const unitData = Array.isArray(contractData?.unit) ? contractData?.unit[0] : contractData?.unit;
+                const propertyData = Array.isArray(unitData?.property) ? unitData?.property[0] : unitData?.property;
+
+                return {
+                    ...p,
+                    // Map DB columns to Frontend Interface
+                    // Backend might have reference or reference_number. We map reference_number to reference for UI consistency if needed,
+                    // but the new type has both. Let's populate specific fields if missing.
+                    reference: p.reference || p.reference_number, 
+                    billing_period: p.billing_period, // Ensure this is passed
+                    tenants: p.tenant, // Direct fetch - Note: Shared type expects 'tenants' (plural) or 'tenant'?
+                    // The shared type has `tenants?: { ... }`.
+                    // The query returns `tenant:tenants(...)`. So `p.tenant` is the object.
+                    // We need to map `p.tenant` to the property expected by consumers or conform to the type.
+                    // The shared type `Payment` does NOT have `tenant` or `contracts`. `PaymentWithDetails` does.
+                    // But this hook uses `Payment[]`. 
+                    // Let's cast to `any` for the extra fields or extend the type locally if we want strictly typed extra fields not in the base interface?
+                    // Actually, `PaymentWithDetails` from types seems appropriate here.
+                    
+                    // Let's populate the base fields safely
+                    method: p.method, // Can be null
+                    payment_method: p.payment_method, // Can be null
+                    
+                    unit: {
+                        name: unitData?.name,
+                        property_name: propertyData?.name
+                    }
+                };
+            }) || [];
 
             // Client-side Sort: Pending first, then Date Descending
             formatted.sort((a: any, b: any) => {

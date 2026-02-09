@@ -2,6 +2,7 @@
 
 import { useEffect } from "react"
 import { useTenantPayments } from "@/hooks/use-tenant-payments"
+import { PaymentWithDetails, MonthlyBalance } from "@/types/payment"
 import {
     Table,
     TableBody,
@@ -33,15 +34,15 @@ interface PaymentHistoryListProps {
  */
 export function PaymentHistoryList({ tenantId }: PaymentHistoryListProps) {
     const { history, isLoading, fetchPaymentHistory, getMonthlyBalance } = useTenantPayments()
-    const [selectedPayment, setSelectedPayment] = useState<any>(null)
-    const [balanceData, setBalanceData] = useState<any>(null)
+    const [selectedPayment, setSelectedPayment] = useState<PaymentWithDetails | null>(null)
+    const [balanceData, setBalanceData] = useState<MonthlyBalance | null>(null)
 
     // Pagination State
     const [currentPage, setCurrentPage] = useState(1)
     const [totalPages, setTotalPages] = useState(1)
     const pageSize = 5
 
-    const generateReceipt = (payment: any) => {
+    const generateReceipt = (payment: PaymentWithDetails) => {
         setSelectedPayment(payment)
     }
 
@@ -106,7 +107,7 @@ export function PaymentHistoryList({ tenantId }: PaymentHistoryListProps) {
                         {history.map((payment) => (
                             <TableRow key={payment.id}>
                                 <TableCell>{format(parseLocalDate(payment.date), 'dd-MM-yyyy')}</TableCell>
-                                <TableCell className="max-w-[200px] truncate" title={payment.concept}>
+                                <TableCell className="max-w-[200px] truncate" title={payment.concept || undefined}>
                                     {payment.concept}
                                 </TableCell>
                                 <TableCell>{payment.reference_number || '-'}</TableCell>

@@ -14,8 +14,8 @@ interface SectionCardsProps {
   stats: {
     revenue: number
     revenueTrend: number
-    occupancy: number
-    occupancyTrend: number
+    expenses: number
+    expensesTrend: number
     properties: number
     propertiesTrend: number
     requests: number
@@ -54,23 +54,23 @@ export function SectionCards({ stats }: SectionCardsProps) {
       </Card>
       <Card className="@container/card">
         <CardHeader>
-          <CardDescription>Ocupación General</CardDescription>
+          <CardDescription>Egresos Totales</CardDescription>
           <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-            {stats.occupancy}%
+            ${stats.expenses.toLocaleString()}
           </CardTitle>
           <CardAction>
-            <Badge variant="outline">
-              <TrendingUp className="mr-1 h-3 w-3" />
-              +{stats.occupancyTrend}%
+            <Badge variant="outline" className="text-red-600 border-red-600 bg-red-50 dark:bg-red-900/10">
+              <TrendingDown className="mr-1 h-3 w-3" />
+              {stats.expensesTrend}%
             </Badge>
           </CardAction>
         </CardHeader>
         <CardFooter className="flex-col items-start gap-1.5 text-sm">
-          <div className="line-clamp-1 flex gap-2 font-medium">
-            Alta demanda <Users className="size-4" />
+          <div className="line-clamp-1 flex gap-2 font-medium text-red-600">
+            Gastos registrados <TrendingDown className="size-4" />
           </div>
           <div className="text-muted-foreground">
-            Unidades vacantes disponibles
+            Comparado con el mes anterior
           </div>
         </CardFooter>
       </Card>
