@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { ExportButtons } from "@/components/export-buttons"
 import { useProperties } from "@/hooks/use-properties"
-import { Property } from "@/types/property"
+import { Property, Unit } from "@/types/property"
 
 /**
  * Página principal de administración de propiedades.
@@ -46,7 +46,7 @@ export default function PropertiesPage() {
     const [unitDialogMode, setUnitDialogMode] = useState<"create" | "edit">("create")
     const [selectedPropertyId, setSelectedPropertyId] = useState("")
     const [selectedBuildingName, setSelectedBuildingName] = useState("")
-    const [selectedUnit, setSelectedUnit] = useState<any>(null)
+    const [selectedUnit, setSelectedUnit] = useState<Unit | null>(null)
 
     // Unit Form State
     const [unitName, setUnitName] = useState("")
@@ -157,7 +157,7 @@ export default function PropertiesPage() {
         setIsUnitDialogOpen(true)
     }
 
-    const handleOpenEditUnit = (unit: any, propertyName: string) => {
+    const handleOpenEditUnit = (unit: Unit, propertyName: string) => {
         setUnitDialogMode("edit")
         setSelectedPropertyId(unit.property_id) // Ensure property_id is set for edit
         setSelectedBuildingName(propertyName)
@@ -255,20 +255,20 @@ export default function PropertiesPage() {
                             { 
                                 header: "Resumen Unidades", 
                                 key: "units", 
-                                transform: (u: any[]) => {
+                                transform: (u: Unit[]) => {
                                     if (!u) return "0";
                                     const total = u.length;
-                                    const occ = u.filter((getItem: any) => getItem.status === 'occupied').length;
-                                    const vac = u.filter((getItem: any) => getItem.status === 'vacant').length;
+                                    const occ = u.filter((getItem) => getItem.status === 'occupied').length;
+                                    const vac = u.filter((getItem) => getItem.status === 'vacant').length;
                                     return `${total} (${occ} Oc, ${vac} Vac)`;
                                 }
                             },
                             { 
                                 header: "Detalle Unidades", 
                                 key: "units", 
-                                transform: (u: any[]) => {
+                                transform: (u: Unit[]) => {
                                     if (!u) return "-";
-                                    return u.map((unit: any) => {
+                                    return u.map((unit) => {
                                         const status = unit.status === 'occupied' ? 'Ocupada' : 'Vacante';
                                         const tenant = unit.tenantName ? ` - ${unit.tenantName}` : '';
                                         return `${unit.name} (${status})${tenant}`;
@@ -336,11 +336,12 @@ export default function PropertiesPage() {
                     ) : (
                         <Accordion type="single" collapsible className="w-full">
                             {currentProperties.map((property) => {
-                                const sortedUnits = property.units ? [...property.units].sort((a: any, b: any) => {
+                                const sortedUnits = property.units ? [...property.units].sort((a: Unit, b: Unit) => {
                                     if (!unitSortConfig) return 0
 
-                                    let aVal = a[unitSortConfig.key]
-                                    let bVal = b[unitSortConfig.key]
+                                    // Use type assertion for dynamic key access since we know the keys but TS doesn't
+                                    let aVal = (a as any)[unitSortConfig.key]
+                                    let bVal = (b as any)[unitSortConfig.key]
 
                                     // Handle numeric comparison for rent
                                     if (unitSortConfig.key === 'default_rent_amount') {
@@ -356,8 +357,9 @@ export default function PropertiesPage() {
                                 return (
                                     <AccordionItem key={property.id} value={property.id}>
                                         <AccordionTrigger className="hover:no-underline">
-                                            <div className="flex items-center justify-between w-full pr-4">
-                                                <div className="flex items-center gap-4">
+                                            <div className="grid grid-cols-12 gap-4 w-full pr-4 items-center">
+                                                {/* Property Info: Col span 5 */}
+                                                <div className="col-span-4 flex items-center gap-4">
                                                     <div className="bg-primary/10 p-2 rounded-lg">
                                                         {getPropertyIcon(property.property_type?.name)}
                                                     </div>
@@ -371,7 +373,21 @@ export default function PropertiesPage() {
                                                         </div>
                                                     </div>
                                                 </div>
-                                                <div className="flex items-center gap-6 text-sm">
+
+                                                {/* Owner Info: Col span 3 */}
+                                                <div className="col-span-4 flex items-center">
+                                                    {property.owners && property.owners.length > 0 && (
+                                                        <div className="flex flex-col border-l-2 border-primary/20 pl-4">
+                                                            <span className="text-primary font-medium">Propietario</span>
+                                                            <span className="text-muted-foreground text-sm truncate">
+                                                                {property.owners.map((o) => o.name).join(', ')}
+                                                            </span>
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                {/* Stats & Actions: Col span 4 */}
+                                                <div className="col-span-4 flex items-center justify-end gap-6 text-sm">
                                                     <div className="flex flex-col items-end min-w-[100px]">
                                                         <span className="text-muted-foreground text-xs">Unidades</span>
                                                         <div className="flex flex-col items-end">
@@ -379,11 +395,11 @@ export default function PropertiesPage() {
                                                             {property.units && property.units.length > 0 && (
                                                                 <div className="flex gap-2 text-[10px] text-muted-foreground">
                                                                     <span className="text-green-600 font-medium">
-                                                                        {property.units.filter((u: any) => u.status === 'occupied').length} Oc
+                                                                        {property.units.filter((u) => u.status === 'occupied').length} Oc
                                                                     </span>
                                                                     <span className="text-muted-foreground">/</span>
                                                                     <span>
-                                                                        {property.units.filter((u: any) => u.status === 'vacant').length} Vac
+                                                                        {property.units.filter((u) => u.status === 'vacant').length} Vac
                                                                     </span>
                                                                 </div>
                                                             )}
@@ -466,7 +482,7 @@ export default function PropertiesPage() {
                                                                 </TableRow>
                                                             </TableHeader>
                                                             <TableBody>
-                                                                {sortedUnits.map((unit: any) => (
+                                                                {sortedUnits.map((unit) => (
                                                                     <TableRow key={unit.id}>
                                                                         <TableCell className="font-medium">{unit.name}</TableCell>
                                                                         <TableCell className="capitalize">
@@ -517,34 +533,31 @@ export default function PropertiesPage() {
                     )}
                 </CardContent>
                 {totalPages > 1 && (
-                    <CardFooter className="flex justify-between items-center">
-                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                            <span>
-                                Mostrando {((currentPage - 1) * itemsPerPage) + 1} a {Math.min(currentPage * itemsPerPage, filteredProperties.length)} de {filteredProperties.length} propiedades
-                            </span>
-                            <div className="flex items-center gap-2">
-                                <span>Filas por página:</span>
-                                <Select
-                                    value={itemsPerPage.toString()}
-                                    onValueChange={(val) => {
-                                        setItemsPerPage(Number(val))
-                                        setCurrentPage(1)
-                                    }}
-                                >
-                                    <SelectTrigger className="h-8 w-[70px]">
-                                        <SelectValue placeholder={itemsPerPage.toString()} />
-                                    </SelectTrigger>
-                                    <SelectContent side="top">
-                                        {[5, 10, 20, 50, 100].map((pageSize) => (
-                                            <SelectItem key={pageSize} value={pageSize.toString()}>
-                                                {pageSize}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
+                    <CardFooter className="flex justify-between items-center py-4">
+                        <div className="flex-1 text-sm text-muted-foreground">
+                            Mostrando {((currentPage - 1) * itemsPerPage) + 1} a {Math.min(currentPage * itemsPerPage, filteredProperties.length)} de {filteredProperties.length} propiedades
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center space-x-2">
+                            <p className="text-sm text-muted-foreground mr-2">Filas por página:</p>
+                            <Select
+                                value={itemsPerPage.toString()}
+                                onValueChange={(val) => {
+                                    setItemsPerPage(Number(val))
+                                    setCurrentPage(1)
+                                }}
+                            >
+                                <SelectTrigger className="h-8 w-[70px]">
+                                    <SelectValue placeholder={itemsPerPage.toString()} />
+                                </SelectTrigger>
+                                <SelectContent side="top">
+                                    {[5, 10, 20, 50, 100].map((pageSize) => (
+                                        <SelectItem key={pageSize} value={pageSize.toString()}>
+                                            {pageSize}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <div className="w-4"></div>
                             <Button
                                 variant="outline"
                                 size="sm"
@@ -552,8 +565,9 @@ export default function PropertiesPage() {
                                 disabled={currentPage === 1}
                             >
                                 <ChevronLeft className="h-4 w-4" />
+                                Anterior
                             </Button>
-                            <div className="text-sm font-medium">
+                            <div className="text-sm font-medium mx-2">
                                 Página {currentPage} de {totalPages}
                             </div>
                             <Button
@@ -562,6 +576,7 @@ export default function PropertiesPage() {
                                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                                 disabled={currentPage === totalPages}
                             >
+                                Siguiente
                                 <ChevronRight className="h-4 w-4" />
                             </Button>
                         </div>

@@ -5,7 +5,6 @@ import { Payment as BasePayment, PaymentStatus } from '@/types/payment';
 
 export type PaymentStatusFilter = 'all' | PaymentStatus;
 
-// Extend the base payment type with the flattened display fields used in the UI
 export interface Payment extends BasePayment {
     tenant?: {
         name: string;
@@ -15,6 +14,28 @@ export interface Payment extends BasePayment {
     unit?: {
         name: string;
         property_name?: string;
+    };
+    // Structure needed for receipt printing
+    contracts?: {
+        units: {
+            name: string;
+            type?: string;
+            properties: {
+                name: string;
+                property_owners: {
+                    owners: {
+                        name: string;
+                        doc_id: string;
+                        logo_url?: string;
+                    }
+                }[]
+            }
+        }
+    };
+    tenants?: {
+        name: string;
+        doc_id: string;
+        email?: string;
     };
 }
 
@@ -42,7 +63,15 @@ export function usePayments() {
                     *,
                     tenant:tenants(name, doc_id, email),
                     contract:contracts(
-                        unit:units(name, property:properties(name))
+                        unit:units(
+                            name, type,
+                            properties(
+                                name,
+                                property_owners(
+                                    owners(name, doc_id, logo_url)
+                                )
+                            )
+                        )
                     )
                 `, { count: 'exact' });
 
@@ -56,7 +85,7 @@ export function usePayments() {
                 .limit(1000);
 
             if (data && data.length > 0) {
-                console.log("Raw Payment Data (First Item):", data[0]);
+                // console.log("Raw Payment Data (First Item):", data[0]);
             }
 
             if (error) throw error;
@@ -65,27 +94,30 @@ export function usePayments() {
             const formatted: Payment[] = data?.map((p: any) => {
                 const contractData = Array.isArray(p.contract) ? p.contract[0] : p.contract;
                 const unitData = Array.isArray(contractData?.unit) ? contractData?.unit[0] : contractData?.unit;
-                const propertyData = Array.isArray(unitData?.property) ? unitData?.property[0] : unitData?.property;
+                // Properties might be 'properties' or 'property' depending on alias. 
+                // The query above allows implicit naming. usually 'units' -> 'properties' (FK unit.property_id)
+                // In Supabase query above: unit:units(...) . Inside units: properties(...) (no alias).
+                // So it will be unitData.properties
+                const propertyData = Array.isArray(unitData?.properties) ? unitData?.properties[0] : unitData?.properties;
 
                 return {
                     ...p,
                     // Map DB columns to Frontend Interface
-                    // Backend might have reference or reference_number. We map reference_number to reference for UI consistency if needed,
-                    // but the new type has both. Let's populate specific fields if missing.
                     reference: p.reference || p.reference_number, 
-                    billing_period: p.billing_period, // Ensure this is passed
-                    tenants: p.tenant, // Direct fetch - Note: Shared type expects 'tenants' (plural) or 'tenant'?
-                    // The shared type has `tenants?: { ... }`.
-                    // The query returns `tenant:tenants(...)`. So `p.tenant` is the object.
-                    // We need to map `p.tenant` to the property expected by consumers or conform to the type.
-                    // The shared type `Payment` does NOT have `tenant` or `contracts`. `PaymentWithDetails` does.
-                    // But this hook uses `Payment[]`. 
-                    // Let's cast to `any` for the extra fields or extend the type locally if we want strictly typed extra fields not in the base interface?
-                    // Actually, `PaymentWithDetails` from types seems appropriate here.
+                    billing_period: p.billing_period, 
+                    tenants: p.tenant, 
+                    // Pass the raw nesting structure expected by PrintableReceiptHandler
+                    contracts: {
+                        units: {
+                            name: unitData?.name,
+                            type: unitData?.type,
+                            properties: propertyData
+                        }
+                    },
                     
                     // Let's populate the base fields safely
-                    method: p.method, // Can be null
-                    payment_method: p.payment_method, // Can be null
+                    method: p.method, 
+                    payment_method: p.payment_method, 
                     
                     unit: {
                         name: unitData?.name,
@@ -150,6 +182,7 @@ export function usePayments() {
         statusFilter,
         setStatusFilter,
         fetchPayments,
-        updatePaymentStatus
+        updatePaymentStatus,
+        setPageSize
     };
 }

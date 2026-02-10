@@ -1,8 +1,16 @@
 import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Owner, OwnerBeneficiary, OwnerType } from '@/types/owner';
+import { Owner, OwnerBeneficiary, OwnerType, Property } from '@/types/owner';
 import { toast } from 'sonner';
 import { updateOwner as updateOwnerAction } from '@/actions/access';
+
+
+type DbError = {
+    message: string;
+    code?: string;
+    details?: string;
+    hint?: string;
+};
 
 export function useOwners() {
     const [owners, setOwners] = useState<Owner[]>([]);
@@ -27,7 +35,8 @@ export function useOwners() {
             property_owners(
             property:properties(
               id,
-              name
+              name,
+              address
             )
           )
         `)
@@ -36,16 +45,37 @@ export function useOwners() {
             if (error) throw error;
 
             // Transform the data to match our Owner interface which expects 'properties' directly
-            const formattedOwners: Owner[] = (data || []).map((item: any) => ({
+            type OwnerResponse = Omit<Owner, 'properties'> & {
+                property_owners: { property: Property }[]
+            };
+
+            const formattedOwners: Owner[] = (data || []).map((item: OwnerResponse) => ({
                 ...item,
-                properties: item.property_owners?.map((po: any) => po.property) || []
+                properties: item.property_owners?.map((po) => po.property) || []
             }));
 
             setOwners(formattedOwners);
-        } catch (err: any) {
-            console.error('Error fetching owners:', err);
-            setError(err.message);
-            toast.error('Error al cargar propietarios');
+        } catch (error: unknown) {
+            console.error('Error fetching owners:', error);
+            // Log full error details for debugging
+            if (typeof error === 'object' && error !== null) {
+                try {
+                    console.error('Error details (JSON):', JSON.stringify(error, null, 2));
+                } catch {
+                    // Start circular structure or similar
+                }
+            }
+            
+            // Safe access to error properties
+            const err = error as { message?: string; details?: string; hint?: string; code?: string };
+            const errorMessage = err.message || 'Error desconocido';
+            const errorDetails = err.details || '';
+            const errorHint = err.hint || '';
+            
+            console.error('Error analysis:', { message: errorMessage, details: errorDetails, hint: errorHint });
+
+            setError(errorMessage);
+            toast.error(`Error al cargar propietarios: ${errorMessage}`);
         } finally {
             setLoading(false);
         }
@@ -89,7 +119,8 @@ export function useOwners() {
             toast.success('Propietario creado exitosamente');
             fetchOwners(); // Refresh list
             return newOwner;
-        } catch (err: any) {
+        } catch (error: unknown) {
+            const err = error as DbError;
             console.error('Error creating owner:', err);
             toast.error(`Error al crear propietario: ${err.message}`);
             throw err;
@@ -127,7 +158,7 @@ export function useOwners() {
             // Given OwnerDialog usage: handleSubmit calls onSubmit with { type, ...formData, beneficiaries }. It sends EVERYTHING.
             // So we are good.
 
-            const result = await updateOwnerAction(id, actionData as any)
+            const result = await updateOwnerAction(id, actionData as Parameters<typeof updateOwnerAction>[1])
 
             if (!result.success) {
                 throw new Error(result.error)
@@ -135,7 +166,8 @@ export function useOwners() {
 
             toast.success('Propietario actualizado exitosamente');
             fetchOwners();
-        } catch (err: any) {
+        } catch (error: unknown) {
+            const err = error as DbError;
             console.error('Error updating owner:', err);
             toast.error(`Error al actualizar: ${err.message}`);
             throw err;
@@ -153,7 +185,8 @@ export function useOwners() {
 
             toast.success('Propietario eliminado');
             fetchOwners();
-        } catch (err: any) {
+        } catch (error: unknown) {
+            const err = error as DbError;
             console.error('Error deleting owner:', err);
             toast.error('Error al eliminar propietario');
             throw err;

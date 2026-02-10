@@ -2,11 +2,14 @@
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { Input } from "@/components/ui/input"
-import { Plus, Search, Mail, Phone, User, Building, Edit, Trash, FileText, ArrowUpDown } from "lucide-react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Plus, Search, Mail, Phone, User, Building, Edit, Trash, FileText, ArrowUpDown, MapPin, ChevronLeft, ChevronRight } from "lucide-react"
 import { toast } from "sonner"
+import { Badge } from "@/components/ui/badge"
 import { OwnerDialog } from "@/components/owners/owner-dialog"
 import {
     AlertDialog,
@@ -39,7 +42,7 @@ export default function OwnersPage() {
 
     const [searchTerm, setSearchTerm] = useState("")
     const [currentPage, setCurrentPage] = useState(1)
-    const itemsPerPage = 5
+    const [itemsPerPage, setItemsPerPage] = useState(5)
 
     // Filtered Data
     const filteredOwners = owners.filter(owner =>
@@ -116,7 +119,7 @@ export default function OwnersPage() {
         }
     }
 
-    const handleDialogSubmit = async (data: any) => {
+    const handleDialogSubmit = async (data: Omit<Owner, 'id' | 'created_at' | 'properties'>) => {
         try {
             if (dialogMode === 'create') {
                 await createOwner(data)
@@ -173,96 +176,176 @@ export default function OwnersPage() {
                     </div>
                 </CardHeader>
                 <CardContent>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>
-                                    <Button variant="ghost" onClick={() => requestSort('name')} className="hover:bg-transparent px-0 font-bold">
-                                        Nombre
-                                        <ArrowUpDown className="ml-2 h-4 w-4" />
-                                    </Button>
-                                </TableHead>
-                                <TableHead>
-                                    <Button variant="ghost" onClick={() => requestSort('doc_id')} className="hover:bg-transparent px-0 font-bold">
-                                        Identificación
-                                        <ArrowUpDown className="ml-2 h-4 w-4" />
-                                    </Button>
-                                </TableHead>
-                                <TableHead>Contacto</TableHead>
-                                <TableHead>Propiedades</TableHead>
-                                <TableHead className="text-right">Acciones</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {currentPageOwners.length === 0 ? (
-                                <TableRow>
-                                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                                        No se encontraron propietarios
-                                    </TableCell>
-                                </TableRow>
-                            ) : (
-                                currentPageOwners.map((owner) => (
-                                    <TableRow key={owner.id}>
-                                        <TableCell className="font-medium">
-                                            <div className="flex items-center gap-2">
-                                                <div className="bg-primary/10 p-1.5 rounded-full">
-                                                    {owner.type === 'company' ? <Building className="h-4 w-4 text-primary" /> : <User className="h-4 w-4 text-primary" />}
+                    {loading ? (
+                        <div className="flex justify-center py-8">
+                            <span className="text-muted-foreground">Cargando propietarios...</span>
+                        </div>
+                    ) : currentPageOwners.length === 0 ? (
+                        <div className="text-center py-8 text-muted-foreground">
+                            No se encontraron propietarios.
+                        </div>
+                    ) : (
+                        <Accordion type="single" collapsible className="w-full">
+                            {currentPageOwners.map((owner) => (
+                                <AccordionItem key={owner.id} value={owner.id}>
+                                    <AccordionTrigger className="hover:no-underline">
+                                        <div className="grid grid-cols-12 gap-4 w-full pr-4 items-center">
+                                            {/* Owner Info: Col span 4 */}
+                                            <div className="col-span-4 flex items-center gap-4">
+                                                <div className="bg-primary/10 p-2 rounded-lg">
+                                                    {owner.type === 'company' ? <Building className="h-5 w-5 text-primary" /> : <User className="h-5 w-5 text-primary" />}
                                                 </div>
-                                                {owner.name}
+                                                <div className="text-left">
+                                                    <div className="font-semibold text-lg">{owner.name}</div>
+                                                    <div className="text-sm text-muted-foreground">{owner.doc_id}</div>
+                                                </div>
                                             </div>
-                                        </TableCell>
-                                        <TableCell>{owner.doc_id}</TableCell>
-                                        <TableCell>
-                                            <div className="flex flex-col text-sm">
-                                                {owner.email && <span className="flex items-center gap-1"><Mail className="h-3 w-3" /> {owner.email}</span>}
-                                                {owner.phone && <span className="flex items-center gap-1"><Phone className="h-3 w-3" /> {owner.phone}</span>}
-                                            </div>
-                                        </TableCell>
-                                        <TableCell>{owner.properties?.length || 0} {(owner.properties?.length || 0) === 1 ? 'Propiedad' : 'Propiedades'}</TableCell>
-                                        <TableCell className="text-right">
-                                            <div className="flex items-center justify-end gap-2">
-                                                <Button variant="ghost" size="icon" onClick={() => handleViewDetails(owner)}>
-                                                    <FileText className="h-4 w-4" />
-                                                </Button>
-                                                <Button variant="ghost" size="icon" onClick={() => handleEdit(owner)}>
-                                                    <Edit className="h-4 w-4" />
-                                                </Button>
-                                                <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => confirmDelete(owner.id, owner.name)}>
-                                                    <Trash className="h-4 w-4" />
-                                                </Button>
-                                            </div>
-                                        </TableCell>
-                                    </TableRow>
-                                ))
-                            )}
-                        </TableBody>
-                    </Table>
 
-                    {/* Pagination Controls */}
-                    {totalPages > 1 && (
-                        <div className="flex items-center justify-end space-x-2 py-4">
+                                            {/* Contact Info: Col span 3 */}
+                                            <div className="col-span-3 flex items-center">
+                                                {(owner.email || owner.phone) && (
+                                                    <div className="flex flex-col border-l-2 border-primary/20 pl-4 text-sm">
+                                                        {owner.email && (
+                                                            <span className="flex items-center gap-1 text-muted-foreground">
+                                                                <Mail className="h-3 w-3" /> {owner.email}
+                                                            </span>
+                                                        )}
+                                                        {owner.phone && (
+                                                            <span className="flex items-center gap-1 text-muted-foreground">
+                                                                <Phone className="h-3 w-3" /> {owner.phone}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {/* Stats & Actions: Col span 5 */}
+                                            <div className="col-span-5 flex items-center justify-end gap-6 text-sm">
+                                                <div className="flex flex-col items-end min-w-[100px]">
+                                                    <span className="text-muted-foreground text-xs">Propiedades</span>
+                                                    <span className="font-medium text-base">{owner.properties?.length || 0}</span>
+                                                </div>
+
+                                                {/* Actions */}
+                                                <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                                                    <div
+                                                        role="button"
+                                                        className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 cursor-pointer"
+                                                        onClick={() => handleViewDetails(owner)}
+                                                    >
+                                                        <FileText className="h-4 w-4" />
+                                                    </div>
+                                                    <div
+                                                        role="button"
+                                                        className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 cursor-pointer"
+                                                        onClick={() => handleEdit(owner)}
+                                                    >
+                                                        <Edit className="h-4 w-4" />
+                                                    </div>
+                                                    <div
+                                                        role="button"
+                                                        className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 text-destructive hover:text-destructive cursor-pointer"
+                                                        onClick={() => confirmDelete(owner.id, owner.name)}
+                                                    >
+                                                        <Trash className="h-4 w-4" />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </AccordionTrigger>
+                                    <AccordionContent className="px-4 pb-4 pt-2">
+                                        <div className="pl-14 space-y-4">
+                                            <h4 className="text-sm font-semibold text-muted-foreground">Propiedades</h4>
+                                            
+                                            {/* Properties Table */}
+                                            {owner.properties && owner.properties.length > 0 ? (
+                                                <div className="border rounded-md">
+                                                    <Table>
+                                                        <TableHeader>
+                                                            <TableRow>
+                                                                <TableHead>Nombre</TableHead>
+                                                                <TableHead>Dirección</TableHead>
+                                                            </TableRow>
+                                                        </TableHeader>
+                                                        <TableBody>
+                                                            {owner.properties.map((property) => (
+                                                                <TableRow key={property.id}>
+                                                                    <TableCell className="font-medium">{property.name}</TableCell>
+                                                                    <TableCell>
+                                                                        <span className="flex items-center gap-1 text-sm text-muted-foreground">
+                                                                            <MapPin className="h-3 w-3" />
+                                                                            {property.address}
+                                                                        </span>
+                                                                    </TableCell>
+                                                                </TableRow>
+                                                            ))}
+                                                        </TableBody>
+                                                    </Table>
+                                                </div>
+                                            ) : (
+                                                <div className="text-sm text-muted-foreground italic">
+                                                    No hay propiedades registradas.
+                                                </div>
+                                            )}
+                                        </div>
+                                    </AccordionContent>
+                                </AccordionItem>
+                            ))}
+                        </Accordion>
+                    )}
+
+
+                </CardContent>
+                {totalPages > 1 && (
+                    <CardFooter className="flex justify-between items-center py-4">
+                        <div className="flex-1 text-sm text-muted-foreground">
+                            Mostrando {((currentPage - 1) * itemsPerPage) + 1} a {Math.min(currentPage * itemsPerPage, filteredOwners.length)} de {filteredOwners.length} propietarios
+                        </div>
+                        <div className="flex items-center space-x-2">
+                            <p className="text-sm text-muted-foreground mr-2">Filas por página:</p>
+                            <Select
+                                value={itemsPerPage.toString()}
+                                onValueChange={(val) => {
+                                    setItemsPerPage(Number(val))
+                                    setCurrentPage(1)
+                                }}
+                            >
+                                <SelectTrigger className="h-8 w-[70px]">
+                                    <SelectValue placeholder={itemsPerPage.toString()} />
+                                </SelectTrigger>
+                                <SelectContent side="top">
+                                    {[5, 10, 20, 50, 100].map((pageSize) => (
+                                        <SelectItem key={pageSize} value={pageSize.toString()}>
+                                            {pageSize}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <div className="w-4"></div>
                             <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                                 disabled={currentPage === 1}
                             >
+                                <ChevronLeft className="h-4 w-4" />
                                 Anterior
                             </Button>
-                            <div className="text-sm text-muted-foreground">
+                            <div className="text-sm font-medium mx-2">
                                 Página {currentPage} de {totalPages}
                             </div>
                             <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                                 disabled={currentPage === totalPages}
                             >
                                 Siguiente
+                                <ChevronRight className="h-4 w-4" />
                             </Button>
                         </div>
-                    )}
-                </CardContent>
+                    </CardFooter>
+                )}
             </Card>
 
             <OwnerDialog

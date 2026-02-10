@@ -12,7 +12,8 @@ import { PaymentActionDialog } from "@/components/payments/payment-action-dialog
 import { PaymentDialog } from "@/components/tenants/payment-dialog"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
-import { Check, X, Search, FileText, Loader2, Edit2, ChevronLeft, ChevronRight, ArrowUpDown } from "lucide-react"
+import { PrintableReceiptHandler } from "@/components/printable-receipt-handler"
+import { Check, X, Search, FileText, Loader2, Edit2, ChevronLeft, ChevronRight, ArrowUpDown, Printer as PrinterIcon } from "lucide-react"
 import { parseISO, format as formatFn } from "date-fns"
 import { ExportButtons } from "@/components/export-buttons"
 
@@ -23,7 +24,7 @@ import { ExportButtons } from "@/components/export-buttons"
 export default function PaymentsPage() {
     const {
         payments, loading, total,
-        page, setPage, pageSize,
+        page, setPage, pageSize, setPageSize,
         statusFilter, setStatusFilter,
         updatePaymentStatus
     } = usePayments()
@@ -94,6 +95,9 @@ export default function PaymentsPage() {
 
     // Generic Register Dialog State
     const [isRegisterDialogOpen, setIsRegisterDialogOpen] = useState(false)
+
+    // Receipt Component State
+    const [selectedPaymentForReceipt, setSelectedPaymentForReceipt] = useState<Payment | null>(null)
 
     return (
         <div className="space-y-6 p-6">
@@ -304,7 +308,6 @@ export default function PaymentsPage() {
                                                             <Edit2 className="h-4 w-4 text-muted-foreground" />
                                                         </Button>
                                                     )}
-
                                                     {payment.proof_url && (
                                                         <Button size="sm" variant="ghost" asChild>
                                                             <a href={payment.proof_url} target="_blank" rel="noreferrer">
@@ -312,6 +315,20 @@ export default function PaymentsPage() {
                                                             </a>
                                                         </Button>
                                                     )}
+
+                                                    {(payment.status === 'approved' || payment.status === 'paid') && (
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                                            onClick={() => setSelectedPaymentForReceipt(payment)}
+                                                            title="Imprimir Recibo"
+                                                        >
+                                                            <PrinterIcon className="h-4 w-4 mr-1" />
+                                                        </Button>
+                                                    )}
+
+                                                    
                                                 </div>
                                             </TableCell>
                                         </TableRow>
@@ -326,7 +343,27 @@ export default function PaymentsPage() {
                         <div className="flex-1 text-sm text-muted-foreground">
                             Mostrando {filteredPayments.length} registros (Total: {total})
                         </div>
-                        <div className="space-x-2">
+                        <div className="space-x-2 flex items-center">
+                            <p className="text-sm text-muted-foreground mr-2">Filas por página:</p>
+                            <Select
+                                value={pageSize.toString()}
+                                onValueChange={(val) => {
+                                    setPageSize(Number(val))
+                                    setPage(1)
+                                }}
+                            >
+                                <SelectTrigger className="w-[70px] h-8 inline-flex">
+                                    <SelectValue placeholder={pageSize.toString()} />
+                                </SelectTrigger>
+                                <SelectContent side="top">
+                                    {[5, 10, 20, 50].map((size) => (
+                                        <SelectItem key={size} value={size.toString()}>
+                                            {size}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <div className="w-4"></div>
                             <Button
                                 variant="outline"
                                 size="sm"
@@ -337,13 +374,13 @@ export default function PaymentsPage() {
                                 Anterior
                             </Button>
                             <span className="text-sm font-medium mx-2">
-                                Página {page}
+                                Página {page} de {Math.ceil(total / pageSize) || 1}
                             </span>
                             <Button
                                 variant="outline"
                                 size="sm"
                                 onClick={() => setPage(p => p + 1)}
-                                disabled={filteredPayments.length < pageSize && (page * pageSize) >= total || loading} // Simplified check
+                                disabled={filteredPayments.length < pageSize && (page * pageSize) >= total || loading}
                             >
                                 Siguiente
                                 <ChevronRight className="h-4 w-4" />
@@ -375,6 +412,13 @@ export default function PaymentsPage() {
                 tenant={undefined}
                 isAdmin={true}
             />
+
+            {selectedPaymentForReceipt && (
+                <PrintableReceiptHandler
+                    payment={selectedPaymentForReceipt}
+                    onClose={() => setSelectedPaymentForReceipt(null)}
+                />
+            )}
         </div>
     )
 }

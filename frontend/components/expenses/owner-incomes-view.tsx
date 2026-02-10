@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { Search, Plus, Loader2, Edit, Trash, FileSpreadsheet, Building2, TrendingUp } from "lucide-react"
+import { Search, Plus, Loader2, Edit, Trash, FileSpreadsheet, Building2, TrendingUp, ChevronLeft, ChevronRight } from "lucide-react"
 import { useOwnerIncomes } from "@/hooks/use-owner-incomes"
 import { useProperties } from "@/hooks/use-properties"
 import { IncomeDialog } from "./income-dialog"
@@ -40,6 +40,10 @@ export function OwnerIncomesView() {
     const [dialogMode, setDialogMode] = useState<"create" | "edit">("create")
     const [selectedIncome, setSelectedIncome] = useState<OwnerIncome | undefined>(undefined)
 
+    // Pagination
+    const [currentPage, setCurrentPage] = useState(1)
+    const [itemsPerPage, setItemsPerPage] = useState(5)
+
     // Delete confirmation
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
     const [incomeToDelete, setIncomeToDelete] = useState<OwnerIncome | null>(null)
@@ -54,6 +58,12 @@ export function OwnerIncomesView() {
 
         return matchesSearch && matchesOwner
     })
+
+    const totalPages = Math.ceil(filteredIncomes.length / itemsPerPage)
+    const currentIncomes = filteredIncomes.slice(
+        (currentPage - 1) * itemsPerPage,
+        currentPage * itemsPerPage
+    )
 
     const handleExport = () => {
         const headers = ["Fecha", "Propietario", "Propiedad", "Categoría", "Descripción", "Monto", "Moneda", "Tasa"]
@@ -139,10 +149,16 @@ export function OwnerIncomesView() {
                                     placeholder="Buscar ingreso..."
                                     className="pl-8"
                                     value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    onChange={(e) => {
+                                        setSearchTerm(e.target.value)
+                                        setCurrentPage(1)
+                                    }}
                                 />
                             </div>
-                            <Select value={selectedOwnerId} onValueChange={setSelectedOwnerId}>
+                            <Select value={selectedOwnerId} onValueChange={(val) => {
+                                setSelectedOwnerId(val)
+                                setCurrentPage(1)
+                            }}>
                                 <SelectTrigger className="w-[200px]">
                                     <SelectValue placeholder="Filtrar por propietario" />
                                 </SelectTrigger>
@@ -178,7 +194,7 @@ export function OwnerIncomesView() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {filteredIncomes.map((income) => (
+                                {currentIncomes.map((income) => (
                                     <TableRow key={income.id}>
                                         <TableCell>
                                             {(() => {
@@ -231,6 +247,51 @@ export function OwnerIncomesView() {
                         </Table>
                     )}
                 </CardContent>
+                {totalPages > 1 && (
+                    <div className="flex items-center justify-end px-4 py-4 border-t">
+                        <div className="flex items-center space-x-2">
+                            <p className="text-sm text-muted-foreground mr-2">Filas por página:</p>
+                            <Select
+                                value={itemsPerPage.toString()}
+                                onValueChange={(val) => {
+                                    setItemsPerPage(Number(val))
+                                    setCurrentPage(1)
+                                }}
+                            >
+                                <SelectTrigger className="w-[70px] h-8">
+                                    <SelectValue placeholder={itemsPerPage.toString()} />
+                                </SelectTrigger>
+                                <SelectContent side="top">
+                                    {[5, 10, 20, 50].map((pageSize) => (
+                                        <SelectItem key={pageSize} value={pageSize.toString()}>
+                                            {pageSize}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <div className="w-4"></div>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                                disabled={currentPage === 1}
+                            >
+                                <ChevronLeft className="h-4 w-4 mr-1" /> Anterior
+                            </Button>
+                            <div className="text-sm text-muted-foreground">
+                                Página {currentPage} de {totalPages}
+                            </div>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                                disabled={currentPage === totalPages}
+                            >
+                                Siguiente <ChevronRight className="h-4 w-4 ml-1" />
+                            </Button>
+                        </div>
+                    </div>
+                )}
             </Card>
 
             <IncomeDialog

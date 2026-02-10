@@ -85,8 +85,13 @@ export function OwnerDialog({
                     logo_url: owner.logo_url || ""
                 })
 
+                // Reset file state to avoid carrying over from previous operations
+                setLogoFile(null)
+
                 if (owner.logo_url) {
                     setLogoPreview(owner.logo_url)
+                } else {
+                    setLogoPreview(null)
                 }
 
                 // Parse existing doc_id
@@ -174,11 +179,15 @@ export function OwnerDialog({
 
         const fileExt = logoFile.name.split('.').pop()
         const fileName = `${uuidv4()}.${fileExt}`
-        const filePath = `owner-logos/${fileName}`
+        // Use simpler path, just filename, since we are separating by bucket
+        const filePath = fileName 
+        
+        // Determine bucket based on owner type
+        const bucketName = ownerType === 'company' ? 'company-logos' : 'owner-logos'
 
         try {
             const { error: uploadError } = await supabase.storage
-                .from('public') 
+                .from(bucketName) 
                 .upload(filePath, logoFile)
 
             if (uploadError) {
@@ -187,7 +196,7 @@ export function OwnerDialog({
             }
 
             const { data: { publicUrl } } = supabase.storage
-                .from('public')
+                .from(bucketName)
                 .getPublicUrl(filePath)
 
             return publicUrl
@@ -375,7 +384,7 @@ export function OwnerDialog({
                                 <div className="grid gap-2">
                                     <Label>Logo (Opcional)</Label>
                                     <div className="flex items-center gap-4">
-                                        <div className="h-16 w-16 rounded-full bg-muted border flex items-center justify-center overflow-hidden relative">
+                                        <div className="h-24 w-24 rounded-full bg-muted border flex items-center justify-center overflow-hidden relative">
                                             {logoPreview ? (
                                                 <Image 
                                                     src={logoPreview} 
@@ -384,7 +393,7 @@ export function OwnerDialog({
                                                     className="object-cover"
                                                 />
                                             ) : (
-                                                <Building className="h-8 w-8 text-muted-foreground" />
+                                                <Building className="h-10 w-10 text-muted-foreground" />
                                             )}
                                         </div>
                                         <Input 
@@ -396,7 +405,7 @@ export function OwnerDialog({
                                     </div>
                                 </div>
                                 <div className="grid gap-2">
-                                    <Label htmlFor="name">{ownerType === 'company' ? 'Razón Social / Nombre de la Sucesión' : 'Nombre Completo'}</Label>
+                                    <Label htmlFor="name">{ownerType === 'company' ? 'Razón Social / Nombre ' : 'Nombre Completo'}</Label>
                                     <Input
                                         id="name"
                                         placeholder={ownerType === 'company' ? "Ej. Inversiones Los Andes C.A." : "Ej. Juan Pérez"}
@@ -534,7 +543,7 @@ export function OwnerDialog({
                                 {isView ? (
                                     <div className="space-y-6">
                                         <div className="flex flex-col items-center text-center space-y-2">
-                                            <div className="h-20 w-20 bg-primary/10 rounded-full flex items-center justify-center overflow-hidden relative border">
+                                            <div className="h-32 w-32 bg-primary/10 rounded-full flex items-center justify-center overflow-hidden relative border">
                                                 {owner?.logo_url ? (
                                                      <Image 
                                                         src={owner.logo_url} 
@@ -543,7 +552,7 @@ export function OwnerDialog({
                                                         className="object-cover"
                                                     />
                                                 ) : (
-                                                    ownerType === 'company' ? <Building className="h-10 w-10 text-primary" /> : <User className="h-10 w-10 text-primary" />
+                                                    ownerType === 'company' ? <Building className="h-12 w-12 text-primary" /> : <User className="h-12 w-12 text-primary" />
                                                 )}
                                             </div>
                                             <div>
@@ -698,7 +707,7 @@ export function OwnerDialog({
                                         <div className="grid gap-2">
                                             <Label>Logo (Opcional)</Label>
                                             <div className="flex items-center gap-4">
-                                                <div className="h-16 w-16 rounded-full bg-muted border flex items-center justify-center overflow-hidden relative">
+                                                <div className="h-24 w-24 rounded-full bg-muted border flex items-center justify-center overflow-hidden relative">
                                                     {logoPreview ? (
                                                         <Image
                                                             src={logoPreview}
@@ -707,7 +716,7 @@ export function OwnerDialog({
                                                             className="object-cover"
                                                         />
                                                     ) : (
-                                                        <Building className="h-8 w-8 text-muted-foreground" />
+                                                        <Building className="h-10 w-10 text-muted-foreground" />
                                                     )}
                                                 </div>
                                                 <Input
@@ -719,7 +728,7 @@ export function OwnerDialog({
                                             </div>
                                         </div>
                                         <div className="grid gap-2">
-                                            <Label htmlFor="name">{ownerType === 'company' ? 'Razón Social / Nombre de la Sucesión' : 'Nombre Completo'}</Label>
+                                            <Label htmlFor="name">{ownerType === 'company' ? 'Razón Social / Nombre' : 'Nombre Completo'}</Label>
                                             <Input
                                                 id="name"
                                                 placeholder={ownerType === 'company' ? "Ej. Inversiones Los Andes C.A." : "Ej. Juan Pérez"}

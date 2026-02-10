@@ -57,12 +57,14 @@ export interface PaymentWithDetails extends Payment {
   contracts?: {
     units: {
       name: string
+      type?: string
       properties: {
         name: string
         property_owners: {
           owners: {
             name: string
             doc_id: string
+            logo_url?: string | null
           }
         }[]
       }

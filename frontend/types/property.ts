@@ -40,4 +40,7 @@ export interface Unit {
     area?: number | null;
     default_rent_amount?: number | null;
     status: UnitStatus;
+    // Computed fields
+    isOccupied?: boolean;
+    tenantName?: string;
 }
