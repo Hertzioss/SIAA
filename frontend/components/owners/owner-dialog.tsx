@@ -182,8 +182,8 @@ export function OwnerDialog({
         // Use simpler path, just filename, since we are separating by bucket
         const filePath = fileName 
         
-        // Determine bucket based on owner type
-        const bucketName = ownerType === 'company' ? 'company-logos' : 'owner-logos'
+        // All owner logos go to owner-logos bucket
+        const bucketName = 'owner-logos'
 
         try {
             const { error: uploadError } = await supabase.storage
