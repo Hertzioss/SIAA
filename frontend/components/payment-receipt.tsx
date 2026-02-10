@@ -28,15 +28,18 @@ interface PaymentReceiptProps {
         name: string
         docId: string
     }[]
+    logoSrc?: string | null
 }
 
 /**
  * Componente visual del recibo de pago.
  * Diseñado para ser impreso, muestra todos los detalles del pago, inquilino, propiedad y montos.
  */
-export const PaymentReceipt = React.forwardRef<HTMLDivElement, PaymentReceiptProps>(({ payment, tenant, company, owners }, ref) => {
+export const PaymentReceipt = React.forwardRef<HTMLDivElement, PaymentReceiptProps>(({ payment, tenant, company, owners, logoSrc }, ref) => {
     // Helper to parse amount string to number if needed
     const parseAmount = (str: string) => parseFloat(str.replace(/[^0-9.-]+/g, ""))
+
+    const paymentReceiptProps = { payment, tenant, company, owners, logoSrc }
 
     const amountVal = parseAmount(payment.amount)
     const rate = payment.rate || 65.26 // Mock rate if missing
@@ -47,13 +50,26 @@ export const PaymentReceipt = React.forwardRef<HTMLDivElement, PaymentReceiptPro
         <div ref={ref} className="bg-white p-8 max-w-[800px] mx-auto text-black font-sans text-sm border border-gray-300">
             {/* Header */}
             <div className="flex justify-between items-start mb-6">
-                <div className="border border-gray-400 p-2 w-1/4 text-center">
-                    <p className="text-xs uppercase text-gray-500">sucesión</p>
-                    <h2 className="font-bold text-lg uppercase">{company?.name || "Escritorio Legal"}</h2>
-                    <div className="flex justify-center gap-1 mt-1">
-                        {[...Array(5)].map((_, i) => <div key={i} className="w-2 h-2 border border-gray-400 rotate-45"></div>)}
-                    </div>
-                    <p className="text-[10px] mt-1">RIF: {company?.rif || "J-12345678-9"}</p>
+                <div className="border border-gray-400 p-2 w-1/4 text-center min-h-[100px] flex flex-col items-center justify-center">
+                    {paymentReceiptProps.logoSrc ? (
+                        <div className="relative w-full h-24 mb-1">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img 
+                                src={paymentReceiptProps.logoSrc} 
+                                alt="Logo" 
+                                className="w-full h-full object-contain"
+                            />
+                        </div>
+                    ) : (
+                        <>
+                            <p className="text-xs uppercase text-gray-500">sucesión</p>
+                            <h2 className="font-bold text-lg uppercase">{company?.name || "Escritorio Legal"}</h2>
+                            <div className="flex justify-center gap-1 mt-1">
+                                {[...Array(5)].map((_, i) => <div key={i} className="w-2 h-2 border border-gray-400 rotate-45"></div>)}
+                            </div>
+                            <p className="text-[10px] mt-1">RIF: {company?.rif || "J-12345678-9"}</p>
+                        </>
+                    )}
                 </div>
                 <div className="flex-1 text-center pt-2">
                     <p className="text-xs uppercase text-gray-500 mb-1">COPIA DE ADMINISTRACION</p>

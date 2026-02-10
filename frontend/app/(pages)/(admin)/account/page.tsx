@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -14,6 +14,9 @@ import { Plus, Trash2, Edit, Building, CreditCard, DollarSign, Save, Lock } from
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
 import { SecurityForm } from "@/components/security-form"
+import { getCompany, updateCompany } from "@/actions/company"
+import { supabase } from "@/lib/supabase"
+import { v4 as uuidv4 } from 'uuid'
 
 // Mock Data for Bank Accounts
 const BANK_ACCOUNTS_DATA = [
@@ -50,13 +53,93 @@ const BANK_ACCOUNTS_DATA = [
  */
 export default function AccountPage() {
     const [isAccountDialogOpen, setIsAccountDialogOpen] = useState(false)
+    const [loading, setLoading] = useState(false)
+    const [uploading, setUploading] = useState(false)
+    const [profileData, setProfileData] = useState({
+        name: "",
+        rif: "",
+        address: "",
+        phone: "",
+        email: "",
+        logo_url: "" as string | null | undefined
+    })
 
-    const handleSaveProfile = () => {
-        toast.success("Perfil de empresa actualizado")
+    useEffect(() => {
+        loadCompany()
+    }, [])
+
+    const loadCompany = async () => {
+        setLoading(true)
+        const res = await getCompany()
+        if (res.success && res.data) {
+            setProfileData({
+                name: res.data.name || "",
+                rif: res.data.rif || "",
+                address: res.data.address || "",
+                phone: res.data.phone || "",
+                email: res.data.email || "",
+                logo_url: res.data.logo_url
+            })
+        }
+        setLoading(false)
+    }
+
+    const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0]
+        if (!file) return
+
+        try {
+            setUploading(true)
+            const fileExt = file.name.split('.').pop()
+            const fileName = `${uuidv4()}.${fileExt}`
+            const filePath = `${fileName}`
+
+            const { error: uploadError } = await supabase.storage
+                .from('company-logos')
+                .upload(filePath, file)
+
+            if (uploadError) throw uploadError
+
+            const { data: { publicUrl } } = supabase.storage
+                .from('company-logos')
+                .getPublicUrl(filePath)
+
+            setProfileData(prev => ({ ...prev, logo_url: publicUrl }))
+            toast.success("Logo subido correctamente")
+        } catch (error: unknown) {
+            console.error("Error uploading logo:", error)
+            toast.error("Error al subir el logo")
+        } finally {
+            setUploading(false)
+        }
+    }
+
+    const handleSaveProfile = async () => {
+        setLoading(true)
+        try {
+            const res = await updateCompany({
+                name: profileData.name,
+                rif: profileData.rif,
+                address: profileData.address,
+                phone: profileData.phone,
+                email: profileData.email,
+                logo_url: profileData.logo_url
+            })
+
+            if (res.success) {
+                toast.success("Se guardó correctamente")
+            } else {
+                toast.error("Error al actualizar perfil: " + res.error)
+            }
+        } catch (error) {
+            toast.error("Error inesperado")
+        } finally {
+            setLoading(false)
+        }
     }
 
     const handleSaveAccounting = () => {
-        toast.success("Configuración contable actualizada")
+        toast.success("Se guardó correctamente")
     }
 
     const handleAddAccount = () => {
@@ -94,8 +177,6 @@ export default function AccountPage() {
                 {/* PROFILE TAB */}
                 <TabsContent value="profile" className="mt-6 space-y-6">
                     <Card>
-                        {/* ... existing profile content ... */}
-
                         <CardHeader>
                             <CardTitle>Información General</CardTitle>
                             <CardDescription>Datos legales y de contacto de la empresa administradora.</CardDescription>
@@ -104,38 +185,68 @@ export default function AccountPage() {
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
                                     <Label>Nombre / Razón Social</Label>
-                                    <Input defaultValue="Escritorio Legal C.A." />
+                                    <Input 
+                                        value={profileData.name} 
+                                        onChange={(e) => setProfileData({...profileData, name: e.target.value})}
+                                    />
                                 </div>
                                 <div className="space-y-2">
                                     <Label>RIF / NIT / ID Fiscal</Label>
-                                    <Input defaultValue="J-12345678-9" />
+                                    <Input 
+                                        value={profileData.rif} 
+                                        onChange={(e) => setProfileData({...profileData, rif: e.target.value})}
+                                    />
                                 </div>
                             </div>
                             <div className="space-y-2">
                                 <Label>Dirección Fiscal</Label>
-                                <Input defaultValue="Av. Principal, Torre Empresarial, Piso 5, Ofic. 5-A" />
+                                <Input 
+                                    value={profileData.address} 
+                                    onChange={(e) => setProfileData({...profileData, address: e.target.value})}
+                                />
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
                                     <Label>Teléfono de Contacto</Label>
-                                    <Input defaultValue="+58 212 555-5555" />
+                                    <Input 
+                                        value={profileData.phone} 
+                                        onChange={(e) => setProfileData({...profileData, phone: e.target.value})}
+                                    />
                                 </div>
                                 <div className="space-y-2">
                                     <Label>Correo Electrónico</Label>
-                                    <Input defaultValue="administracion@escritorio.legal" />
+                                    <Input 
+                                        value={profileData.email} 
+                                        onChange={(e) => setProfileData({...profileData, email: e.target.value})}
+                                    />
                                 </div>
                             </div>
                             <div className="space-y-2">
                                 <Label>Logo de la Empresa</Label>
                                 <div className="flex items-center gap-4">
-                                    <div className="h-20 w-20 bg-muted rounded-lg flex items-center justify-center border border-dashed">
-                                        <Building className="h-8 w-8 text-muted-foreground" />
+                                    <div className="h-56 w-56 bg-muted rounded-lg flex items-center justify-center border border-dashed overflow-hidden relative">
+                                        {profileData.logo_url ? (
+                                            <img src={profileData.logo_url} alt="Company Logo" className="h-full w-full object-contain p-2" />
+                                        ) : (
+                                            <Building className="h-16 w-16 text-muted-foreground" />
+                                        )}
                                     </div>
-                                    <Button variant="outline" size="sm">Subir Logo</Button>
+                                    <div className="flex flex-col gap-2">
+                                        <Button variant="outline" size="sm" onClick={() => document.getElementById('logo-upload')?.click()} disabled={uploading}>
+                                            {uploading ? "Subiendo..." : "Subir Logo"}
+                                        </Button>
+                                        <input 
+                                            id="logo-upload" 
+                                            type="file" 
+                                            accept="image/*" 
+                                            className="hidden" 
+                                            onChange={handleLogoUpload}
+                                        />
+                                    </div>
                                 </div>
                             </div>
                             <div className="flex justify-end pt-4">
-                                <Button onClick={handleSaveProfile}>
+                                <Button onClick={handleSaveProfile} disabled={loading}>
                                     <Save className="mr-2 h-4 w-4" /> Guardar Cambios
                                 </Button>
                             </div>

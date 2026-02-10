@@ -68,7 +68,7 @@ export function PaymentActionDialog({
                             <span className="font-semibold">Email del inquilino:</span> {tenantEmail}
                         </Label>
                     </div>
-                    <div className="flex items-center space-x-2 bg-yellow-50 border border-yellow-200 p-4 rounded-md">
+                    <div className="flex items-center space-x-2 bg-yellow-50 dark:bg-yellow-900/40 border border-yellow-200 dark:border-yellow-800 p-4 rounded-md">
                         <Checkbox
                             id="sendEmail"
                             checked={sendEmail}

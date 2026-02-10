@@ -22,6 +22,7 @@ export function useOwners() {
                 .from('owners')
                 .select(`
           *,
+          logo_url,
           beneficiaries:owner_beneficiaries(*),
             property_owners(
             property:properties(
@@ -61,7 +62,8 @@ export function useOwners() {
                     doc_id: ownerData.doc_id,
                     email: ownerData.email,
                     phone: ownerData.phone,
-                    address: ownerData.address
+                    address: ownerData.address,
+                    logo_url: ownerData.logo_url
                 })
                 .select()
                 .single();
@@ -110,6 +112,7 @@ export function useOwners() {
                 email: ownerData.email,
                 phone: ownerData.phone,
                 address: ownerData.address,
+                logo_url: ownerData.logo_url,
                 beneficiaries: ownerData.beneficiaries?.map(b => ({
                     name: b.name,
                     doc_id: b.doc_id,

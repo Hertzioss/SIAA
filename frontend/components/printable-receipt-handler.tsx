@@ -57,6 +57,7 @@ export function PrintableReceiptHandler({ payment, onClose }: PrintableReceiptHa
                     name: po.owners?.name,
                     docId: po.owners?.doc_id
                 })) || []}
+                logoSrc={payment.contracts?.units?.properties?.property_owners?.find((po: any) => po.owners?.logo_url)?.owners?.logo_url || null}
             />
         </div>
     )

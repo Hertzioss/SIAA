@@ -22,6 +22,9 @@ import { toast } from "sonner"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { OwnerAccountsList } from "./owner-accounts-list"
 import { enableOwnerAccess, disableOwnerAccess, resetOwnerPassword } from "@/actions/access"
+import { supabase } from "@/lib/supabase"
+import { v4 as uuidv4 } from "uuid"
+import Image from "next/image"
 
 interface OwnerDialogProps {
     open: boolean
@@ -59,8 +62,12 @@ export function OwnerDialog({
         doc_id: "",
         email: "",
         phone: "",
-        address: ""
+        address: "",
+        logo_url: ""
     })
+
+    const [logoFile, setLogoFile] = useState<File | null>(null)
+    const [logoPreview, setLogoPreview] = useState<string | null>(null)
 
     const [beneficiaries, setBeneficiaries] = useState<OwnerBeneficiary[]>([])
     const [newBeneficiary, setNewBeneficiary] = useState({ name: "", doc_id: "", participation: "" })
@@ -74,8 +81,13 @@ export function OwnerDialog({
                     doc_id: owner.doc_id,
                     email: owner.email || "",
                     phone: owner.phone || "",
-                    address: owner.address || ""
+                    address: owner.address || "",
+                    logo_url: owner.logo_url || ""
                 })
+
+                if (owner.logo_url) {
+                    setLogoPreview(owner.logo_url)
+                }
 
                 // Parse existing doc_id
                 const parts = owner.doc_id.split('-')
@@ -91,7 +103,9 @@ export function OwnerDialog({
             } else {
                 // Reset for create
                 setOwnerType("individual")
-                setFormData({ name: "", doc_id: "", email: "", phone: "", address: "" })
+                setFormData({ name: "", doc_id: "", email: "", phone: "", address: "", logo_url: "" })
+                setLogoPreview(null)
+                setLogoFile(null)
                 setDocPrefix("V")
                 setDocNumber("")
                 setBeneficiaries([])
@@ -141,6 +155,83 @@ export function OwnerDialog({
             onOpenChange(false)
         } catch (error) {
             // Error is handled in the parent hook
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0]
+        if (file) {
+            setLogoFile(file)
+            const objectUrl = URL.createObjectURL(file)
+            setLogoPreview(objectUrl)
+        }
+    }
+
+    const uploadLogo = async () => {
+        if (!logoFile) return null
+
+        const fileExt = logoFile.name.split('.').pop()
+        const fileName = `${uuidv4()}.${fileExt}`
+        const filePath = `owner-logos/${fileName}`
+
+        try {
+            const { error: uploadError } = await supabase.storage
+                .from('public') 
+                .upload(filePath, logoFile)
+
+            if (uploadError) {
+                console.error('Upload error:', uploadError)
+                throw uploadError
+            }
+
+            const { data: { publicUrl } } = supabase.storage
+                .from('public')
+                .getPublicUrl(filePath)
+
+            return publicUrl
+        } catch (error) {
+            console.error('Error uploading logo:', error)
+            toast.error('Error al subir el logo')
+            return null
+        }
+    }
+
+    // Wrap submission to handle upload first
+    const handleFormSubmit = async () => {
+         if (!onSubmit) return
+
+        // Basic validation
+        if (!formData.name || !docNumber) {
+            toast.error("Por favor complete los campos obligatorios")
+            return
+        }
+
+        setLoading(true)
+
+        try {
+            let finalLogoUrl = formData.logo_url
+
+            if (logoFile) {
+                const uploadedUrl = await uploadLogo()
+                if (uploadedUrl) {
+                    finalLogoUrl = uploadedUrl
+                }
+            }
+
+            const fullDocId = `${docPrefix}-${docNumber}`
+
+            await onSubmit({
+                type: ownerType,
+                ...formData,
+                logo_url: finalLogoUrl,
+                doc_id: fullDocId,
+                beneficiaries
+            })
+            onOpenChange(false)
+        } catch (error) {
+            console.error(error)
         } finally {
             setLoading(false)
         }
@@ -282,6 +373,29 @@ export function OwnerDialog({
                             {/* Create Form Fields */}
                             <div className="space-y-4">
                                 <div className="grid gap-2">
+                                    <Label>Logo (Opcional)</Label>
+                                    <div className="flex items-center gap-4">
+                                        <div className="h-16 w-16 rounded-full bg-muted border flex items-center justify-center overflow-hidden relative">
+                                            {logoPreview ? (
+                                                <Image 
+                                                    src={logoPreview} 
+                                                    alt="Logo" 
+                                                    fill 
+                                                    className="object-cover"
+                                                />
+                                            ) : (
+                                                <Building className="h-8 w-8 text-muted-foreground" />
+                                            )}
+                                        </div>
+                                        <Input 
+                                            type="file" 
+                                            accept="image/*" 
+                                            onChange={handleLogoChange}
+                                            className="w-full max-w-xs"
+                                        />
+                                    </div>
+                                </div>
+                                <div className="grid gap-2">
                                     <Label htmlFor="name">{ownerType === 'company' ? 'Razón Social / Nombre de la Sucesión' : 'Nombre Completo'}</Label>
                                     <Input
                                         id="name"
@@ -420,8 +534,17 @@ export function OwnerDialog({
                                 {isView ? (
                                     <div className="space-y-6">
                                         <div className="flex flex-col items-center text-center space-y-2">
-                                            <div className="h-20 w-20 bg-primary/10 rounded-full flex items-center justify-center">
-                                                {ownerType === 'company' ? <Building className="h-10 w-10 text-primary" /> : <User className="h-10 w-10 text-primary" />}
+                                            <div className="h-20 w-20 bg-primary/10 rounded-full flex items-center justify-center overflow-hidden relative border">
+                                                {owner?.logo_url ? (
+                                                     <Image 
+                                                        src={owner.logo_url} 
+                                                        alt="Logo" 
+                                                        fill 
+                                                        className="object-cover"
+                                                    />
+                                                ) : (
+                                                    ownerType === 'company' ? <Building className="h-10 w-10 text-primary" /> : <User className="h-10 w-10 text-primary" />
+                                                )}
                                             </div>
                                             <div>
                                                 <h3 className="text-xl font-bold">{owner?.name}</h3>
@@ -573,6 +696,29 @@ export function OwnerDialog({
                                     /* Edit Form - Reusing logic */
                                     <div className="space-y-4">
                                         <div className="grid gap-2">
+                                            <Label>Logo (Opcional)</Label>
+                                            <div className="flex items-center gap-4">
+                                                <div className="h-16 w-16 rounded-full bg-muted border flex items-center justify-center overflow-hidden relative">
+                                                    {logoPreview ? (
+                                                        <Image
+                                                            src={logoPreview}
+                                                            alt="Logo"
+                                                            fill
+                                                            className="object-cover"
+                                                        />
+                                                    ) : (
+                                                        <Building className="h-8 w-8 text-muted-foreground" />
+                                                    )}
+                                                </div>
+                                                <Input
+                                                    type="file"
+                                                    accept="image/*"
+                                                    onChange={handleLogoChange}
+                                                    className="w-full max-w-xs"
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="grid gap-2">
                                             <Label htmlFor="name">{ownerType === 'company' ? 'Razón Social / Nombre de la Sucesión' : 'Nombre Completo'}</Label>
                                             <Input
                                                 id="name"
@@ -655,7 +801,7 @@ export function OwnerDialog({
                             <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
                                 Cancelar
                             </Button>
-                            <Button onClick={handleSubmit} disabled={loading}>
+                            <Button onClick={handleFormSubmit} disabled={loading}>
                                 {loading && <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>}
                                 {mode === "create" ? "Registrar Propietario" : "Guardar Cambios"}
                             </Button>

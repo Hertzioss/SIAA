@@ -9,6 +9,7 @@ export interface Owner {
     email?: string | null;
     phone?: string | null;
     address?: string | null;
+    logo_url?: string | null;
     created_at: string;
     beneficiaries?: OwnerBeneficiary[];
     bank_accounts?: OwnerBankAccount[]; // Joined data

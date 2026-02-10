@@ -163,6 +163,7 @@ export async function updateOwner(
         email?: string | null
         phone?: string | null
         address?: string | null
+        logo_url?: string | null
         beneficiaries?: { name: string; doc_id: string; participation_percentage: number }[]
     }
 ) {
@@ -185,7 +186,8 @@ export async function updateOwner(
                 doc_id: ownerData.doc_id,
                 email: ownerData.email,
                 phone: ownerData.phone,
-                address: ownerData.address
+                address: ownerData.address,
+                logo_url: ownerData.logo_url
             })
             .eq('id', id)
 

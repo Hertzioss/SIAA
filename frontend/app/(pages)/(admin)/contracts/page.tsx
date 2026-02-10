@@ -44,7 +44,7 @@ function ContractsContent() {
     const [searchTerm, setSearchTerm] = useState(searchParams.get("q") || "")
     const [statusFilter, setStatusFilter] = useState("all")
     const [currentPage, setCurrentPage] = useState(1)
-    const ITEMS_PER_PAGE = 5
+    const [itemsPerPage, setItemsPerPage] = useState(5)
 
     // Delete Confirmation State
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
@@ -144,10 +144,10 @@ function ContractsContent() {
         })
     }
 
-    const totalPages = Math.ceil(sortedContracts.length / ITEMS_PER_PAGE) || 1
+    const totalPages = Math.ceil(sortedContracts.length / itemsPerPage) || 1
     const currentContracts = sortedContracts.slice(
-        (currentPage - 1) * ITEMS_PER_PAGE,
-        currentPage * ITEMS_PER_PAGE
+        (currentPage - 1) * itemsPerPage,
+        currentPage * itemsPerPage
     )
 
     // Stats
@@ -444,6 +444,32 @@ function ContractsContent() {
 
                     {/* Pagination Controls */}
                     <div className="flex items-center justify-end space-x-2 py-4">
+                        <div className="flex items-center gap-4 text-sm text-muted-foreground mr-4">
+                            <span>
+                                Mostrando {((currentPage - 1) * itemsPerPage) + 1} a {Math.min(currentPage * itemsPerPage, filteredContracts.length)} de {filteredContracts.length} contratos
+                            </span>
+                            <div className="flex items-center gap-2">
+                                <span>Filas por página:</span>
+                                <Select
+                                    value={itemsPerPage.toString()}
+                                    onValueChange={(val) => {
+                                        setItemsPerPage(Number(val))
+                                        setCurrentPage(1)
+                                    }}
+                                >
+                                    <SelectTrigger className="h-8 w-[70px]">
+                                        <SelectValue placeholder={itemsPerPage.toString()} />
+                                    </SelectTrigger>
+                                    <SelectContent side="top">
+                                        {[5, 10, 20, 50, 100].map((pageSize) => (
+                                            <SelectItem key={pageSize} value={pageSize.toString()}>
+                                                {pageSize}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
                         <Button
                             variant="outline"
                             size="sm"

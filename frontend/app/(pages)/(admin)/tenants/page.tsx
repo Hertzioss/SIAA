@@ -49,7 +49,7 @@ export default function TenantsPage() {
     const [propertyFilter, setPropertyFilter] = useState("all")
     const [ownerFilter, setOwnerFilter] = useState("all")
     const [currentPage, setCurrentPage] = useState(1)
-    const ITEMS_PER_PAGE = 5
+    const [itemsPerPage, setItemsPerPage] = useState(5)
 
     // Delete Confirmation State
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
@@ -132,10 +132,10 @@ export default function TenantsPage() {
         })
     }
 
-    const totalPages = Math.ceil(sortedTenants.length / ITEMS_PER_PAGE)
+    const totalPages = Math.ceil(sortedTenants.length / itemsPerPage)
     const currentTenants = sortedTenants.slice(
-        (currentPage - 1) * ITEMS_PER_PAGE,
-        currentPage * ITEMS_PER_PAGE
+        (currentPage - 1) * itemsPerPage,
+        currentPage * itemsPerPage
     )
 
     const handleCreate = () => {
@@ -370,6 +370,32 @@ export default function TenantsPage() {
                             {/* Pagination Controls */}
                             {totalPages > 1 && (
                                 <div className="flex items-center justify-end space-x-2 py-4">
+                                    <div className="flex items-center gap-4 text-sm text-muted-foreground mr-4">
+                                        <span>
+                                            Mostrando {((currentPage - 1) * itemsPerPage) + 1} a {Math.min(currentPage * itemsPerPage, filteredTenants.length)} de {filteredTenants.length} inquilinos
+                                        </span>
+                                        <div className="flex items-center gap-2">
+                                            <span>Filas por página:</span>
+                                            <Select
+                                                value={itemsPerPage.toString()}
+                                                onValueChange={(val) => {
+                                                    setItemsPerPage(Number(val))
+                                                    setCurrentPage(1)
+                                                }}
+                                            >
+                                                <SelectTrigger className="h-8 w-[70px]">
+                                                    <SelectValue placeholder={itemsPerPage.toString()} />
+                                                </SelectTrigger>
+                                                <SelectContent side="top">
+                                                    {[5, 10, 20, 50, 100].map((pageSize) => (
+                                                        <SelectItem key={pageSize} value={pageSize.toString()}>
+                                                            {pageSize}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    </div>
                                     <Button
                                         variant="outline"
                                         size="sm"

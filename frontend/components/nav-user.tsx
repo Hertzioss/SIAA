@@ -97,7 +97,7 @@ export function NavUser({
               <DropdownMenuItem asChild>
                 <a href="/account">
                   <IconUserCircle />
-                  Perfil
+                  Configuración
                 </a>
               </DropdownMenuItem>
             </DropdownMenuGroup>
