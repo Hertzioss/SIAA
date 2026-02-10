@@ -8,6 +8,11 @@ const nextConfig: NextConfig = {
         hostname: "desarrollo-siaa-db.jnvzha.easypanel.host",
         pathname: "/storage/v1/object/public/**",
       },
+      {
+        protocol: "https",
+        hostname: "data.escritorio.legal",
+        pathname: "/storage/v1/object/public/**",
+      },
     ],
   },
 };
