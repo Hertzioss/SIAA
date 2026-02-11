@@ -33,11 +33,15 @@ export function useUsers() {
     const addUser = async (data: { email: string; fullName: string; role: 'admin' | 'operator' | 'tenant', password?: string, tenantId?: string }) => {
         const res = await createUser(data)
         if (res.success) {
-            toast.success('Usuario creado correctamente')
+            toast.success('Usuario creado correctamente', { description: `Se ha enviado una invitación a ${data.email}` })
             fetchUsers()
             return true
         } else {
-            toast.error(res.error || 'Error creando usuario')
+            if (res.error?.includes('unique') || res.error?.includes('already registered')) {
+                 toast.error('Correo Duplicado', { description: 'El correo electrónico ya está registrado en el sistema.' })
+            } else {
+                 toast.error(res.error || 'Error creando usuario', { description: 'Verifique los datos e intente nuevamente.' })
+            }
             return false
         }
     }
@@ -45,7 +49,7 @@ export function useUsers() {
     const updateUserAction = async (userId: string, data: { role: 'admin' | 'operator' | 'tenant', password?: string }) => {
         const res = await updateUser(userId, data)
         if (res.success) {
-            toast.success('Usuario actualizado correctamente')
+            toast.success('Usuario actualizado', { description: 'Los permisos y datos han sido modificados.' })
             fetchUsers()
             return true
         } else {
@@ -57,7 +61,7 @@ export function useUsers() {
     const removeUser = async (userId: string) => {
         const res = await deleteUser(userId)
         if (res.success) {
-            toast.success('Usuario eliminado correctamente')
+            toast.success('Usuario eliminado', { description: 'El acceso ha sido revocado permanentemente.' })
             fetchUsers()
             return true
         } else {

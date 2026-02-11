@@ -160,11 +160,17 @@ export function usePayments() {
             const data = await res.json();
             if (!res.ok) throw new Error(data.details || data.error);
 
-            toast.success(`Pago ${status === 'approved' ? 'conciliado' : 'rechazado'} correctamente`);
+            toast.success(`Pago ${status === 'approved' ? 'conciliado' : 'rechazado'} correctamente`, {
+                description: sendEmail 
+                    ? 'Se ha notificado al inquilino por correo electrónico.'
+                    : 'El estado del pago ha sido actualizado en el sistema.'
+            });
             fetchPayments(); // Refresh list to update UI
         } catch (err: any) {
             console.error('Error updating payment:', err);
-            toast.error(`Error: ${err.message}`);
+             // Check for specific API errors
+            const errorMessage = err.message || 'Error desconocido al procesar el pago';
+            toast.error(`No se pudo actualizar el pago`, { description: errorMessage });
         }
     };
 

@@ -128,7 +128,12 @@ export function useTenants() {
                     });
             }
 
-            toast.success('Inquilino registrado exitosamente');
+            toast.success(`Inquilino ${tenant.name} registrado`, {
+                description: contractData 
+                    ? 'Se ha creado el inquilino y su contrato activo.'
+                    : 'Inquilino registrado correctamente (sin contrato).',
+                duration: 5000,
+            });
 
             // Create User Account & Send Email (Async)
             if (tenant.email) {
@@ -142,10 +147,16 @@ export function useTenants() {
                             tenantId: tenant.id
                         })
                     });
-                    toast.success('Cuenta de usuario creada y credenciales enviadas');
+                    toast.info('Cuenta de usuario creada', {
+                         description: 'Se han enviado las credenciales al correo del inquilino.',
+                         duration: 5000
+                    });
                 } catch (userErr) {
                     console.error("Failed to create user account:", userErr);
-                    toast.warning('Inquilino creado, pero hubo un error creando su cuenta de acceso.');
+                    toast.warning('Advertencia de Cuenta', {
+                        description: 'Inquilino creado, pero hubo un error generando su acceso al sistema.',
+                        duration: 6000
+                    });
                 }
             }
 
@@ -154,8 +165,54 @@ export function useTenants() {
 
 
         } catch (err: any) {
-            console.error('Error creating tenant:', err);
-            toast.error(`Error al registrar inquilino: ${err.message}`);
+            const errorString = JSON.stringify(err);
+            
+            // Comprehensive duplicate detection
+            const isDocDuplicate = 
+                err.code === '23505' && (
+                    err.message?.includes('tenants_doc_id_key') || 
+                    errorString.includes('tenants_doc_id_key') ||
+                    errorString.includes('doc_id')
+                );
+
+            const isEmailDuplicate = 
+                err.code === '23505' && (
+                    err.message?.includes('tenants_email_key') || 
+                    errorString.includes('tenants_email_key') ||
+                    errorString.includes('email')
+                );
+
+            if (isDocDuplicate) {
+                console.warn('Duplicate doc_id handled:', err.message);
+                toast.error('Cédula/RIF Duplicado', {
+                    description: 'El número de cédula o RIF ya está registrado para otro inquilino.',
+                    duration: 6000,
+                });
+            } else if (isEmailDuplicate) {
+                console.warn('Duplicate email handled:', err.message);
+                toast.error('Correo Duplicado', {
+                    description: 'El correo electrónico ya está asociado a otro inquilino.',
+                    duration: 6000,
+                });
+            } else if (err.code === '23503') { // Foreign Key Violation
+                console.error('Foreign key violation:', errorString);
+                 toast.error('Referencia Inválida', {
+                    description: 'Se intentó asignar una propiedad o unidad que no existe.',
+                    duration: 6000,
+                });
+            } else if (err.code === '23502') { // Not Null Violation
+                console.error('Not null violation:', errorString);
+                 toast.error('Datos Incompletos', {
+                    description: 'Faltan campos obligatorios por completar.',
+                    duration: 6000,
+                });
+            } else {
+                console.error('Error creating tenant:', errorString);
+                toast.error('Error al registrar inquilino', {
+                    description: err.message || 'Ocurrió un error inesperado. Intente nuevamente.',
+                    duration: 5000,
+                });
+            }
             throw err;
         }
     };

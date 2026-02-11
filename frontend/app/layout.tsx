@@ -32,6 +32,8 @@ export const metadata: Metadata = {
  * Layout raíz de la aplicación.
  * Define la estructura HTML base, fuentes, temas y metadatos globales.
  */
+import { Toaster } from "@/components/ui/sonner";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -52,6 +54,7 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           {children}
+          <Toaster richColors closeButton position="top-right" />
         </ThemeProvider>
       </body>
     </html>

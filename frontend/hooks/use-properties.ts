@@ -104,12 +104,21 @@ export function useProperties() {
                 if (ownersError) throw ownersError;
             }
 
-            toast.success('Propiedad creada exitosamente');
+            toast.success(`Propiedad ${newProperty.name} creada`, {
+                description: 'La propiedad ha sido registrada exitosamente.'
+            });
             fetchProperties();
             return newProperty;
         } catch (err: any) {
-            console.error('Error creating property:', err);
-            toast.error(`Error al crear propiedad: ${err.message}`);
+            const errorString = JSON.stringify(err);
+            console.error('Error creating property:', errorString);
+            
+            if (err.code === '23505') {
+                console.warn('Duplicate property handled');
+                toast.error('Propiedad Duplicada', { description: 'Ya existe una propiedad con este nombre o dirección.' });
+            } else {
+                toast.error(`Error al crear propiedad: ${err.message || 'Error desconocido'}`);
+            }
             throw err;
         }
     };
@@ -152,11 +161,18 @@ export function useProperties() {
                 }
             }
 
-            toast.success('Propiedad actualizada exitosamente');
+            toast.success('Propiedad actualizada', { description: 'Los cambios han sido guardados correctamente.' });
             fetchProperties();
         } catch (err: any) {
-            console.error('Error updating property:', err);
-            toast.error(`Error al actualizar propiedad: ${err.message}`);
+            const errorString = JSON.stringify(err);
+            console.error('Error updating property:', errorString);
+
+             if (err.code === '23505') {
+                console.warn('Duplicate property handled');
+                toast.error('Propiedad Duplicada', { description: 'Ya existe una propiedad con este nombre.' });
+            } else {
+                 toast.error(`Error al actualizar propiedad: ${err.message || 'Error desconocido'}`);
+            }
             throw err;
         }
     };
@@ -170,11 +186,15 @@ export function useProperties() {
 
             if (error) throw error;
 
-            toast.success('Propiedad eliminada');
+            toast.success('Propiedad eliminada', { description: 'La propiedad y sus registros asociados han sido removidos.' });
             setProperties(prev => prev.filter(p => p.id !== id));
         } catch (err: any) {
-            console.error('Error deleting property:', err);
-            toast.error('Error al eliminar propiedad');
+            console.error('Error deleting property:', JSON.stringify(err));
+            if (err.code === '23503') {
+                toast.error('No se puede eliminar', { description: 'La propiedad tiene unidades o contratos activos.' });
+            } else {
+                 toast.error('Error al eliminar propiedad');
+            }
             throw err;
         }
     };
@@ -191,8 +211,14 @@ export function useProperties() {
             toast.success('Unidad creada exitosamente');
             fetchProperties(); // Refresh to show new unit
         } catch (err: any) {
-            console.error('Error creating unit:', err);
-            toast.error(`Error al crear unidad: ${err.message}`);
+            const errorString = JSON.stringify(err);
+            console.error('Error creating unit:', errorString);
+             if (err.code === '23505') {
+                 console.warn('Duplicate unit handled');
+                 toast.error('Unidad Duplicada', { description: 'El número/código de unidad ya existe en esta propiedad.' });
+             } else {
+                 toast.error(`Error al crear unidad: ${err.message || 'Error desconocido'}`);
+             }
             throw err;
         }
     };
@@ -206,11 +232,17 @@ export function useProperties() {
 
             if (error) throw error;
 
-            toast.success('Unidad actualizada exitosamente');
+            toast.success(`Unidad ${unitData.number || ''} actualizada`, { description: 'Los datos de la unidad han sido guardados.' });
             fetchProperties();
         } catch (err: any) {
-            console.error('Error updating unit:', err);
-            toast.error(`Error al actualizar unidad: ${err.message}`);
+             const errorString = JSON.stringify(err);
+             console.error('Error updating unit:', errorString);
+             if (err.code === '23505') {
+                 console.warn('Duplicate unit handled');
+                 toast.error('Unidad Duplicada', { description: 'El número/código de unidad ya existe en esta propiedad.' });
+             } else {
+                 toast.error(`Error al actualizar unidad: ${err.message || 'Error desconocido'}`);
+             }
             throw err;
         }
     };
@@ -224,11 +256,16 @@ export function useProperties() {
 
             if (error) throw error;
 
-            toast.success('Unidad eliminada');
+            toast.success('Unidad eliminada', { description: 'La unidad ha sido removida permanentemente.' });
             fetchProperties();
         } catch (err: any) {
-            console.error('Error deleting unit:', err);
-            toast.error('Error al eliminar unidad');
+            console.error('Error deleting unit:', JSON.stringify(err));
+            // Check for foreign key violation (e.g. existing contracts)
+            if (err.code === '23503') {
+                toast.error('No se puede eliminar', { description: 'La unidad tiene contratos o registros asociados.' });
+            } else {
+                toast.error('Error al eliminar unidad');
+            }
             throw err;
         }
     };

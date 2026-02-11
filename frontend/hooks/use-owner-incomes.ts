@@ -54,12 +54,16 @@ export function useOwnerIncomes() {
 
             if (error) throw error;
 
-            toast.success('Ingreso registrado exitosamente');
+            toast.success('Ingreso registrado', { description: 'El monto ha sido acreditado al balance del propietario.' });
             fetchIncomes();
             return data;
         } catch (err: any) {
             console.error('Error creating income:', err);
-            toast.error(`Error al registrar ingreso: ${err.message}`);
+            if (err.code === '23503') {
+                 toast.error('Propietario Inválido', { description: 'El propietario seleccionado no existe o fue eliminado.' });
+            } else {
+                 toast.error(`Error al registrar ingreso: ${err.message || 'Error desconocido'}`);
+            }
             throw err;
         }
     };
@@ -73,11 +77,11 @@ export function useOwnerIncomes() {
 
             if (error) throw error;
 
-            toast.success('Ingreso actualizado exitosamente');
+            toast.success('Ingreso actualizado', { description: 'Los cambios han sido guardados.' });
             fetchIncomes();
         } catch (err: any) {
             console.error('Error updating income:', err);
-            toast.error(`Error al actualizar ingreso: ${err.message}`);
+             toast.error(`Error al actualizar ingreso: ${err.message || 'Error desconocido'}`);
             throw err;
         }
     };
@@ -91,7 +95,7 @@ export function useOwnerIncomes() {
 
             if (error) throw error;
 
-            toast.success('Ingreso eliminado');
+            toast.success('Ingreso eliminado', { description: 'El registro ha sido removido del historial.' });
             setIncomes(prev => prev.filter(i => i.id !== id));
         } catch (err: any) {
             console.error('Error deleting income:', err);

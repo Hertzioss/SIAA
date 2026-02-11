@@ -162,14 +162,10 @@ export default function TenantsPage() {
     }
 
     const handleFormSubmit = async (tenantData: any, contractData?: any) => {
-        try {
-            if (dialogMode === 'create') {
-                await createTenant(tenantData, contractData)
-            } else if (dialogMode === 'edit' && selectedTenant) {
-                await updateTenant(selectedTenant.id, tenantData)
-            }
-        } catch (error) {
-            console.error(error)
+        if (dialogMode === 'create') {
+            await createTenant(tenantData, contractData)
+        } else if (dialogMode === 'edit' && selectedTenant) {
+            await updateTenant(selectedTenant.id, tenantData)
         }
     }
 

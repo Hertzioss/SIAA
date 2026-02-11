@@ -43,12 +43,17 @@ export function useExpenses() {
 
             if (error) throw error;
 
-            toast.success('Egreso registrado exitosamente');
+            toast.success('Egreso registrado', { description: 'El gasto ha sido guardado correctamente.' });
             fetchExpenses();
             return data;
         } catch (err: any) {
             console.error('Error creating expense:', err);
-            toast.error(`Error al registrar egreso: ${err.message}`);
+             // Check for foreign key violation (23503)
+             if (err.code === '23503') {
+                 toast.error('Referencia Inválida', { description: 'La propiedad o unidad seleccionada no es válida.' });
+             } else {
+                 toast.error(`Error al registrar egreso: ${err.message || 'Error desconocido'}`);
+             }
             throw err;
         }
     };
@@ -62,11 +67,11 @@ export function useExpenses() {
 
             if (error) throw error;
 
-            toast.success('Egreso actualizado exitosamente');
+            toast.success('Egreso actualizado', { description: 'Los cambios han sido guardados.' });
             fetchExpenses();
         } catch (err: any) {
             console.error('Error updating expense:', err);
-            toast.error(`Error al actualizar egreso: ${err.message}`);
+            toast.error(`Error al actualizar egreso: ${err.message || 'Error desconocido'}`);
             throw err;
         }
     };
@@ -80,7 +85,7 @@ export function useExpenses() {
 
             if (error) throw error;
 
-            toast.success('Egreso eliminado');
+            toast.success('Egreso eliminado', { description: 'El registro ha sido removido permanentemente.' });
             setExpenses(prev => prev.filter(e => e.id !== id));
         } catch (err: any) {
             console.error('Error deleting expense:', err);

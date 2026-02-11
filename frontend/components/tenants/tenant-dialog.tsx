@@ -168,8 +168,15 @@ export function TenantDialog({ open, onOpenChange, mode, tenant, properties, onS
                 await onSubmit(tenantData, contractData)
             }
             onOpenChange(false)
-        } catch (error) {
-            console.error("Error submitting tenant:", error)
+        } catch (error: any) {
+            // Checks if it's a handled duplicate error to avoid noise
+            const isDuplicate = error.code === '23505' || error.message?.includes('Uniqueness violation');
+            
+            if (isDuplicate) {
+                 console.warn("Submission stopped (Duplicate detected)");
+            } else {
+                 console.warn("Error submitting tenant:", error.message || JSON.stringify(error));
+            }
         } finally {
             setLoading(false)
         }
