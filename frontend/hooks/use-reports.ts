@@ -50,14 +50,17 @@ export function useReports() {
                 .from('payments')
                 .select(`
                     *,
-                    contracts (
-                        units (
-                            properties (
-                                id,
+                        contracts (
+                            units (
+                                properties (
+                                    id,
+                                    name
+                                )
+                            ),
+                            tenants (
                                 name
                             )
                         )
-                    )
                 `)
                 .gte('date', startDate)
                 .lte('date', endDate)
@@ -112,6 +115,7 @@ export function useReports() {
                 .filter((p: any) => p.currency === 'USD')
                 .map((p: any) => ({
                     date: p.date,
+                    tenantName: p.contracts?.tenants?.name || 'Desconocido',
                     concept: p.concept,
                     credit: p.amount,
                     debit: 0,
@@ -125,6 +129,7 @@ export function useReports() {
                     const incomeUsd = rate > 0 ? (p.amount / rate) : 0
                     return {
                         date: p.date,
+                        tenantName: p.contracts?.tenants?.name || 'Desconocido',
                         concept: p.concept,
                         credit: p.amount, // This is in VES
                         debit: 0,
@@ -249,7 +254,15 @@ export function useReports() {
         try {
             const { data, error } = await supabase
                 .from('units')
-                .select(`*, properties(id, name)`)
+                .select(`
+                    *,
+                    properties(id, name),
+                    contracts(
+                        status,
+                        rent_amount,
+                        tenants(name, doc_id, phone, email)
+                    )
+                `)
 
             if (error) throw error
 
@@ -257,11 +270,28 @@ export function useReports() {
                 ? data.filter((u: any) => properties.includes(u.property_id))
                 : data
 
-            return filtered.map((u: any) => ({
-                property: u.properties?.name || 'Desconocida',
-                unit: u.name,
-                status: u.status === 'occupied' ? 'Ocupado' : 'Vacante'
-            }))
+            return filtered.map((u: any) => {
+                // Find active contract if exists, or just the first one if the unit is occupied
+                // Ideally, we filter by status='active' in the join, but Supabase simple join filters are limited in select string
+                // We do it in JS
+                const activeContract = u.contracts?.find((c: any) => c.status === 'active') || u.contracts?.[0]
+                const tenantName = activeContract?.tenants?.name
+                const tenantDocId = activeContract?.tenants?.doc_id
+                const tenantPhone = activeContract?.tenants?.phone
+                const tenantEmail = activeContract?.tenants?.email
+                const rentAmount = activeContract?.rent_amount
+
+                return {
+                    property: u.properties?.name || 'Desconocida',
+                    unit: u.name,
+                    status: u.status === 'occupied' ? 'Ocupado' : 'Vacante',
+                    tenant: u.status === 'occupied' ? (tenantName || 'Sin Asignar') : '-',
+                    docId: u.status === 'occupied' ? (tenantDocId || '-') : '-',
+                    phone: u.status === 'occupied' ? (tenantPhone || '-') : '-',
+                    email: u.status === 'occupied' ? (tenantEmail || '-') : '-',
+                    rent: u.status === 'occupied' ? (rentAmount || 0) : 0
+                }
+            })
         } catch (err: any) {
             console.error('Error fetching occupancy:', err)
             toast.error('Error al generar reporte de ocupación')
@@ -308,6 +338,7 @@ export function useReports() {
                 const c = t.contracts?.[0]
                 return {
                     tenant: t.name,
+                    property: c?.units?.properties?.name || 'Sin Propiedad',
                     unit: c?.units?.name || 'N/A',
                     months: 2, // Dummy
                     debt: (c?.rent_amount || 0) * 2

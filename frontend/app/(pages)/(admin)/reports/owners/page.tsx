@@ -1,44 +1,111 @@
 "use client"
 
-import { useState } from "react"
-import { useOwnerReport, OwnerReportItem } from "@/hooks/use-owner-report"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { useState, useRef, useMemo } from "react"
+import { useRouter } from "next/navigation"
+import { useOwnerReport } from "@/hooks/use-owner-report"
+import { OwnerFinancialReport } from "@/components/reports/owner-financial-report"
+import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Calendar as CalendarIcon, Download, Loader2, Filter, Eye } from "lucide-react"
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
+import { ArrowLeft, FileBarChart, Download, Loader2, Check, ChevronsUpDown, Printer, Mail } from "lucide-react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { format } from "date-fns"
-import { es } from "date-fns/locale"
-import { Calendar } from "@/components/ui/calendar"
 import { cn } from "@/lib/utils"
 import * as XLSX from 'xlsx'
 import { toast } from "sonner"
-// import { DateRange } from "react-day-picker" // Assuming standard shadcn usage
-// Re-implementing simplified date picker logic as standard DayPicker might need component
+import { useReactToPrint } from "react-to-print"
+
+import { useProperties } from "@/hooks/use-properties"
+import { useOwners } from "@/hooks/use-owners"
 
 export default function OwnerReportPage() {
-    const { reportData, loading, ownersList, filters, setFilters, generateReport } = useOwnerReport()
-    const [selectedOwner, setSelectedOwner] = useState<OwnerReportItem | null>(null)
+    const router = useRouter()
+    const { reportData, loading, ownersList, filters, setFilters, generateReport, sendReportEmail } = useOwnerReport()
+    const { properties } = useProperties()
+    const { owners } = useOwners()
+    const [reportGenerated, setReportGenerated] = useState(false)
+    const [openOwnerSelect, setOpenOwnerSelect] = useState(false)
+    const [openPropertySelect, setOpenPropertySelect] = useState(false)
+    const componentRef = useRef<HTMLDivElement>(null)
+    const [showEmailDialog, setShowEmailDialog] = useState(false)
+    const [sendingEmail, setSendingEmail] = useState(false)
 
-    // Helper for formatting currency
-    const formatMoney = (amount: number, currency: 'USD' | 'Bs' = 'USD') => {
-        if (currency === 'Bs') {
-            return `Bs. ${amount.toLocaleString('es-VE', { minimumFractionDigits: 2 })}`
-        }
-        return new Intl.NumberFormat('en-US', {
-            style: 'currency',
-            currency: 'USD',
-            currencyDisplay: 'symbol'
-        }).format(amount)
+    const handleGenerate = async () => {
+        await generateReport()
+        setReportGenerated(true)
     }
 
-    const totalIncomeBs = reportData.reduce((acc, curr) => acc + curr.totalIncomeBs, 0)
-    const totalExpensesBs = reportData.reduce((acc, curr) => acc + curr.totalExpensesBs, 0)
-    const netTotalBs = totalIncomeBs - totalExpensesBs
+    const handleBackToFilters = () => {
+        setReportGenerated(false)
+    }
+
+    // Derived state for selectable properties
+    const selectableProperties = useMemo(() => {
+        if (filters.ownerIds.length === 0) return properties
+
+        const selectedOwnersData = owners.filter(o => filters.ownerIds.includes(o.id))
+        const ownerPropertyIds = new Set<string>()
+
+        selectedOwnersData.forEach(o => {
+            o.properties?.forEach(p => ownerPropertyIds.add(p.id))
+        })
+
+        return properties.filter(p => ownerPropertyIds.has(p.id))
+    }, [filters.ownerIds, owners, properties])
+
+    const toggleOwner = (value: string) => {
+        setFilters(prev => {
+            const current = prev.ownerIds
+            if (current.includes(value)) {
+                return { ...prev, ownerIds: current.filter(o => o !== value) }
+            } else {
+                return { ...prev, ownerIds: [...current, value] }
+            }
+        })
+    }
+
+    const toggleAllOwners = () => {
+        setFilters(prev => {
+            if (prev.ownerIds.length === owners.length) {
+                return { ...prev, ownerIds: [] }
+            } else {
+                return { ...prev, ownerIds: owners.map(o => o.id) }
+            }
+        })
+    }
+
+    const toggleProperty = (value: string) => {
+        setFilters(prev => {
+            const current = prev.propertyIds || []
+            if (current.includes(value)) {
+                return { ...prev, propertyIds: current.filter(p => p !== value) }
+            } else {
+                return { ...prev, propertyIds: [...current, value] }
+            }
+        })
+    }
+
+    const toggleAllProperties = () => {
+        setFilters(prev => {
+            const current = prev.propertyIds || []
+            const allSelectableIds = selectableProperties.map(p => p.id)
+            const areAllSelected = allSelectableIds.every(id => current.includes(id)) && allSelectableIds.length > 0
+
+            if (areAllSelected) {
+                return { ...prev, propertyIds: current.filter(id => !allSelectableIds.includes(id)) }
+            } else {
+                const newSelection = Array.from(new Set([...current, ...allSelectableIds]))
+                return { ...prev, propertyIds: newSelection }
+            }
+        })
+    }
+
+    const handlePrint = useReactToPrint({
+        contentRef: componentRef,
+        documentTitle: `Reporte_Propietarios_${format(filters.startDate, "yyyy-MM-dd")}_${format(filters.endDate, "yyyy-MM-dd")}`
+    })
 
     const handleExport = () => {
         try {
@@ -47,17 +114,18 @@ export default function OwnerReportPage() {
                 return
             }
 
-            // 1. Summary Data
             const exportData = reportData.map(item => ({
                 "Propietario": item.ownerName,
                 "Documento": item.ownerDocId,
                 "Propiedades": item.propertyCount,
+                "Ingresos ($)": item.totalIncomeUsd,
                 "Ingresos (Bs)": item.totalIncomeBs,
+                "Egresos ($)": item.totalExpensesUsd,
                 "Egresos (Bs)": item.totalExpensesBs,
+                "Balance Neto ($)": item.netBalanceUsd,
                 "Balance Neto (Bs)": item.netBalanceBs
             }))
 
-            // 2. Detail Data (Payments)
             const paymentsData = reportData.flatMap(owner =>
                 (owner.payments || []).map(p => ({
                     "Tipo": "Ingreso",
@@ -73,7 +141,6 @@ export default function OwnerReportPage() {
                 }))
             )
 
-            // 3. Detail Data (Expenses)
             const expensesData = reportData.flatMap(owner =>
                 (owner.expenses || []).map(e => ({
                     "Tipo": "Egreso",
@@ -91,7 +158,6 @@ export default function OwnerReportPage() {
 
             const combinedDetail = [...paymentsData, ...expensesData].sort((a, b) => new Date(b.Fecha).getTime() - new Date(a.Fecha).getTime())
 
-            // Create Worksheets
             const wsSummary = XLSX.utils.json_to_sheet(exportData)
             const wsDetail = XLSX.utils.json_to_sheet(combinedDetail)
 
@@ -99,10 +165,7 @@ export default function OwnerReportPage() {
             XLSX.utils.book_append_sheet(wb, wsSummary, "Resumen")
             XLSX.utils.book_append_sheet(wb, wsDetail, "Detalle Completo")
 
-            // Generate File Name
             const fileName = `Reporte_Propietarios_${format(filters.startDate, "yyyy-MM-dd")}_${format(filters.endDate, "yyyy-MM-dd")}.xlsx`
-
-            // Download
             XLSX.writeFile(wb, fileName)
             toast.success("Reporte exportado con éxito (Resumen y Detalles)")
         } catch (error) {
@@ -111,319 +174,196 @@ export default function OwnerReportPage() {
         }
     }
 
+    const periodLabel = `${format(filters.startDate, "dd/MM/yyyy")} - ${format(filters.endDate, "dd/MM/yyyy")}`
+
     return (
         <div className="space-y-6 p-6">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            {/* Header */}
+            <div className="flex items-center gap-4">
+                <Button variant="ghost" size="icon" onClick={() => router.push('/reports')}>
+                    <ArrowLeft className="h-5 w-5" />
+                </Button>
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight">Reporte Financiero por Propietario</h1>
                     <p className="text-muted-foreground">Resumen de ingresos y egresos distribuidos por propiedad.</p>
                 </div>
-                <div className="flex gap-2">
-                    <Button variant="outline" onClick={() => generateReport()}>
-                        <Filter className="mr-2 h-4 w-4" /> Actualizar
-                    </Button>
-                    <Button variant="default" onClick={handleExport} disabled={loading || reportData.length === 0}>
-                        <Download className="mr-2 h-4 w-4" /> Exportar
-                    </Button>
-                </div>
             </div>
 
-            {/* Filters */}
-            <Card>
-                <CardContent className="p-4 flex flex-col md:flex-row gap-4 items-end">
-                    <div className="space-y-2 flex-1">
-                        <label className="text-sm font-medium">Desde</label>
-                        <Input
-                            type="date"
-                            value={format(filters.startDate, "yyyy-MM-dd")}
-                            onChange={(e) => e.target.value && setFilters(prev => ({ ...prev, startDate: new Date(e.target.value) }))}
-                        />
-                    </div>
-                    <div className="space-y-2 flex-1">
-                        <label className="text-sm font-medium">Hasta</label>
-                        <Input
-                            type="date"
-                            value={format(filters.endDate, "yyyy-MM-dd")}
-                            onChange={(e) => e.target.value && setFilters(prev => ({ ...prev, endDate: new Date(e.target.value) }))}
-                        />
-                    </div>
-                    <div className="space-y-2 flex-1 min-w-[200px]">
-                        <label className="text-sm font-medium">Propietario</label>
-                        <Select
-                            value={filters.ownerIds[0] || "all"}
-                            onValueChange={(val) => setFilters(prev => ({ ...prev, ownerIds: val === "all" ? [] : [val] }))}
-                        >
-                            <SelectTrigger>
-                                <SelectValue placeholder="Todos los propietarios" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">Todos</SelectItem>
-                                {ownersList.map(owner => (
-                                    <SelectItem key={owner.id} value={owner.id}>
-                                        {owner.name}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
-                </CardContent>
-            </Card>
+            {/* STEP 1: Filter Card */}
+            {!reportGenerated && (
+                <Card className="max-w-3xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    <CardContent className="p-6 space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium">Desde</label>
+                                <Input
+                                    type="date"
+                                    value={format(filters.startDate, "yyyy-MM-dd")}
+                                    onChange={(e) => e.target.value && setFilters(prev => ({ ...prev, startDate: new Date(e.target.value) }))}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium">Hasta</label>
+                                <Input
+                                    type="date"
+                                    value={format(filters.endDate, "yyyy-MM-dd")}
+                                    onChange={(e) => e.target.value && setFilters(prev => ({ ...prev, endDate: new Date(e.target.value) }))}
+                                />
+                            </div>
+                        </div>
 
-            <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Ingresos Totales</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <div className="text-2xl font-bold text-green-600">Bs {totalIncomeBs.toLocaleString('es-VE', { minimumFractionDigits: 2 })}</div>
-                    <p className="text-xs text-muted-foreground">Normalizado a tasa del día</p>
-                </CardContent>
-            </Card>
-            <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Egresos Totales</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <div className="text-2xl font-bold text-red-600">Bs {totalExpensesBs.toLocaleString('es-VE', { minimumFractionDigits: 2 })}</div>
-                    <p className="text-xs text-muted-foreground">Gastos de propiedades asociadas</p>
-                </CardContent>
-            </Card>
-            <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Balance Neto</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <div className={cn("text-2xl font-bold", netTotalBs >= 0 ? "text-blue-600" : "text-yellow-600")}>
-                        Bs {netTotalBs.toLocaleString('es-VE', { minimumFractionDigits: 2 })}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {/* Owner Selector */}
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium">Propietarios</label>
+                                <Popover open={openOwnerSelect} onOpenChange={setOpenOwnerSelect}>
+                                    <PopoverTrigger asChild>
+                                        <Button variant="outline" role="combobox" aria-expanded={openOwnerSelect} className="w-full justify-between">
+                                            {filters.ownerIds.length === 0
+                                                ? "Todos"
+                                                : filters.ownerIds.length === owners.length
+                                                    ? "Todos"
+                                                    : `${filters.ownerIds.length} seleccionados`}
+                                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-[250px] p-0">
+                                        <Command>
+                                            <CommandInput placeholder="Buscar..." />
+                                            <CommandList>
+                                                <CommandEmpty>No encontrado.</CommandEmpty>
+                                                <CommandGroup>
+                                                    <CommandItem onSelect={toggleAllOwners} className="font-medium">
+                                                        <Check className={cn("mr-2 h-4 w-4", filters.ownerIds.length === owners.length ? "opacity-100" : "opacity-0")} />
+                                                        Todos
+                                                    </CommandItem>
+                                                    {owners.map((owner) => (
+                                                        <CommandItem key={owner.id} value={owner.id} onSelect={() => toggleOwner(owner.id)}>
+                                                            <Check className={cn("mr-2 h-4 w-4", filters.ownerIds.includes(owner.id) ? "opacity-100" : "opacity-0")} />
+                                                            {owner.name}
+                                                        </CommandItem>
+                                                    ))}
+                                                </CommandGroup>
+                                            </CommandList>
+                                        </Command>
+                                    </PopoverContent>
+                                </Popover>
+                            </div>
+
+                            {/* Property Selector */}
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium">Propiedades</label>
+                                <Popover open={openPropertySelect} onOpenChange={setOpenPropertySelect}>
+                                    <PopoverTrigger asChild>
+                                        <Button variant="outline" role="combobox" aria-expanded={openPropertySelect} className="w-full justify-between">
+                                            {(filters.propertyIds || []).length === 0
+                                                ? "Todas"
+                                                : (filters.propertyIds || []).length === selectableProperties.length
+                                                    ? "Todas"
+                                                    : `${(filters.propertyIds || []).length} seleccionadas`}
+                                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-[250px] p-0">
+                                        <Command>
+                                            <CommandInput placeholder="Buscar..." />
+                                            <CommandList>
+                                                <CommandEmpty>No encontrada.</CommandEmpty>
+                                                <CommandGroup>
+                                                    <CommandItem onSelect={toggleAllProperties} className="font-medium">
+                                                        <Check className={cn("mr-2 h-4 w-4", (filters.propertyIds || []).length === selectableProperties.length && selectableProperties.length > 0 ? "opacity-100" : "opacity-0")} />
+                                                        Todas
+                                                    </CommandItem>
+                                                    {selectableProperties.map((property) => (
+                                                        <CommandItem key={property.id} value={property.id} onSelect={() => toggleProperty(property.id)}>
+                                                            <Check className={cn("mr-2 h-4 w-4", (filters.propertyIds || []).includes(property.id) ? "opacity-100" : "opacity-0")} />
+                                                            {property.name}
+                                                        </CommandItem>
+                                                    ))}
+                                                </CommandGroup>
+                                            </CommandList>
+                                        </Command>
+                                    </PopoverContent>
+                                </Popover>
+                            </div>
+                        </div>
+                    </CardContent>
+                    <CardFooter className="flex justify-between">
+                        <Button variant="ghost" onClick={() => router.push('/reports')}>Cancelar</Button>
+                        <Button onClick={handleGenerate} className="w-1/3" disabled={loading}>
+                            {loading ? "Generando..." : <><FileBarChart className="mr-2 h-4 w-4" /> Generar Reporte</>}
+                        </Button>
+                    </CardFooter>
+                </Card>
+            )}
+
+            {/* STEP 2: Report Preview */}
+            {reportGenerated && (
+                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    {/* Toolbar */}
+                    <div className="flex items-center justify-between bg-muted/30 p-4 rounded-lg border">
+                        <div className="flex items-center gap-4">
+                            <Button variant="ghost" size="sm" onClick={handleBackToFilters}>
+                                <ArrowLeft className="mr-2 h-4 w-4" /> Configuración
+                            </Button>
+                            <div className="h-4 w-px bg-border" />
+                            <div className="text-sm">
+                                <span className="text-muted-foreground">Reporte:</span> <strong>Financiero por Propietario</strong>
+                                <span className="mx-2 text-muted-foreground">|</span>
+                                <span className="text-muted-foreground">Periodo:</span> <strong>{periodLabel}</strong>
+                            </div>
+                        </div>
+                        <div className="flex gap-2">
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button variant="outline" size="sm" disabled={reportData.length === 0}>
+                                        <Mail className="mr-2 h-4 w-4" /> Enviar
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-[280px] p-2" align="end">
+                                    <p className="text-sm font-medium px-2 py-1 text-muted-foreground">Enviar reporte a:</p>
+                                    <div className="max-h-[200px] overflow-y-auto">
+                                        {reportData.map(owner => (
+                                            <Button
+                                                key={owner.ownerId}
+                                                variant="ghost"
+                                                size="sm"
+                                                className="w-full justify-start text-left h-auto py-2"
+                                                disabled={sendingEmail}
+                                                onClick={async () => {
+                                                    setSendingEmail(true)
+                                                    await sendReportEmail(owner, periodLabel)
+                                                    setSendingEmail(false)
+                                                }}
+                                            >
+                                                <div>
+                                                    <div className="font-medium text-sm">{owner.ownerName}</div>
+                                                    <div className="text-xs text-muted-foreground">
+                                                        {owner.ownerEmail || 'Sin correo registrado'}
+                                                    </div>
+                                                </div>
+                                            </Button>
+                                        ))}
+                                    </div>
+                                </PopoverContent>
+                            </Popover>
+                            <Button variant="outline" size="sm" onClick={handleExport} disabled={reportData.length === 0}>
+                                <Download className="mr-2 h-4 w-4" /> Excel
+                            </Button>
+                            <Button size="sm" onClick={() => handlePrint()}>
+                                <Printer className="mr-2 h-4 w-4" /> Imprimir / PDF
+                            </Button>
+                        </div>
                     </div>
-                    <p className="text-xs text-muted-foreground">Utilidad estimada</p>
-                </CardContent>
-            </Card>
 
-
-            {/* Data Table */}
-            <Tabs defaultValue="summary" className="w-full">
-                <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-xl font-semibold">Detalle por Propietario</h2>
-                    <TabsList>
-                        <TabsTrigger value="summary">Resumen</TabsTrigger>
-                        <TabsTrigger value="detail">Detalle Pagos</TabsTrigger>
-                        <TabsTrigger value="expenses_detail">Detalle Egresos</TabsTrigger>
-                    </TabsList>
+                    {/* Inline Preview */}
+                    <div className="border rounded-md overflow-auto bg-white shadow-sm min-h-[600px]">
+                        <div className="min-w-[800px]">
+                            <OwnerFinancialReport ref={componentRef} data={reportData} period={periodLabel} />
+                        </div>
+                    </div>
                 </div>
-
-                {/* SUMMARY VIEW */}
-                <TabsContent value="summary">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Resumen por Propietario</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Propietario</TableHead>
-                                        <TableHead>Documento</TableHead>
-                                        <TableHead className="text-center">Propiedades</TableHead>
-                                        <TableHead className="text-right">Ingresos (Bs)</TableHead>
-                                        <TableHead className="text-right">Egresos (Bs)</TableHead>
-                                        <TableHead className="text-right">Balance (Bs)</TableHead>
-                                        <TableHead className="text-center">Detalle</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {loading ? (
-                                        <TableRow>
-                                            <TableCell colSpan={7} className="h-24 text-center">
-                                                <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
-                                            </TableCell>
-                                        </TableRow>
-                                    ) : reportData.length === 0 ? (
-                                        <TableRow>
-                                            <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
-                                                No se encontraron registros en este periodo.
-                                            </TableCell>
-                                        </TableRow>
-                                    ) : (
-                                        reportData.map((item) => (
-                                            <TableRow key={item.ownerId}>
-                                                <TableCell className="font-medium">{item.ownerName}</TableCell>
-                                                <TableCell className="text-muted-foreground text-sm">{item.ownerDocId}</TableCell>
-                                                <TableCell className="text-center">{item.propertyCount}</TableCell>
-                                                <TableCell className="text-right text-green-600 font-medium">
-                                                    {formatMoney(item.totalIncomeBs, 'Bs')}
-                                                </TableCell>
-                                                <TableCell className="text-right text-red-600 font-medium">
-                                                    {formatMoney(item.totalExpensesBs, 'Bs')}
-                                                </TableCell>
-                                                <TableCell className="text-right font-bold">
-                                                    {formatMoney(item.netBalanceBs, 'Bs')}
-                                                </TableCell>
-                                                <TableCell className="text-center">
-                                                    <Button variant="ghost" size="sm" onClick={() => setSelectedOwner(item)}>
-                                                        <Eye className="h-4 w-4" />
-                                                    </Button>
-                                                </TableCell>
-                                            </TableRow>
-                                        ))
-                                    )}
-                                </TableBody>
-                            </Table>
-                        </CardContent>
-                    </Card>
-                </TabsContent>
-
-                {/* DETAIL VIEW */}
-                <TabsContent value="detail">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Listado Detallado de Pagos</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Fecha</TableHead>
-                                        <TableHead>Propietario</TableHead>
-                                        <TableHead>Inquilino</TableHead>
-                                        <TableHead>Unidad</TableHead>
-                                        <TableHead>Método</TableHead>
-                                        <TableHead className="text-right">Monto Original</TableHead>
-                                        <TableHead className="text-right">Tasa</TableHead>
-                                        <TableHead className="text-right">Monto (Bs)</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {loading ? (
-                                        <TableRow>
-                                            <TableCell colSpan={6} className="h-24 text-center">
-                                                <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
-                                            </TableCell>
-                                        </TableRow>
-                                    ) : reportData.flatMap(o => o.payments).length === 0 ? (
-                                        <TableRow>
-                                            <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
-                                                No se encontraron pagos en este periodo.
-                                            </TableCell>
-                                        </TableRow>
-                                    ) : (
-                                        reportData.flatMap(owner =>
-                                            owner.payments.map((payment, idx) => ({ ...payment, ownerName: owner.ownerName, uniqueKey: `${owner.ownerId}-${idx}` }))
-                                        ).map((item) => (
-                                            <TableRow key={item.uniqueKey}>
-                                                <TableCell>{item.date}</TableCell>
-                                                <TableCell className="font-medium">{item.ownerName}</TableCell>
-                                                <TableCell>{item.tenantName}</TableCell>
-                                                <TableCell>{item.unitName}</TableCell>
-                                                <TableCell className="capitalize">{item.method.replace('_', ' ')}</TableCell>
-                                                <TableCell className="text-right text-muted-foreground mr-2">{item.currency === 'VES' ? 'Bs.' : '$'} {Number(item.amountOriginal || item.amount).toLocaleString('es-VE', { minimumFractionDigits: 2 })}</TableCell>
-                                                <TableCell className="text-right text-muted-foreground">{item.exchangeRate}</TableCell>
-                                                <TableCell className="text-right font-medium">{formatMoney(item.amount, 'Bs')}</TableCell>
-                                            </TableRow>
-                                        ))
-                                    )}
-                                </TableBody>
-                            </Table>
-                        </CardContent>
-                    </Card>
-                </TabsContent>
-
-                {/* EXPENSES DETAIL VIEW */}
-                <TabsContent value="expenses_detail">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Listado Detallado de Egresos</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Fecha</TableHead>
-                                        <TableHead>Propietario</TableHead>
-                                        <TableHead>Categoría</TableHead>
-                                        <TableHead>Detalle</TableHead>
-                                        <TableHead className="text-right">Monto Original</TableHead>
-                                        <TableHead className="text-right">Tasa</TableHead>
-                                        <TableHead className="text-right">Monto (Bs)</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {loading ? (
-                                        <TableRow>
-                                            <TableCell colSpan={6} className="h-24 text-center">
-                                                <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
-                                            </TableCell>
-                                        </TableRow>
-                                    ) : reportData.flatMap(o => o.expenses).length === 0 ? (
-                                        <TableRow>
-                                            <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
-                                                No se encontraron egresos en este periodo.
-                                            </TableCell>
-                                        </TableRow>
-                                    ) : (
-                                        reportData.flatMap(owner =>
-                                            owner.expenses.map((expense, idx) => ({ ...expense, ownerName: owner.ownerName, uniqueKey: `exp-${owner.ownerId}-${idx}` }))
-                                        ).map((item) => (
-                                            <TableRow key={item.uniqueKey}>
-                                                <TableCell>{item.date ? item.date.split('T')[0] : '-'}</TableCell>
-                                                <TableCell className="font-medium">{item.ownerName}</TableCell>
-                                                <TableCell>{item.category}</TableCell>
-                                                <TableCell>{item.description}</TableCell>
-                                                <TableCell className="text-right text-muted-foreground">
-                                                    {item.currency === 'VES' ? 'Bs.' : '$'} {Number(item.amountOriginal).toLocaleString('es-VE', { minimumFractionDigits: 2 })}
-                                                </TableCell>
-                                                <TableCell className="text-right text-muted-foreground">{item.exchangeRate}</TableCell>
-                                                <TableCell className="text-right font-medium">
-                                                    Bs {Number(item.amount).toLocaleString('es-VE', { minimumFractionDigits: 2 })}
-                                                </TableCell>
-                                            </TableRow>
-                                        ))
-                                    )}
-                                </TableBody>
-                            </Table>
-                        </CardContent>
-                    </Card>
-                </TabsContent>
-            </Tabs>
-
-            <Dialog open={!!selectedOwner} onOpenChange={(open) => !open && setSelectedOwner(null)}>
-                <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-                    <DialogHeader>
-                        <DialogTitle>Detalle de Ingresos - {selectedOwner?.ownerName}</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Fecha</TableHead>
-                                    <TableHead>Inquilino</TableHead>
-                                    <TableHead>Unidad</TableHead>
-                                    <TableHead>Método</TableHead>
-                                    <TableHead className="text-right">Monto (Cuota)</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {selectedOwner?.payments.length === 0 ? (
-                                    <TableRow>
-                                        <TableCell colSpan={5} className="text-center text-muted-foreground">No hay pagos registrados.</TableCell>
-                                    </TableRow>
-                                ) : (
-                                    selectedOwner?.payments.map((p, idx) => (
-                                        <TableRow key={idx}>
-                                            <TableCell>{p.date}</TableCell>
-                                            <TableCell>{p.tenantName}</TableCell>
-                                            <TableCell>{p.unitName}</TableCell>
-                                            <TableCell className="capitalize">{p.method.replace('_', ' ')}</TableCell>
-                                            <TableCell className="text-right text-muted-foreground">{p.currency === 'VES' ? 'Bs.' : '$'} {Number(p.amountOriginal || p.amount).toLocaleString('es-VE', { minimumFractionDigits: 2 })}</TableCell>
-                                            <TableCell className="text-right text-muted-foreground">{p.exchangeRate}</TableCell>
-                                            <TableCell className="text-right font-medium">{formatMoney(p.amount, 'Bs')}</TableCell>
-                                        </TableRow>
-                                    ))
-                                )}
-                            </TableBody>
-                        </Table>
-                    </div>
-                </DialogContent>
-            </Dialog>
+            )}
         </div>
     )
 }

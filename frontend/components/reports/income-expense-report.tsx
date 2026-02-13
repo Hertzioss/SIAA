@@ -1,18 +1,16 @@
 import React from 'react'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 
-interface Transaction {
+interface Movement {
     date: string
+    tenantName?: string
     concept: string
-    debit?: number
-    credit?: number
+    debit: number
+    credit: number
     balance: number
-    // For BS table
+    type: 'income_usd' | 'income_bs' | 'expense'
+    originalAmount?: number
     rate?: number
-    incomeUsd?: number
-    balanceUsd?: number
 }
 
 interface Distribution {
@@ -24,8 +22,8 @@ interface Distribution {
 interface IncomeExpenseReportProps {
     month: string
     year: string
-    dataUsd: Transaction[]
-    dataBs: Transaction[]
+    dataUsd: any[]
+    dataBs: any[]
     dataExpenses?: {
         date: string
         category: string
@@ -37,156 +35,143 @@ interface IncomeExpenseReportProps {
 }
 
 /**
- * Componente de reporte financiero detallado (Ingresos y Egresos).
- * Genera una vista imprimible con tablas de transacciones en USD/Bs y gráficas de resumen.
+ * Componente de reporte financiero tipo Estado de Cuenta.
+ * Genera una vista imprimible con una tabla unificada cronológica de ingresos y egresos.
  */
 export const IncomeExpenseReport = React.forwardRef<HTMLDivElement, IncomeExpenseReportProps>(({ month, year, dataUsd, dataBs, dataExpenses = [], dataDistribution }, ref) => {
 
-    const totalIncomeUsd = dataUsd.reduce((acc, curr) => acc + (curr.credit || 0), 0)
-    const totalIncomeBsConverted = dataBs.reduce((acc, curr) => acc + (curr.incomeUsd || 0), 0)
+    const totalIncomeUsd = dataUsd.reduce((acc: number, curr: any) => acc + (curr.credit || 0), 0)
+    const totalIncomeBsConverted = dataBs.reduce((acc: number, curr: any) => acc + (curr.incomeUsd || 0), 0)
     const totalGrossIncome = totalIncomeUsd + totalIncomeBsConverted
 
     const totalExpenses = dataExpenses.reduce((acc, curr) => acc + curr.amount, 0)
     const netIncome = totalGrossIncome - totalExpenses
 
-    const chartData = [
-        { name: 'Ingresos ($)', amount: totalGrossIncome, fill: '#22c55e' },
-        { name: 'Egresos ($)', amount: totalExpenses, fill: '#ef4444' },
-        { name: 'Utilidad Neta ($)', amount: netIncome, fill: '#3b82f6' }
-    ]
+    // Unify and sort movements
+    const movements = React.useMemo(() => {
+        const unified: Movement[] = []
+
+        // 1. Incomes USD
+        dataUsd.forEach((item: any) => {
+            unified.push({
+                date: item.date,
+                tenantName: item.tenantName,
+                concept: item.concept,
+                debit: 0,
+                credit: item.credit || 0,
+                balance: 0,
+                type: 'income_usd'
+            })
+        })
+
+        // 2. Incomes Bs (Converted to USD)
+        dataBs.forEach((item: any) => {
+            unified.push({
+                date: item.date,
+                tenantName: item.tenantName,
+                concept: item.concept,
+                debit: 0,
+                credit: item.incomeUsd || 0,
+                balance: 0,
+                type: 'income_bs',
+                originalAmount: item.balance,
+                rate: item.rate
+            })
+        })
+
+        // 3. Expenses
+        dataExpenses.forEach(item => {
+            unified.push({
+                date: item.date,
+                concept: `${item.category} - ${item.description}`,
+                debit: item.amount,
+                credit: 0,
+                balance: 0,
+                type: 'expense'
+            })
+        })
+
+        // Sort by date ascending
+        unified.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+
+        // Calculate running balance
+        let runningBalance = 0
+        return unified.map(m => {
+            runningBalance += (m.credit - m.debit)
+            return { ...m, balance: runningBalance }
+        })
+    }, [dataUsd, dataBs, dataExpenses])
 
     return (
         <div ref={ref} className="p-8 bg-white text-black font-sans max-w-[1000px] mx-auto">
             <div className="text-center mb-6 border-b-2 border-gray-800 pb-4">
-                <h1 className="text-xl font-bold uppercase tracking-wide">CONTROL DE INGRESOS y EGRESOS POR ARRENDAMIENTOS</h1>
+                <h1 className="text-xl font-bold uppercase tracking-wide">ESTADO DE CUENTA - INGRESOS Y EGRESOS</h1>
                 <div className="flex justify-end mt-2">
                     <span className="border border-black px-4 py-1 font-bold uppercase">{month} {year}</span>
                 </div>
             </div>
 
-            {/* CHART SECTION */}
-            <div className="mb-8 h-[300px] w-full print:h-[250px]">
-                <ResponsiveContainer width="100%" height="100%">
-                    <BarChart
-                        data={chartData}
-                        margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-                    >
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-                        <YAxis />
-                        <Tooltip formatter={(value) => `$${Number(value).toLocaleString()}`} />
-                        <Legend />
-                        <Bar dataKey="amount" name="Monto ($)" />
-                    </BarChart>
-                </ResponsiveContainer>
-            </div>
-
-            {/* TABLE 1: INGRESOS EN DOLARES */}
+            {/* UNIFIED TABLE */}
             <div className="mb-8">
-                <div className="bg-gray-600 text-white text-center font-bold py-1 uppercase text-sm">
-                    INGRESOS EN DOLARES $
+                <div className="bg-gray-800 text-white text-center font-bold py-1 uppercase text-sm">
+                    MOVIMIENTOS DEL PERÍODO (USD)
                 </div>
                 <Table className="border border-black text-xs">
                     <TableHeader>
                         <TableRow className="border-b border-black hover:bg-transparent">
                             <TableHead className="border-r border-black text-black font-bold h-8">FECHA</TableHead>
-                            <TableHead className="border-r border-black text-black font-bold h-8 w-[40%]">CONCEPTO</TableHead>
-                            <TableHead className="border-r border-black text-black font-bold h-8 text-right">DEBE</TableHead>
-                            <TableHead className="border-r border-black text-black font-bold h-8 text-right">HABER</TableHead>
-                            <TableHead className="text-black font-bold h-8 text-right">SALDO $</TableHead>
+                            <TableHead className="border-r border-black text-black font-bold h-8">INQUILINO / ENTIDAD</TableHead>
+                            <TableHead className="border-r border-black text-black font-bold h-8 w-[40%]">CONCEPTO / DESCRIPCIÓN</TableHead>
+                            <TableHead className="border-r border-black text-black font-bold h-8 text-right text-red-700">DEBE (EGRESOS)</TableHead>
+                            <TableHead className="border-r border-black text-black font-bold h-8 text-right text-green-700">HABER (INGRESOS)</TableHead>
+                            <TableHead className="text-black font-bold h-8 text-right">SALDO</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {dataUsd.map((row, index) => (
-                            <TableRow key={index} className="border-b border-gray-300 hover:bg-transparent">
-                                <TableCell className="border-r border-black py-1">{row.date}</TableCell>
-                                <TableCell className="border-r border-black py-1 uppercase">{row.concept}</TableCell>
-                                <TableCell className="border-r border-black py-1 text-right">{row.debit ? row.debit.toFixed(2) : ''}</TableCell>
-                                <TableCell className="border-r border-black py-1 text-right">{row.credit ? row.credit.toFixed(2) : ''}</TableCell>
-                                <TableCell className="py-1 text-right">{row.balance.toFixed(2)}</TableCell>
-                            </TableRow>
-                        ))}
-                        <TableRow className="border-t-2 border-black hover:bg-transparent">
-                            <TableCell colSpan={3} className="text-right font-bold border-r border-black py-1">TOTAL INGRESO EN $</TableCell>
-                            <TableCell className="text-right font-bold border-r border-black py-1">{totalIncomeUsd.toFixed(2)}</TableCell>
-                            <TableCell className="py-1"></TableCell>
-                        </TableRow>
-                    </TableBody>
-                </Table>
-            </div>
-
-            {/* TABLE 2: INGRESOS EN BOLIVARES */}
-            <div className="mb-8">
-                <div className="bg-gray-300 text-black text-center font-bold py-1 uppercase text-sm border border-black border-b-0">
-                    INGRESOS EN BOLIVARES ( ) Y LLEVADOS A DOLARES
-                </div>
-                <Table className="border border-black text-xs">
-                    <TableHeader>
-                        <TableRow className="border-b border-black hover:bg-transparent">
-                            <TableHead className="border-r border-black text-black font-bold h-8">FECHA</TableHead>
-                            <TableHead className="border-r border-black text-black font-bold h-8 w-[35%]">CONCEPTO</TableHead>
-                            <TableHead className="border-r border-black text-black font-bold h-8 text-right">DEBE</TableHead>
-                            <TableHead className="border-r border-black text-black font-bold h-8 text-right">HABER Bs.</TableHead>
-                            <TableHead className="border-r border-black text-black font-bold h-8 text-right">SALDO Bs.</TableHead>
-                            <TableHead className="border-r border-black text-black font-bold h-8 text-right">TASA</TableHead>
-                            <TableHead className="border-r border-black text-black font-bold h-8 text-right">INGRESO EN $</TableHead>
-                            <TableHead className="text-black font-bold h-8 text-right">SALDO $</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {dataBs.map((row, index) => (
-                            <TableRow key={index} className="border-b border-gray-300 hover:bg-transparent">
-                                <TableCell className="border-r border-black py-1">{row.date}</TableCell>
-                                <TableCell className="border-r border-black py-1 uppercase">{row.concept}</TableCell>
-                                <TableCell className="border-r border-black py-1 text-right">{row.debit ? row.debit.toFixed(2) : ''}</TableCell>
-                                <TableCell className="border-r border-black py-1 text-right">{row.credit ? row.credit.toFixed(2) : ''}</TableCell>
-                                <TableCell className="border-r border-black py-1 text-right">{row.balance.toFixed(2)}</TableCell>
-                                <TableCell className="border-r border-black py-1 text-right">{row.rate?.toFixed(2)}</TableCell>
-                                <TableCell className="border-r border-black py-1 text-right">{row.incomeUsd?.toFixed(2)}</TableCell>
-                                <TableCell className="py-1 text-right">{row.balanceUsd?.toFixed(2)}</TableCell>
-                            </TableRow>
-                        ))}
-                        <TableRow className="border-t-2 border-black hover:bg-transparent">
-                            <TableCell colSpan={6} className="text-right font-bold border-r border-black py-1">TOTAL CONVERTIDO A $</TableCell>
-                            <TableCell className="text-right font-bold border-r border-black py-1">{totalIncomeBsConverted.toFixed(2)}</TableCell>
-                            <TableCell className="py-1"></TableCell>
-                        </TableRow>
-                    </TableBody>
-                </Table>
-            </div>
-
-            {/* TABLE 3: EXPENSES */}
-            <div className="mb-8">
-                <div className="bg-red-800 text-white text-center font-bold py-1 uppercase text-sm">
-                    EGRESOS / GASTOS OPERATIVOS
-                </div>
-                <Table className="border border-black text-xs">
-                    <TableHeader>
-                        <TableRow className="border-b border-black hover:bg-transparent">
-                            <TableHead className="border-r border-black text-black font-bold h-8">FECHA</TableHead>
-                            <TableHead className="border-r border-black text-black font-bold h-8">CATEGORÍA</TableHead>
-                            <TableHead className="border-r border-black text-black font-bold h-8 w-[40%]">DESCRIPCIÓN</TableHead>
-                            <TableHead className="text-black font-bold h-8 text-right">MONTO ($)</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {dataExpenses.length > 0 ? (
-                            dataExpenses.map((expense, index) => (
+                        {movements.length > 0 ? (
+                            movements.map((row, index) => (
                                 <TableRow key={index} className="border-b border-gray-300 hover:bg-transparent">
-                                    <TableCell className="border-r border-black py-1">{expense.date}</TableCell>
-                                    <TableCell className="border-r border-black py-1 uppercase">{expense.category}</TableCell>
-                                    <TableCell className="border-r border-black py-1 uppercase">{expense.description}</TableCell>
-                                    <TableCell className="py-1 text-right">{expense.amount.toFixed(2)}</TableCell>
+                                    <TableCell className="border-r border-black py-1">{row.date}</TableCell>
+                                    <TableCell className="border-r border-black py-1 font-medium">
+                                        {row.tenantName ? row.tenantName : '-'}
+                                    </TableCell>
+                                    <TableCell className="border-r border-black py-1 uppercase">
+                                        {row.concept}
+                                        {row.type === 'income_bs' && (
+                                            <span className="block text-[10px] text-gray-500 italic">
+                                                (Conv. Bs. {row.originalAmount?.toLocaleString('es-VE')} @ {row.rate})
+                                            </span>
+                                        )}
+                                    </TableCell>
+                                    <TableCell className="border-r border-black py-1 text-right text-red-700">
+                                        {row.debit > 0 ? row.debit.toFixed(2) : ''}
+                                    </TableCell>
+                                    <TableCell className="border-r border-black py-1 text-right text-green-700">
+                                        {row.credit > 0 ? row.credit.toFixed(2) : ''}
+                                    </TableCell>
+                                    <TableCell className="py-1 text-right font-bold">
+                                        {row.balance.toFixed(2)}
+                                    </TableCell>
                                 </TableRow>
                             ))
                         ) : (
-                            <TableRow className="border-b border-gray-300 hover:bg-transparent">
-                                <TableCell colSpan={4} className="py-2 text-center text-gray-500 italic">No hay gastos registrados en este período.</TableCell>
+                            <TableRow>
+                                <TableCell colSpan={6} className="text-center py-4 italic text-gray-500">
+                                    No hay movimientos registrados en este período.
+                                </TableCell>
                             </TableRow>
                         )}
-                        <TableRow className="border-t-2 border-black hover:bg-transparent bg-red-50">
-                            <TableCell colSpan={3} className="text-right font-bold border-r border-black py-1">TOTAL EGRESOS</TableCell>
-                            <TableCell className="text-right font-bold py-1 text-red-700">{totalExpenses.toFixed(2)}</TableCell>
+                        <TableRow className="border-t-2 border-black hover:bg-transparent bg-gray-100">
+                            <TableCell colSpan={3} className="text-right font-bold border-r border-black py-1">TOTALES</TableCell>
+                            <TableCell className="text-right font-bold border-r border-black py-1 text-red-700">
+                                {totalExpenses.toFixed(2)}
+                            </TableCell>
+                            <TableCell className="text-right font-bold border-r border-black py-1 text-green-700">
+                                {totalGrossIncome.toFixed(2)}
+                            </TableCell>
+                            <TableCell className="text-right font-bold py-1">
+                                {netIncome.toFixed(2)}
+                            </TableCell>
                         </TableRow>
                     </TableBody>
                 </Table>
@@ -210,7 +195,7 @@ export const IncomeExpenseReport = React.forwardRef<HTMLDivElement, IncomeExpens
                 </div>
             </div>
 
-            {/* TABLE 4: DISTRIBUTION */}
+            {/* TABLE: DISTRIBUTION */}
             {dataDistribution && (
                 <div>
                     <div className="bg-gray-800 text-white text-center font-bold py-1 uppercase text-sm">
@@ -230,7 +215,6 @@ export const IncomeExpenseReport = React.forwardRef<HTMLDivElement, IncomeExpens
                                     <TableCell className="border-r border-black py-1 uppercase">{row.owner}</TableCell>
                                     <TableCell className="border-r border-black py-1 text-right">{row.percentage}%</TableCell>
                                     <TableCell className="py-1 text-right font-bold">
-                                        {/* Recalculate based on Net Income if needed, or use passed value */}
                                         {((netIncome * row.percentage) / 100).toFixed(2)}
                                     </TableCell>
                                 </TableRow>

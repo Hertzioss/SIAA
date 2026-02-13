@@ -7,9 +7,13 @@ export interface OwnerReportItem {
     ownerId: string;
     ownerName: string;
     ownerDocId: string;
+    ownerEmail: string | null;
     totalIncomeBs: number;
+    totalIncomeUsd: number;
     totalExpensesBs: number;
+    totalExpensesUsd: number;
     netBalanceBs: number;
+    netBalanceUsd: number;
     propertyCount: number;
     payments: OwnerPaymentDetail[];
     expenses: OwnerExpenseDetail[];
@@ -18,6 +22,7 @@ export interface OwnerReportItem {
 export interface OwnerExpenseDetail {
     date: string;
     amount: number; // In Bs
+    amountUsd: number; // In USD
     currency: string; // Original currency
     amountOriginal: number; // Original amount
     exchangeRate: number; // Rate used for conversion
@@ -30,6 +35,7 @@ export interface OwnerExpenseDetail {
 export interface OwnerPaymentDetail {
     date: string;
     amount: number; // In Bs
+    amountUsd: number; // In USD
     amountOriginal: number;
     currency: string;
     exchangeRate: number;
@@ -43,6 +49,7 @@ export interface OwnerReportFilters {
     startDate: Date;
     endDate: Date;
     ownerIds: string[]; // Empty = All
+    propertyIds: string[]; // Empty = All
 }
 
 export function useOwnerReport() {
@@ -51,10 +58,11 @@ export function useOwnerReport() {
     const [ownersList, setOwnersList] = useState<any[]>([]);
 
     // Default filters: Current Month
-    const [filters, setFilters] = useState<OwnerReportFilters>({
+    const [filters, setFilters] = useState({
         startDate: startOfMonth(new Date()),
         endDate: endOfMonth(new Date()),
-        ownerIds: []
+        ownerIds: [],
+        propertyIds: []
     });
 
     // Fetch basic lists (Owners) only once
@@ -62,7 +70,7 @@ export function useOwnerReport() {
         const fetchOwners = async () => {
             const { data, error } = await supabase
                 .from('owners')
-                .select('id, name, doc_id')
+                .select('id, name, doc_id, email')
                 .order('name');
 
             if (error) console.error('Error fetching owners:', error);
@@ -81,11 +89,11 @@ export function useOwnerReport() {
             // Map: PropertyId -> [{ ownerId, percentage }]
             const { data: propOwners, error: poError } = await supabase
                 .from('property_owners')
-                .select('property_id, owner_id, percentage, owners(name, doc_id)');
+                .select('property_id, owner_id, percentage, owners(name, doc_id, email)');
 
             if (poError) throw poError;
 
-            const propertyOwnership: Record<string, { ownerId: string, name: string, doc_id: string, percentage: number }[]> = {};
+            const propertyOwnership: Record<string, { ownerId: string, name: string, doc_id: string, email: string | null, percentage: number }[]> = {};
             propOwners?.forEach((po: any) => {
                 if (!propertyOwnership[po.property_id]) {
                     propertyOwnership[po.property_id] = [];
@@ -94,6 +102,7 @@ export function useOwnerReport() {
                     ownerId: po.owner_id,
                     name: po.owners?.name,
                     doc_id: po.owners?.doc_id,
+                    email: po.owners?.email || null,
                     percentage: Number(po.percentage)
                 });
             });
@@ -141,15 +150,19 @@ export function useOwnerReport() {
             // Better to see who actually has activity or ownership.
 
             // Helper to get stats object
-            const getStats = (id: string, name: string, doc: string) => {
+            const getStats = (id: string, name: string, doc: string, email?: string | null) => {
                 if (!ownerStats[id]) {
                     ownerStats[id] = {
                         ownerId: id,
                         ownerName: name,
                         ownerDocId: doc,
+                        ownerEmail: email || null,
                         totalIncomeBs: 0,
+                        totalIncomeUsd: 0,
                         totalExpensesBs: 0,
+                        totalExpensesUsd: 0,
                         netBalanceBs: 0,
+                        netBalanceUsd: 0,
                         propertyCount: 0,
                         payments: [],
                         expenses: []
@@ -160,25 +173,33 @@ export function useOwnerReport() {
 
             // Process Payments
             payments?.forEach((p: any) => {
-                // Normalize to Bs
                 const amount = Number(p.amount);
                 const currency = p.currency || 'USD';
-                const exchangeRate = Number(p.exchange_rate) || 1; // Default to 1 if missing (shouldn't happen for USD)
+                const exchangeRate = Number(p.exchange_rate) || 1;
 
                 let amountBs = amount;
+                let amountUsd = amount;
+
                 if (currency === 'USD') {
                     amountBs = amount * exchangeRate;
+                    amountUsd = amount;
+                } else {
+                    amountBs = amount;
+                    amountUsd = exchangeRate > 0 ? amount / exchangeRate : 0;
                 }
-                // If currency is Bs, amount is already amountBs.
 
                 // Find Property
                 const propertyId = p.contract?.unit?.property_id;
                 if (!propertyId) return;
 
+                // Apply Property Filter
+                if (filters.propertyIds.length > 0 && !filters.propertyIds.includes(propertyId)) return;
+
                 // Create Detail Object
                 const detail: OwnerPaymentDetail = {
                     date: p.date,
-                    amount: amountBs, // Normalized to Bs
+                    amount: amountBs,
+                    amountUsd: amountUsd,
                     amountOriginal: amount,
                     currency: currency,
                     exchangeRate: exchangeRate,
@@ -191,12 +212,16 @@ export function useOwnerReport() {
                 // Distribute to Owners
                 const owners = propertyOwnership[propertyId] || [];
                 owners.forEach(owner => {
-                    const share = amountBs * (owner.percentage / 100);
-                    const stats = getStats(owner.ownerId, owner.name, owner.doc_id);
-                    stats.totalIncomeBs += share;
+                    const shareBs = amountBs * (owner.percentage / 100);
+                    const shareUsd = amountUsd * (owner.percentage / 100);
+                    
+                    const stats = getStats(owner.ownerId, owner.name, owner.doc_id, owner.email);
+                    stats.totalIncomeBs += shareBs;
+                    stats.totalIncomeUsd += shareUsd;
                     stats.payments.push({
                         ...detail,
-                        amount: share // Share in Bs
+                        amount: shareBs,
+                        amountUsd: shareUsd
                     });
                 });
             });
@@ -223,18 +248,27 @@ export function useOwnerReport() {
                     }
                 }
 
-                const stats = getStats(ownerId, ownerName, ownerDoc);
+                const ownerEmail = ownerStats[ownerId]?.ownerEmail || ownersList.find((o: any) => o.id === ownerId)?.email || null;
+                const stats = getStats(ownerId, ownerName, ownerDoc, ownerEmail);
 
                 let amountBs = amount;
+                let amountUsd = amount;
+
                 if (currency === 'USD') {
                     amountBs = amount * exchangeRate;
+                    amountUsd = amount;
+                } else {
+                    amountBs = amount;
+                    amountUsd = exchangeRate > 0 ? amount / exchangeRate : 0;
                 }
 
                 stats.totalExpensesBs += amountBs;
+                stats.totalExpensesUsd += amountUsd;
 
                 stats.expenses.push({
                     date: e.date,
-                    amount: amountBs, // Normalized to Bs
+                    amount: amountBs,
+                    amountUsd: amountUsd,
                     amountOriginal: amount,
                     currency: currency,
                     exchangeRate: exchangeRate,
@@ -263,6 +297,7 @@ export function useOwnerReport() {
             let results = Object.values(ownerStats).map(stat => ({
                 ...stat,
                 netBalanceBs: stat.totalIncomeBs - stat.totalExpensesBs,
+                netBalanceUsd: stat.totalIncomeUsd - stat.totalExpensesUsd,
                 propertyCount: ownerProperties[stat.ownerId]?.size || 0
             }));
 
@@ -286,12 +321,133 @@ export function useOwnerReport() {
         generateReport();
     }, [generateReport]);
 
+    const sendReportEmail = useCallback(async (ownerData: OwnerReportItem, period: string) => {
+        if (!ownerData.ownerEmail) {
+            toast.error(`${ownerData.ownerName} no tiene correo electrónico registrado`);
+            return false;
+        }
+
+        try {
+            const formatMoney = (amount: number, currency: 'USD' | 'Bs' = 'USD') => {
+                if (currency === 'Bs') return `Bs. ${amount.toLocaleString('es-VE', { minimumFractionDigits: 2 })}`;
+                return `$${amount.toFixed(2)}`;
+            };
+
+            const paymentRows = ownerData.payments.map(p => `
+                <tr style="border-bottom: 1px solid #e5e7eb;">
+                    <td style="padding: 6px 8px; font-size: 12px;">${p.date}</td>
+                    <td style="padding: 6px 8px; font-size: 12px;">${p.tenantName}</td>
+                    <td style="padding: 6px 8px; font-size: 12px;">${p.unitName}</td>
+                    <td style="padding: 6px 8px; font-size: 12px; text-align: right;">${formatMoney(p.amountUsd)}</td>
+                    <td style="padding: 6px 8px; font-size: 12px; text-align: right;">${formatMoney(p.amount, 'Bs')}</td>
+                </tr>
+            `).join('');
+
+            const expenseRows = ownerData.expenses.map(e => `
+                <tr style="border-bottom: 1px solid #e5e7eb;">
+                    <td style="padding: 6px 8px; font-size: 12px;">${e.date ? e.date.split('T')[0] : '-'}</td>
+                    <td style="padding: 6px 8px; font-size: 12px;">${e.category}</td>
+                    <td style="padding: 6px 8px; font-size: 12px;">${e.description}</td>
+                    <td style="padding: 6px 8px; font-size: 12px; text-align: right;">${formatMoney(e.amountUsd)}</td>
+                    <td style="padding: 6px 8px; font-size: 12px; text-align: right;">${formatMoney(e.amount, 'Bs')}</td>
+                </tr>
+            `).join('');
+
+            const html = `
+                <div style="font-family: Arial, sans-serif; max-width: 700px; margin: 0 auto;">
+                    <h2 style="text-align: center; color: #1f2937;">Reporte Financiero</h2>
+                    <p style="text-align: center; color: #6b7280; font-size: 14px;">Período: ${period}</p>
+
+                    <div style="background: #f3f4f6; padding: 12px; border-radius: 8px; margin: 16px 0;">
+                        <p style="margin: 4px 0; font-size: 14px;"><strong>Propietario:</strong> ${ownerData.ownerName}</p>
+                        <p style="margin: 4px 0; font-size: 14px;"><strong>Documento:</strong> ${ownerData.ownerDocId}</p>
+                        <p style="margin: 4px 0; font-size: 14px;"><strong>Propiedades:</strong> ${ownerData.propertyCount}</p>
+                    </div>
+
+                    <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
+                        <tr>
+                            <td style="padding: 12px; background: #d1fae5; border-radius: 6px; text-align: center;">
+                                <div style="font-size: 12px; font-weight: bold; color: #047857;">INGRESOS</div>
+                                <div style="font-size: 18px; font-weight: bold; color: #047857;">${formatMoney(ownerData.totalIncomeUsd)}</div>
+                                <div style="font-size: 11px; color: #059669;">${formatMoney(ownerData.totalIncomeBs, 'Bs')}</div>
+                            </td>
+                            <td style="width: 8px;"></td>
+                            <td style="padding: 12px; background: #fee2e2; border-radius: 6px; text-align: center;">
+                                <div style="font-size: 12px; font-weight: bold; color: #b91c1c;">EGRESOS</div>
+                                <div style="font-size: 18px; font-weight: bold; color: #b91c1c;">${formatMoney(ownerData.totalExpensesUsd)}</div>
+                                <div style="font-size: 11px; color: #dc2626;">${formatMoney(ownerData.totalExpensesBs, 'Bs')}</div>
+                            </td>
+                            <td style="width: 8px;"></td>
+                            <td style="padding: 12px; background: #dbeafe; border-radius: 6px; text-align: center;">
+                                <div style="font-size: 12px; font-weight: bold; color: #1d4ed8;">BALANCE</div>
+                                <div style="font-size: 18px; font-weight: bold; color: #1d4ed8;">${formatMoney(ownerData.netBalanceUsd)}</div>
+                                <div style="font-size: 11px; color: #2563eb;">${formatMoney(ownerData.netBalanceBs, 'Bs')}</div>
+                            </td>
+                        </tr>
+                    </table>
+
+                    ${ownerData.payments.length > 0 ? `
+                        <h3 style="color: #1f2937; font-size: 14px; margin-top: 24px;">Detalle de Ingresos</h3>
+                        <table style="width: 100%; border-collapse: collapse; border: 1px solid #d1d5db;">
+                            <thead>
+                                <tr style="background: #1f2937; color: white;">
+                                    <th style="padding: 6px 8px; text-align: left; font-size: 11px;">FECHA</th>
+                                    <th style="padding: 6px 8px; text-align: left; font-size: 11px;">INQUILINO</th>
+                                    <th style="padding: 6px 8px; text-align: left; font-size: 11px;">UNIDAD</th>
+                                    <th style="padding: 6px 8px; text-align: right; font-size: 11px;">MONTO ($)</th>
+                                    <th style="padding: 6px 8px; text-align: right; font-size: 11px;">MONTO (Bs)</th>
+                                </tr>
+                            </thead>
+                            <tbody>${paymentRows}</tbody>
+                        </table>
+                    ` : ''}
+
+                    ${ownerData.expenses.length > 0 ? `
+                        <h3 style="color: #1f2937; font-size: 14px; margin-top: 24px;">Detalle de Egresos</h3>
+                        <table style="width: 100%; border-collapse: collapse; border: 1px solid #d1d5db;">
+                            <thead>
+                                <tr style="background: #1f2937; color: white;">
+                                    <th style="padding: 6px 8px; text-align: left; font-size: 11px;">FECHA</th>
+                                    <th style="padding: 6px 8px; text-align: left; font-size: 11px;">CATEGORÍA</th>
+                                    <th style="padding: 6px 8px; text-align: left; font-size: 11px;">DETALLE</th>
+                                    <th style="padding: 6px 8px; text-align: right; font-size: 11px;">MONTO ($)</th>
+                                    <th style="padding: 6px 8px; text-align: right; font-size: 11px;">MONTO (Bs)</th>
+                                </tr>
+                            </thead>
+                            <tbody>${expenseRows}</tbody>
+                        </table>
+                    ` : ''}
+                </div>
+            `;
+
+            const response = await fetch('/api/emails/send', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    recipients: [{ email: ownerData.ownerEmail, name: ownerData.ownerName }],
+                    subject: `Reporte Financiero - ${period}`,
+                    message: html
+                })
+            });
+
+            if (!response.ok) throw new Error('Error al enviar correo');
+
+            toast.success(`Reporte enviado a ${ownerData.ownerEmail}`);
+            return true;
+        } catch (err) {
+            console.error('Error sending owner report email:', err);
+            toast.error('Error al enviar el reporte por correo');
+            return false;
+        }
+    }, []);
+
     return {
         loading,
         reportData,
         ownersList,
         filters,
         setFilters,
-        generateReport
+        generateReport,
+        sendReportEmail
     };
 }

@@ -1,12 +1,12 @@
 'use client'
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { FileSpreadsheet, Printer as PrinterIcon, ArrowLeft, FileText, PieChart, BarChart3, Filter, ChevronsUpDown, Check, Wrench, TrendingUp, Users } from "lucide-react"
+import { FileSpreadsheet, Printer as PrinterIcon, ArrowLeft, FileText, PieChart, BarChart3, Filter, ChevronsUpDown, Check, Wrench, TrendingUp, Users, UserCheck } from "lucide-react"
 import { IncomeExpenseReport } from "@/components/reports/income-expense-report"
 import { OperationalReport } from "@/components/reports/operational-report"
 import { MaintenanceReport } from "@/components/reports/maintenance-report"
@@ -19,6 +19,7 @@ import { cn } from "@/lib/utils"
 import { useReactToPrint } from "react-to-print"
 import { useReports, IncomeExpenseData, OperationalData } from "@/hooks/use-reports"
 import { useProperties } from "@/hooks/use-properties"
+import { useOwners } from "@/hooks/use-owners"
 
 const REPORT_TYPES = [
     {
@@ -68,6 +69,14 @@ const REPORT_TYPES = [
         icon: Users,
         color: 'text-indigo-600',
         bgColor: 'bg-indigo-100'
+    },
+    {
+        id: 'tenant-statement',
+        title: 'Estado de Cuenta Inquilinos',
+        description: 'Estado de cuenta individual con cargos, pagos y saldo por inquilino.',
+        icon: UserCheck,
+        color: 'text-teal-600',
+        bgColor: 'bg-teal-100'
     }
 ]
 
@@ -81,9 +90,36 @@ const ALL_MONTHS = [
  * Permite seleccionar tipo de reporte (Financiero, Ocupación, etc.), aplicar filtros
  * y generar vistas previas o descargas en PDF/Excel.
  */
+const formatPeriod = (months: string[], year: string) => {
+    if (months.length === 0) return `${year}`
+    if (months.length === ALL_MONTHS.length) return `${year} : Año Completo`
+
+    // Sort months based on ALL_MONTHS order
+    const sorted = [...months].sort((a, b) => ALL_MONTHS.indexOf(a) - ALL_MONTHS.indexOf(b))
+
+    // Check for continuity
+    let isContiguous = true
+    if (sorted.length > 1) {
+        for (let i = 0; i < sorted.length - 1; i++) {
+            if (ALL_MONTHS.indexOf(sorted[i + 1]) !== ALL_MONTHS.indexOf(sorted[i]) + 1) {
+                isContiguous = false
+                break
+            }
+        }
+    }
+
+    if (isContiguous && sorted.length > 1) {
+        return `${year} : Desde ${sorted[0]} Hasta: ${sorted[sorted.length - 1]}`
+    }
+
+    // Single month or non-contiguous
+    return `${year} : ${sorted.join(", ")}`
+}
+
 export default function ReportsPage() {
     const { fetchIncomeExpense, fetchOccupancy, fetchDelinquency, fetchMaintenance, fetchPropertyPerformance, isLoading } = useReports()
     const { properties, loading: isLoadingProperties } = useProperties()
+    const { owners, loading: isLoadingOwners } = useOwners()
 
     // State for Report Data
     const [incomeExpenseData, setIncomeExpenseData] = useState<IncomeExpenseData | null>(null)
@@ -96,9 +132,11 @@ export default function ReportsPage() {
     const [filters, setFilters] = useState({
         months: ['MARZO'] as string[],
         year: '2024',
-        properties: [] as string[]
+        properties: [] as string[],
+        owners: [] as string[]
     })
     const [openPropertySelect, setOpenPropertySelect] = useState(false)
+    const [openOwnerSelect, setOpenOwnerSelect] = useState(false)
     const [openMonthSelect, setOpenMonthSelect] = useState(false)
 
     const componentRef = useRef<HTMLDivElement>(null)
@@ -108,11 +146,29 @@ export default function ReportsPage() {
         documentTitle: `Reporte_${selectedReportId}_${filters.year}`,
     })
 
+    // Derived state for properties based on selected owners
+    const selectableProperties = useMemo(() => {
+        if (filters.owners.length === 0) return properties
+
+        const selectedOwnersData = owners.filter(o => filters.owners.includes(o.id))
+        const ownerPropertyIds = new Set<string>()
+
+        selectedOwnersData.forEach(o => {
+            o.properties?.forEach(p => ownerPropertyIds.add(p.id))
+        })
+
+        return properties.filter(p => ownerPropertyIds.has(p.id))
+    }, [filters.owners, owners, properties])
+
     const router = useRouter()
 
     const handleSelectReport = (id: string) => {
         if (id === 'owners') {
             router.push('/reports/owners')
+            return
+        }
+        if (id === 'tenant-statement') {
+            router.push('/reports/tenants')
             return
         }
         setSelectedReportId(id)
@@ -126,20 +182,48 @@ export default function ReportsPage() {
 
     const handleGenerate = async () => {
         setIsGenerated(true)
+
+        // Calculate impactful properties based on filters
+        let propertiesToFetch = filters.properties
+
+        // If owners are selected, we must filter properties to ONLY those belonging to selected owners
+        if (filters.owners.length > 0) {
+            // 1. Get all properties from selected owners
+            const selectedOwnersData = owners.filter(o => filters.owners.includes(o.id))
+            const ownerPropertyIds = new Set<string>()
+            
+            selectedOwnersData.forEach(o => {
+                o.properties?.forEach(p => ownerPropertyIds.add(p.id))
+            })
+
+            // 2. Logic:
+            // - If NO specific properties selected, use ALL properties from these owners.
+            // - If specific properties SELECTED, use INTERSECTION (selected properties that belong to these owners).
+            
+            if (propertiesToFetch.length === 0) {
+                propertiesToFetch = Array.from(ownerPropertyIds)
+            } else {
+                propertiesToFetch = propertiesToFetch.filter(pid => ownerPropertyIds.has(pid))
+            }
+
+            // Quick check: if intersection is empty, maybe warn? 
+            // For now, if empty, it will just return empty report, which is correct (no properties match criteria)
+        }
+
         if (selectedReportId === 'income-expense') {
-            const data = await fetchIncomeExpense(filters.months, filters.year, filters.properties)
+            const data = await fetchIncomeExpense(filters.months, filters.year, propertiesToFetch)
             setIncomeExpenseData(data)
         } else if (selectedReportId === 'occupancy') {
-            const data = await fetchOccupancy(filters.properties)
+            const data = await fetchOccupancy(propertiesToFetch)
             setOperationalData(data)
         } else if (selectedReportId === 'delinquency') {
-            const data = await fetchDelinquency(filters.properties)
+            const data = await fetchDelinquency(propertiesToFetch)
             setOperationalData(data)
         } else if (selectedReportId === 'maintenance') {
-            const data = await fetchMaintenance(filters.properties)
+            const data = await fetchMaintenance(propertiesToFetch)
             setMaintenanceData(data)
         } else if (selectedReportId === 'performance') {
-            const data = await fetchPropertyPerformance(filters.properties)
+            const data = await fetchPropertyPerformance(propertiesToFetch)
             setPerformanceData(data)
         }
     }
@@ -178,10 +262,38 @@ export default function ReportsPage() {
 
     const toggleAllProperties = () => {
         setFilters(prev => {
-            if (prev.properties.length === properties.length) {
-                return { ...prev, properties: [] }
+            // Check if all *selectable* properties are already selected
+            const allSelectableIds = selectableProperties.map(p => p.id)
+            const areAllSelected = allSelectableIds.every(id => prev.properties.includes(id)) && allSelectableIds.length > 0
+            
+            if (areAllSelected) {
+                // Deselect all selectable properties
+                return { ...prev, properties: prev.properties.filter(id => !allSelectableIds.includes(id)) }
             } else {
-                return { ...prev, properties: properties.map(p => p.id) }
+                // Select all selectable properties (avoid duplicates)
+                const newSelection = Array.from(new Set([...prev.properties, ...allSelectableIds]))
+                return { ...prev, properties: newSelection }
+            }
+        })
+    }
+
+    const toggleOwner = (value: string) => {
+        setFilters(prev => {
+            const current = prev.owners
+            if (current.includes(value)) {
+                return { ...prev, owners: current.filter(o => o !== value) }
+            } else {
+                return { ...prev, owners: [...current, value] }
+            }
+        })
+    }
+
+    const toggleAllOwners = () => {
+        setFilters(prev => {
+            if (prev.owners.length === owners.length) {
+                return { ...prev, owners: [] }
+            } else {
+                return { ...prev, owners: owners.map(o => o.id) }
             }
         })
     }
@@ -348,6 +460,69 @@ export default function ReportsPage() {
                                     </Select>
                                 </div>
                             </div>
+                            
+                            {/* OWNER SELECTOR */}
+                            <div className="space-y-2">
+                                <Label>Propietario(s) (Opcional)</Label>
+                                <Popover open={openOwnerSelect} onOpenChange={setOpenOwnerSelect}>
+                                    <PopoverTrigger asChild>
+                                        <Button
+                                            variant="outline"
+                                            role="combobox"
+                                            aria-expanded={openOwnerSelect}
+                                            className="w-full justify-between"
+                                        >
+                                            {filters.owners.length === 0
+                                                ? "Todos (Sin filtro)"
+                                                : filters.owners.length === owners.length
+                                                    ? "Todos los Propietarios"
+                                                    : `${filters.owners.length} seleccionado(s)`}
+                                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-full p-0">
+                                        <Command>
+                                            <CommandInput placeholder="Buscar propietario..." />
+                                            <CommandList>
+                                                <CommandEmpty>No se encontraron propietarios.</CommandEmpty>
+                                                <CommandGroup>
+                                                    <CommandItem
+                                                        onSelect={toggleAllOwners}
+                                                        className="font-medium"
+                                                    >
+                                                        <Check
+                                                            className={cn(
+                                                                "mr-2 h-4 w-4",
+                                                                filters.owners.length === owners.length
+                                                                    ? "opacity-100"
+                                                                    : "opacity-0"
+                                                            )}
+                                                        />
+                                                        Todos los Propietarios
+                                                    </CommandItem>
+                                                    {owners.map((owner) => (
+                                                        <CommandItem
+                                                            key={owner.id}
+                                                            value={owner.id}
+                                                            onSelect={() => toggleOwner(owner.id)}
+                                                        >
+                                                            <Check
+                                                                className={cn(
+                                                                    "mr-2 h-4 w-4",
+                                                                    filters.owners.includes(owner.id)
+                                                                        ? "opacity-100"
+                                                                        : "opacity-0"
+                                                                )}
+                                                            />
+                                                            {owner.name}
+                                                        </CommandItem>
+                                                    ))}
+                                                </CommandGroup>
+                                            </CommandList>
+                                        </Command>
+                                    </PopoverContent>
+                                </Popover>
+                            </div>
 
                             <div className="space-y-2">
                                 <Label>Propiedad / Edificio</Label>
@@ -361,8 +536,8 @@ export default function ReportsPage() {
                                         >
                                             {filters.properties.length === 0
                                                 ? "Seleccionar propiedades..."
-                                                : filters.properties.length === properties.length
-                                                    ? "Todas las Propiedades"
+                                                : filters.properties.length === selectableProperties.length
+                                                    ? "Todas las Propiedades (Filtradas)"
                                                     : `${filters.properties.length} seleccionada(s)`}
                                             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                         </Button>
@@ -380,14 +555,14 @@ export default function ReportsPage() {
                                                         <Check
                                                             className={cn(
                                                                 "mr-2 h-4 w-4",
-                                                                filters.properties.length === properties.length
+                                                                filters.properties.length === selectableProperties.length && selectableProperties.length > 0
                                                                     ? "opacity-100"
                                                                     : "opacity-0"
                                                             )}
                                                         />
                                                         Todas las Propiedades
                                                     </CommandItem>
-                                                    {properties.map((property) => (
+                                                    {selectableProperties.map((property) => (
                                                         <CommandItem
                                                             key={property.id}
                                                             value={property.id}
@@ -417,18 +592,22 @@ export default function ReportsPage() {
                                     <p>Se generará el reporte con los siguientes criterios:</p>
                                     <ul className="list-disc list-inside mt-1">
                                         <li>Periodo: <strong>
-                                            {filters.months.length === ALL_MONTHS.length
-                                                ? "Todo el Año"
-                                                : filters.months.join(", ")}
-                                            {` ${filters.year}`}
+                                            {formatPeriod(filters.months, filters.year)}
                                         </strong></li>
                                         <li>Alcance: <strong>
                                             {filters.properties.length === 0
-                                                ? "Ninguna seleccionada"
+                                                ? "Ninguna seleccionada (Todas las disponibles)"
                                                 : filters.properties.length === properties.length
                                                     ? "Todas las Propiedades"
                                                     : `${filters.properties.length} propiedades seleccionadas`}
                                         </strong></li>
+                                        {filters.owners.length > 0 && (
+                                            <li>Filtro Propietarios: <strong>
+                                                {filters.owners.length === owners.length
+                                                    ? "Todos"
+                                                    : `${filters.owners.length} seleccionados`}
+                                            </strong></li>
+                                        )}
                                     </ul>
                                 </div>
                             </div>
@@ -455,7 +634,7 @@ export default function ReportsPage() {
                             <div className="text-sm">
                                 <span className="text-muted-foreground">Reporte:</span> <strong>{selectedReport?.title}</strong>
                                 <span className="mx-2 text-muted-foreground">|</span>
-                                <span className="text-muted-foreground">Periodo:</span> <strong>{filters.months.join(", ")} {filters.year}</strong>
+                                <span className="text-muted-foreground">Periodo:</span> <strong>{formatPeriod(filters.months, filters.year)}</strong>
                             </div>
                         </div>
                         <div className="flex gap-2">
@@ -473,9 +652,8 @@ export default function ReportsPage() {
                             {selectedReportId === 'income-expense' && incomeExpenseData && (
                                 <IncomeExpenseReport
                                     ref={componentRef}
-                                    month={filters.months.join("-")} // Prop rename? Or update component to handle string?
-                                    // Component expects string, join is fine for now for title mostly
-                                    year={filters.year}
+                                    month={formatPeriod(filters.months, filters.year)}
+                                    year=""
                                     dataUsd={incomeExpenseData.dataUsd}
                                     dataBs={incomeExpenseData.dataBs}
                                     dataExpenses={incomeExpenseData.dataExpenses}
@@ -487,7 +665,7 @@ export default function ReportsPage() {
                                     ref={componentRef}
                                     type="occupancy"
                                     data={operationalData}
-                                // We might want to pass context (filters)?
+                                    period={formatPeriod(filters.months, filters.year)}
                                 />
                             )}
                             {selectedReportId === 'delinquency' && operationalData && (
@@ -495,18 +673,21 @@ export default function ReportsPage() {
                                     ref={componentRef}
                                     type="delinquency"
                                     data={operationalData}
+                                    period={formatPeriod(filters.months, filters.year)}
                                 />
                             )}
                             {selectedReportId === 'maintenance' && maintenanceData && (
                                 <MaintenanceReport
                                     ref={componentRef}
                                     data={maintenanceData}
+                                    period={formatPeriod(filters.months, filters.year)}
                                 />
                             )}
                             {selectedReportId === 'performance' && performanceData && (
                                 <PropertyPerformanceReport
                                     ref={componentRef}
                                     data={performanceData}
+                                    period={formatPeriod(filters.months, filters.year)}
                                 />
                             )}
                         </div>

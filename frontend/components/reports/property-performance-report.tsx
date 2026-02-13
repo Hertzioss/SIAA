@@ -18,13 +18,14 @@ import { forwardRef } from "react"
 
 interface PropertyPerformanceProps {
     data: any[]
+    period?: string
 }
 
 /**
  * Reporte de rendimiento por propiedad.
  * Ofrece un análisis comparativo de ingresos vs. egresos y calcula el margen de utilidad neta.
  */
-export const PropertyPerformanceReport = forwardRef<HTMLDivElement, PropertyPerformanceProps>(({ data }, ref) => {
+export const PropertyPerformanceReport = forwardRef<HTMLDivElement, PropertyPerformanceProps>(({ data, period }, ref) => {
 
     const totalIncome = data.reduce((sum, item) => sum + item.income, 0)
     const totalExpense = data.reduce((sum, item) => sum + item.expense, 0)
@@ -35,6 +36,7 @@ export const PropertyPerformanceReport = forwardRef<HTMLDivElement, PropertyPerf
             <div className="text-center mb-8 border-b pb-4">
                 <h2 className="text-2xl font-bold uppercase tracking-wider mb-1">Rendimiento por Propiedad</h2>
                 <p className="text-sm text-gray-500">Análisis comparativo de Ingresos vs Egresos (USD)</p>
+                {period && <p className="text-sm text-gray-500 font-medium mt-1 uppercase">{period}</p>}
                 <div className="text-xs text-gray-400 mt-2">
                     Generado el: {new Date().toLocaleDateString()}
                 </div>
