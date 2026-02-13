@@ -13,9 +13,10 @@ import { PaymentDialog } from "@/components/tenants/payment-dialog"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import { PrintableReceiptHandler } from "@/components/printable-receipt-handler"
-import { Check, X, Search, FileText, Loader2, Edit2, ChevronLeft, ChevronRight, ArrowUpDown, Printer as PrinterIcon } from "lucide-react"
+import { Check, X, Search, FileText, Loader2, Edit2, ChevronLeft, ChevronRight, ArrowUpDown, Printer as PrinterIcon, Pencil, ArrowLeftRight } from "lucide-react"
 import { parseISO, format as formatFn } from "date-fns"
 import { ExportButtons } from "@/components/export-buttons"
+import { PaymentEditDialog } from "@/components/payments/payment-edit-dialog"
 
 /**
  * Página para la gestión y conciliación de pagos.
@@ -26,7 +27,7 @@ export default function PaymentsPage() {
         payments, loading, total,
         page, setPage, pageSize, setPageSize,
         statusFilter, setStatusFilter,
-        updatePaymentStatus
+        updatePaymentStatus, updatePayment, fetchFullPayment
     } = usePayments()
 
     const [searchTerm, setSearchTerm] = useState("")
@@ -95,6 +96,9 @@ export default function PaymentsPage() {
 
     // Generic Register Dialog State
     const [isRegisterDialogOpen, setIsRegisterDialogOpen] = useState(false)
+
+    // Edit Dialog State
+    const [editingPayment, setEditingPayment] = useState<Payment | null>(null)
 
     // Receipt Component State
     const [selectedPaymentForReceipt, setSelectedPaymentForReceipt] = useState<Payment | null>(null)
@@ -298,14 +302,14 @@ export default function PaymentsPage() {
                                                             </Button>
                                                         </>
                                                     ) : (
-                                                        // "Edit" button for non-pending to allow re-evaluation
+                                                        // "Change Status" button for non-pending to allow re-evaluation
                                                         <Button
                                                             size="sm"
                                                             variant="ghost"
                                                             onClick={() => handleActionClick(payment.id, payment.status === 'approved' ? 'reject' : 'approve')}
-                                                            title="Cambiar Estado"
+                                                            title="Cambiar Estado (Revertir/Re-evaluar)"
                                                         >
-                                                            <Edit2 className="h-4 w-4 text-muted-foreground" />
+                                                            <ArrowLeftRight className="h-4 w-4 text-orange-500" />
                                                         </Button>
                                                     )}
                                                     {payment.proof_url && (
@@ -316,12 +320,27 @@ export default function PaymentsPage() {
                                                         </Button>
                                                     )}
 
+                                                    {/* Always allow edit - for corrections */}
+                                                    <Button
+                                                        size="sm"
+                                                        variant="ghost" 
+                                                        onClick={() => setEditingPayment(payment)}
+                                                        title="Editar Datos del Pago"
+                                                    >
+                                                        <Pencil className="h-4 w-4 text-primary" />
+                                                    </Button>
+
                                                     {(payment.status === 'approved' || payment.status === 'paid') && (
                                                         <Button
                                                             size="sm"
                                                             variant="outline"
                                                             className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                                                            onClick={() => setSelectedPaymentForReceipt(payment)}
+                                                            onClick={async () => {
+                                                                const fullPayment = await fetchFullPayment(payment.id);
+                                                                if (fullPayment) {
+                                                                    setSelectedPaymentForReceipt(fullPayment)
+                                                                }
+                                                            }}
                                                             title="Imprimir Recibo"
                                                         >
                                                             <PrinterIcon className="h-4 w-4 mr-1" />
@@ -411,6 +430,13 @@ export default function PaymentsPage() {
                 onOpenChange={setIsRegisterDialogOpen}
                 tenant={undefined}
                 isAdmin={true}
+            />
+
+            <PaymentEditDialog
+                open={!!editingPayment}
+                onOpenChange={(open) => !open && setEditingPayment(null)}
+                payment={editingPayment}
+                onSave={updatePayment}
             />
 
             {selectedPaymentForReceipt && (
