@@ -103,6 +103,7 @@ export function usePayments() {
                         reference: p.reference || p.reference_number,
                         billing_period: p.billing_period,
                         tenants: p.tenants, // mapped from 'tenants' relation
+                        tenant: p.tenants, // alias for frontend consistency
                         
                         // Main list doesn't need deep owner structure, just basics for table
                         contracts: {
@@ -177,6 +178,7 @@ export function usePayments() {
                 reference: p.reference || p.reference_number,
                 billing_period: p.billing_period,
                 tenants: p.tenants,
+                tenant: p.tenants,
                 contracts: {
                     units: {
                         name: unitData?.name,
