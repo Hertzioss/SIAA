@@ -52,7 +52,7 @@ const data = {
   user: {
     name: "shadcn",
     email: "m@example.com",
-    avatar: "https://github.com/shadcn.png",
+    avatar: "https://ui-avatars.com/api/?name=shadcn&background=random",
   },
   navMain: [
     {
@@ -213,7 +213,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         setUser({
           name: user.user_metadata?.name || user.email?.split('@')[0] || "Usuario",
           email: user.email || "",
-          avatar: user.user_metadata?.avatar || "https://github.com/shadcn.png" // Fallback avatar
+          avatar: user.user_metadata?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.user_metadata?.name || user.email?.split('@')[0] || "Usuario")}&background=random` // Fallback avatar
         })
       }
     }
