@@ -39,10 +39,41 @@ export interface Payment extends BasePayment {
     };
 }
 
+interface PropertyData {
+    name: string;
+}
+
+interface UnitData {
+    name: string;
+    type?: string;
+    properties: PropertyData | PropertyData[];
+}
+
+interface ContractData {
+    id: string;
+    units: UnitData | UnitData[];
+}
+
+interface PaymentQueryRow extends Pick<BasePayment, 
+    'id' | 'amount' | 'date' | 'status' | 'currency' | 'method' | 'payment_method' | 
+    'exchange_rate' | 'reference_number' | 'reference' | 'billing_period' | 'notes' | 
+    'contract_id' | 'tenant_id' | 'created_at' | 'proof_url'
+> {
+    tenants: {
+        name: string;
+        doc_id: string;
+        email?: string;
+    } | {
+        name: string;
+        doc_id: string;
+        email?: string;
+    }[] | null;
+}
+
 export function usePayments() {
     const [payments, setPayments] = useState<Payment[]>([]);
     const [loading, setLoading] = useState(true);
-
+    
     // Pagination & Filters State
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(10);
@@ -61,15 +92,7 @@ export function usePayments() {
                 .from('payments')
                 .select(`
                     id, amount, date, status, currency, method, payment_method, exchange_rate, reference_number, reference, billing_period, notes, contract_id, tenant_id, created_at, proof_url,
-                    tenants(name, doc_id, email),
-                    contracts(
-                        units(
-                            name, type,
-                            properties(
-                                name
-                            )
-                        )
-                    )
+                    tenants(name, doc_id, email)
                 `, { count: 'estimated' });
 
             if (statusFilter !== 'all') {
@@ -88,22 +111,52 @@ export function usePayments() {
 
             if (error) throw error;
 
+            // 2. Fetch Contract Details (Batch) to avoid deep join timeout
+            const contractIds = data?.map((p: PaymentQueryRow) => p.contract_id).filter(Boolean) || [];
+            const contractsMap: Record<string, ContractData> = {};
+
+            if (contractIds.length > 0) {
+                const { data: contractsData } = await supabase
+                    .from('contracts')
+                    .select(`
+                        id,
+                        units (
+                            name, type,
+                            properties (
+                                name
+                            )
+                        )
+                    `)
+                    .in('id', contractIds);
+                
+                contractsData?.forEach((c: ContractData) => {
+                    // Force cast to ContractData as Supabase types might not perfectly align with our manual join shape without generics
+                    contractsMap[c.id] = c;
+                });
+            }
+
             // Transform data
-            const formatted: Payment[] = data?.map((p: any) => {
+            const formatted: Payment[] = data?.map((p: PaymentQueryRow) => {
                 try {
+                    // Get contract from map instead of join
+                    const contractData = contractsMap[p.contract_id || ''];
+                    
                     // Handle relations without aliases (plural standard)
-                    const contractData = Array.isArray(p.contracts) ? p.contracts[0] : p.contracts;
+                    // const contractData = Array.isArray(p.contracts) ? p.contracts[0] : p.contracts; // OLD
+                    
                     const unitData = Array.isArray(contractData?.units) ? contractData?.units[0] : contractData?.units;
                     
                     const propertyData = Array.isArray(unitData?.properties) ? unitData?.properties[0] : unitData?.properties;
+
+                    const tenantData = (Array.isArray(p.tenants) ? p.tenants[0] : p.tenants) || undefined;
 
                     return {
                         ...p,
                         // Map DB columns to Frontend Interface
                         reference: p.reference || p.reference_number,
                         billing_period: p.billing_period,
-                        tenants: p.tenants, // mapped from 'tenants' relation
-                        tenant: p.tenants, // alias for frontend consistency
+                        tenants: tenantData, // mapped from 'tenants' relation
+                        tenant: tenantData, // alias for frontend consistency
                         
                         // Main list doesn't need deep owner structure, just basics for table
                         contracts: {
@@ -127,15 +180,16 @@ export function usePayments() {
                     console.error("Error mapping payment item:", p, mapErr);
                     return null;
                 }
-            }).filter(Boolean) || []; // Filter out failed mappings
+            }).filter(Boolean) as Payment[] || []; // Filter out failed mappings
 
             // No client-side sort or slice needed anymore
             setPayments(formatted);
             setTotal(count || 0);
 
-        } catch (err: any) {
-            console.error('Error fetching payments details:', err.message, err.stack);
-            toast.error('Error al cargar pagos', { description: err.message || 'Error desconocido' });
+        } catch (err: unknown) {
+            const error = err as Error;
+            console.error('Error fetching payments details:', error.message, error.stack);
+            toast.error('Error al cargar pagos', { description: error.message || 'Error desconocido' });
         } finally {
             setLoading(false);
         }
@@ -172,13 +226,14 @@ export function usePayments() {
             const contractData = Array.isArray(p.contracts) ? p.contracts[0] : p.contracts;
             const unitData = Array.isArray(contractData?.units) ? contractData?.units[0] : contractData?.units;
             const propertyData = Array.isArray(unitData?.properties) ? unitData?.properties[0] : unitData?.properties;
+            const tenantData = (Array.isArray(p.tenants) ? p.tenants[0] : p.tenants) || undefined;
 
             return {
                 ...p,
                 reference: p.reference || p.reference_number,
                 billing_period: p.billing_period,
-                tenants: p.tenants,
-                tenant: p.tenants,
+                tenants: tenantData,
+                tenant: tenantData,
                 contracts: {
                     units: {
                         name: unitData?.name,
@@ -218,10 +273,11 @@ export function usePayments() {
                     : 'El estado del pago ha sido actualizado en el sistema.'
             });
             fetchPayments(); // Refresh list to update UI
-        } catch (err: any) {
-            console.error('Error updating payment:', err);
+        } catch (err: unknown) {
+            const error = err as Error;
+            console.error('Error updating payment:', error);
              // Check for specific API errors
-            const errorMessage = err.message || 'Error desconocido al procesar el pago';
+            const errorMessage = error.message || 'Error desconocido al procesar el pago';
             toast.error(`No se pudo actualizar el pago`, { description: errorMessage });
         }
     };
@@ -237,9 +293,10 @@ export function usePayments() {
 
             toast.success("Pago actualizado correctamente")
             fetchPayments() // Refresh list
-        } catch (err: any) {
-            console.error('Error updating payment details:', err)
-            toast.error('No se pudo actualizar el pago', { description: err.message })
+        } catch (err: unknown) {
+            const error = err as Error;
+            console.error('Error updating payment details:', error)
+            toast.error('No se pudo actualizar el pago', { description: error.message })
         }
     }
 
