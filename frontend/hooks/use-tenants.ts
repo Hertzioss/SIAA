@@ -3,6 +3,13 @@ import { supabase } from '@/lib/supabase';
 import { Tenant } from '@/types/tenant';
 import { toast } from 'sonner';
 
+
+interface DbError {
+    code?: string;
+    message?: string;
+    details?: string;
+}
+
 export interface ContractData {
     unit_id: string;
     start_date: string;
@@ -40,10 +47,11 @@ export function useTenants() {
 
             // Post-process to attach "currentProperty" for easier UI handling if needed
             // But raw structure is fine if we filter carefully.
-            setTenants(data as any || []);
-        } catch (err: any) {
+            setTenants((data as Tenant[]) || []);
+        } catch (err: unknown) {
             console.error('Error fetching tenants:', err);
-            setError(err.message);
+            const message = err instanceof Error ? err.message : (err as { message: string })?.message || 'Error desconocido';
+            setError(message);
             toast.error('Error al cargar inquilinos');
         } finally {
             setLoading(false);
@@ -164,7 +172,8 @@ export function useTenants() {
             return tenant;
 
 
-        } catch (err: any) {
+        } catch (error: unknown) {
+            const err = error as DbError;
             const errorString = JSON.stringify(err);
             
             // Comprehensive duplicate detection
@@ -228,7 +237,8 @@ export function useTenants() {
 
             toast.success('Inquilino actualizado exitosamente');
             fetchTenants();
-        } catch (err: any) {
+        } catch (error: unknown) {
+            const err = error as DbError;
             console.error('Error updating tenant:', err);
             toast.error(`Error al actualizar inquilino: ${err.message}`);
             throw err;
@@ -310,7 +320,8 @@ export function useTenants() {
 
             toast.success('Inquilino y sus registros asociados eliminados');
             setTenants(prev => prev.filter(t => t.id !== id));
-        } catch (err: any) {
+        } catch (error: unknown) {
+            const err = error as DbError;
             console.error('Error deleting tenant:', err);
             // Supabase errors usually have a details or message field
             const errorMessage = err?.message || err?.details || JSON.stringify(err);
