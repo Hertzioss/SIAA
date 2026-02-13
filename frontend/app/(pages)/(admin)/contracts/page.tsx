@@ -6,17 +6,17 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { FileText, Download, Mail, Plus, MoreHorizontal, Search, Edit, Trash, ChevronLeft, ChevronRight, AlertCircle, CheckCircle2, Clock, ArrowUpDown } from "lucide-react"
+import { FileText, Download, Mail, Plus, Search, Edit, Trash, ChevronLeft, ChevronRight, AlertCircle, CheckCircle2, Clock, ArrowUpDown } from "lucide-react"
 import { toast } from "sonner"
 import { ContractDialog } from "@/components/contracts/contract-dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+
 import { useProperties } from "@/hooks/use-properties"
 import { useTenants } from "@/hooks/use-tenants"
-import { useContracts } from "@/hooks/use-contracts"
+import { useContracts, Contract, ContractInsert, ContractUpdate } from "@/hooks/use-contracts"
 import { generateContractPDF } from "@/components/contracts/contract-pdf-generator"
 
-import { useRouter, useSearchParams } from "next/navigation"
+import { useSearchParams } from "next/navigation"
 import {
     AlertDialog,
     AlertDialogAction,
@@ -28,19 +28,33 @@ import {
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 
+// Define local type for table display
+type ContractRow = Omit<Contract, 'status'> & {
+    status: string // Display status (e.g., "Vencido", "Por Vencer")
+    property: string
+    tenant: string
+    duration: string
+    displayStartDate: string
+    displayEndDate: string
+    statusRaw: Contract['status'] // Original status
+    startDate: string
+    endDate: string
+    amount: number
+}
+
 /**
  * Componente de contenido para la gestión de contratos.
  * Lista contratos con filtrado por estado y búsqueda.
  */
 function ContractsContent() {
-    const { contracts, isLoading, fetchContracts, createContract, updateContract, deleteContract } = useContracts()
+    const { contracts, isLoading, createContract, updateContract, deleteContract } = useContracts()
     const { properties } = useProperties()
     const { tenants } = useTenants()
     const searchParams = useSearchParams()
 
     const [isDialogOpen, setIsDialogOpen] = useState(false)
     const [dialogMode, setDialogMode] = useState<"create" | "view" | "edit">("create")
-    const [selectedContract, setSelectedContract] = useState<any>(null)
+    const [selectedContract, setSelectedContract] = useState<ContractRow | null>(null)
     const [searchTerm, setSearchTerm] = useState(searchParams.get("q") || "")
     const [statusFilter, setStatusFilter] = useState("all")
     const [currentPage, setCurrentPage] = useState(1)
@@ -48,7 +62,7 @@ function ContractsContent() {
 
     // Delete Confirmation State
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
-    const [contractToDelete, setContractToDelete] = useState<any>(null)
+    const [contractToDelete, setContractToDelete] = useState<ContractRow | null>(null)
 
     // Sorting State
     const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null)
@@ -62,14 +76,14 @@ function ContractsContent() {
     }
 
     // Helper to format contract for display
-    const formatContractData = (c: any) => {
+    const formatContractData = (c: Contract): ContractRow => {
         const propertyName = c.units?.properties?.name || "Propiedad Desconocida"
         const unitName = c.units?.name || "Unidad"
         const tenantName = c.tenants?.name || "Inquilino Desconocido"
 
         // Calculate duration approx
         let duration = "Indefinido"
-        let displayStatus = c.status // Default to raw status
+        let calculatedStatus = c.status === 'active' ? 'Activo' : String(c.status)
 
         if (c.end_date) {
             const start = new Date(c.start_date)
@@ -77,38 +91,29 @@ function ContractsContent() {
             const diffMonths = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth())
             duration = `${diffMonths} Meses`
 
-            // Check status based on date
             const now = new Date()
             const thirtyDaysFromNow = new Date()
             thirtyDaysFromNow.setDate(now.getDate() + 30)
-
             const endDate = new Date(c.end_date)
 
             if (c.status === 'expired' || endDate < now) {
-                displayStatus = "Vencido"
+                calculatedStatus = "Vencido"
             } else if (c.status === 'active' && endDate <= thirtyDaysFromNow) {
-                displayStatus = "Por Vencer"
-            } else if (c.status !== 'active') {
-                displayStatus = c.status
+                calculatedStatus = "Por Vencer"
             }
+            // If active and not expiring, it remains 'Activo'
         }
 
         return {
-            id: c.id,
+            ...c, // Spread original contract to include file_url, etc.
+            status: calculatedStatus,
             property: `${propertyName} - ${unitName}`,
             tenant: tenantName,
             startDate: c.start_date,
             endDate: c.end_date || "Indefinido",
             duration: duration,
-            status: displayStatus,
             amount: c.rent_amount,
             type: c.type,
-            // Raw data for edit
-            unit_id: c.unit_id,
-            tenant_id: c.tenant_id,
-            rent_amount: c.rent_amount,
-            start_date: c.start_date,
-            end_date: c.end_date,
             displayStartDate: new Date(c.start_date).toLocaleDateString('es-VE', { day: '2-digit', month: '2-digit', year: 'numeric' }),
             displayEndDate: c.end_date ? new Date(c.end_date).toLocaleDateString('es-VE', { day: '2-digit', month: '2-digit', year: 'numeric' }) : "Indefinido",
             statusRaw: c.status
@@ -132,11 +137,12 @@ function ContractsContent() {
     const sortedContracts = [...filteredContracts]
     if (sortConfig) {
         sortedContracts.sort((a, b) => {
-            // @ts-ignore
+            // @ts-expect-error sort key access
+
             if (a[sortConfig.key] < b[sortConfig.key]) {
                 return sortConfig.direction === 'asc' ? -1 : 1
             }
-            // @ts-ignore
+            // @ts-expect-error sort key access
             if (a[sortConfig.key] > b[sortConfig.key]) {
                 return sortConfig.direction === 'asc' ? 1 : -1
             }
@@ -175,7 +181,7 @@ function ContractsContent() {
         return end > now
     }).length
 
-    const handleDownload = (contract: any) => {
+    const handleDownload = (contract: ContractRow) => {
         if (contract.file_url) {
             window.open(contract.file_url, '_blank')
             toast.success("Abriendo archivo del contrato...")
@@ -185,7 +191,7 @@ function ContractsContent() {
         }
     }
 
-    const handleEmail = async (contract: any) => {
+    const handleEmail = async (contract: ContractRow) => {
         const email = contract.tenants?.email
         const name = contract.tenants?.name
 
@@ -227,24 +233,38 @@ function ContractsContent() {
         setIsDialogOpen(true)
     }
 
-    const handleViewDetail = (contract: any) => {
+    const handleViewDetail = (contract: ContractRow) => {
         setDialogMode("view")
         setSelectedContract(contract)
         setIsDialogOpen(true)
     }
 
-    const handleEdit = (contract: any) => {
+    const handleEdit = (contract: ContractRow) => {
         setDialogMode("edit")
         setSelectedContract(contract)
         setIsDialogOpen(true)
     }
 
-    const handleSaveContract = async (data: any) => {
+    const handleSaveContract = async (data: ContractInsert & { file?: File | null }) => {
         try {
             if (dialogMode === "create") {
                 await createContract(data)
             } else if (dialogMode === "edit" && selectedContract) {
-                await updateContract(selectedContract.id, data)
+                // Ensure data satisfies ContractUpdate which is Partial<ContractInsert>
+                // Need to strip off fields that might not be in ContractUpdate if any?
+                // But ContractInsert IS assignable to ContractUpdate (Partial<ContractInsert>)
+                // Only potential issue is if updateContract expects `file: File`, and data has `file: File | null`.
+                // Check useContracts line 178: updateContract(id, updates: ContractUpdate & { file?: File })
+                // data.file can be null. updateContract expects file (optional) to be File.
+                // It is defined as `{ file?: File }`. If `data.file` is `undefined`, it's fine. If `data.file` is `null`, it's potentially an issue if explicit undefined check is used.
+                // However, let's cast or adjust for safety if needed.
+                
+                const updateData: ContractUpdate & { file?: File } = {
+                    ...data,
+                    file: data.file || undefined // convert null to undefined
+                }
+                
+                await updateContract(selectedContract.id, updateData)
             }
             setIsDialogOpen(false)
         } catch (error) {
@@ -253,7 +273,7 @@ function ContractsContent() {
         }
     }
 
-    const confirmDelete = (contract: any) => {
+    const confirmDelete = (contract: ContractRow) => {
         setContractToDelete(contract)
         setIsDeleteDialogOpen(true)
     }
