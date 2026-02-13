@@ -25,6 +25,7 @@ interface PaymentReceiptProps {
         name: string
         rif: string
         phone?: string
+        email?: string
     }
     owners?: {
         name: string
@@ -222,7 +223,7 @@ export const PaymentReceipt = React.forwardRef<HTMLDivElement, PaymentReceiptPro
                         Impreso por: <span className="font-bold">{company?.name || 'Escritorio Legal'}</span> | Telf: <span className="font-bold">{company?.phone || ''}</span> | RIF: <span className="font-bold">{company?.rif || ''}</span> 
                     </div>
                     <div>
-                        <span className="font-bold">www.escritorio.legal </span> 
+                        <span className="font-bold"> www.escritorio.legal | {company?.email || ''} </span> 
                     </div>
                 </div>
             </div>

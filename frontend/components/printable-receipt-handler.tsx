@@ -75,7 +75,8 @@ export function PrintableReceiptHandler({ payment, onClose }: PrintableReceiptHa
                 company={{
                      name: companyName,
                      rif: companyRif,
-                     phone: config?.phone || ''
+                     phone: config?.phone || '',
+                     email: config?.email || ''
                 }}
                 owners={payment.contracts?.units?.properties?.property_owners?.map((po: { owners: { name: string; doc_id: string; logo_url?: string | null } }) => ({
                     name: po.owners?.name,
