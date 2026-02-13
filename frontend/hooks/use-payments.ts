@@ -76,15 +76,15 @@ export function usePayments() {
                 query = query.eq('status', statusFilter);
             }
 
-            // Fetch more items to allow client-side sorting
-            // Reduced limit to prevent timeouts, but still allow some range
+            // Server-side Pagination
+            const from = (page - 1) * pageSize;
+            const to = from + pageSize - 1;
+
+            // Sort by Date Descending (Newest first) is the most performant default
+            // The previous "Pending first" client-sort is too expensive for large datasets
             const { data, count, error } = await query
                 .order('date', { ascending: false })
-                .limit(500); 
-
-            if (data && data.length > 0) {
-                // console.log("Raw Payment Data (First Item):", data[0]);
-            }
+                .range(from, to);
 
             if (error) throw error;
 
@@ -128,23 +128,8 @@ export function usePayments() {
                 }
             }).filter(Boolean) || []; // Filter out failed mappings
 
-            // Client-side Sort: Pending first, then Date Descending
-            formatted.sort((a: any, b: any) => {
-                if (a.status === 'pending' && b.status !== 'pending') return -1;
-                if (a.status !== 'pending' && b.status === 'pending') return 1;
-                
-                const dateA = a.date ? new Date(a.date).getTime() : 0;
-                const dateB = b.date ? new Date(b.date).getTime() : 0;
-                
-                return dateB - dateA;
-            });
-
-            // Client-side Pagination
-            const from = (page - 1) * pageSize;
-            const to = from + pageSize;
-            const paginated = formatted.slice(from, to);
-
-            setPayments(paginated);
+            // No client-side sort or slice needed anymore
+            setPayments(formatted);
             setTotal(count || 0);
 
         } catch (err: any) {
