@@ -61,8 +61,8 @@ export function useOwnerReport() {
     const [filters, setFilters] = useState({
         startDate: startOfMonth(new Date()),
         endDate: endOfMonth(new Date()),
-        ownerIds: [],
-        propertyIds: []
+        ownerIds: [] as string[],
+        propertyIds: [] as string[]
     });
 
     // Fetch basic lists (Owners) only once
