@@ -181,8 +181,6 @@ export default function ReportsPage() {
     }
 
     const handleGenerate = async () => {
-        setIsGenerated(true)
-
         // Calculate impactful properties based on filters
         let propertiesToFetch = filters.properties
 
@@ -205,9 +203,6 @@ export default function ReportsPage() {
             } else {
                 propertiesToFetch = propertiesToFetch.filter(pid => ownerPropertyIds.has(pid))
             }
-
-            // Quick check: if intersection is empty, maybe warn? 
-            // For now, if empty, it will just return empty report, which is correct (no properties match criteria)
         }
 
         if (selectedReportId === 'income-expense') {
@@ -226,6 +221,8 @@ export default function ReportsPage() {
             const data = await fetchPropertyPerformance(propertiesToFetch)
             setPerformanceData(data)
         }
+
+        setIsGenerated(true)
     }
 
     const handleBackToSelection = () => {
@@ -641,7 +638,7 @@ export default function ReportsPage() {
                             <Button variant="outline" size="sm" onClick={handleDownloadExcel}>
                                 <FileSpreadsheet className="mr-2 h-4 w-4" /> Excel
                             </Button>
-                            <Button size="sm" onClick={() => handlePrintReport()}>
+                            <Button size="sm" onClick={() => handlePrintReport()} disabled={isLoading}>
                                 <PrinterIcon className="mr-2 h-4 w-4" /> Imprimir / PDF
                             </Button>
                         </div>

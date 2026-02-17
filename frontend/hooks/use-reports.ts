@@ -45,31 +45,71 @@ export function useReports() {
             const startDate = new Date(parseInt(year), minIndex, 1).toISOString().split('T')[0]
             const endDate = new Date(parseInt(year), maxIndex + 1, 0).toISOString().split('T')[0]
 
-            // 1. Fetch Payments
+            // 1. Fetch Payments (Simplified query to avoid deep joins)
             let paymentsQuery = supabase
                 .from('payments')
                 .select(`
-                    *,
-                        contracts (
-                            units (
-                                properties (
-                                    id,
-                                    name
-                                )
-                            ),
-                            tenants (
-                                name
-                            )
-                        )
+                    id, amount, date, status, currency, concept, exchange_rate, contract_id, tenant_id,
+                    tenants(name)
                 `)
                 .gte('date', startDate)
                 .lte('date', endDate)
-                .in('status', ['paid', 'approved']) // Include approved (reconciled) payments
+                .in('status', ['paid', 'approved']) 
 
-            const { data: paymentsData, error: paymentsError } = await paymentsQuery
+            const { data: rawPaymentsData, error: paymentsError } = await paymentsQuery
             if (paymentsError) throw paymentsError
 
-            // 2. Fetch Expenses
+            // 2. Fetch Contract Details in Batch
+            const contractIds = Array.from(new Set(rawPaymentsData?.map((p: any) => p.contract_id).filter(Boolean)))
+            const contractsMap: Record<string, any> = {}
+
+            if (contractIds.length > 0) {
+                const { data: contractsData, error: contractsError } = await supabase
+                    .from('contracts')
+                    .select(`
+                        id,
+                        units (
+                            id,
+                            properties (
+                                id,
+                                name
+                            )
+                        )
+                    `)
+                    .in('id', contractIds)
+
+                if (contractsError) throw contractsError
+
+                contractsData?.forEach((c: any) => {
+                    const unit = Array.isArray(c.units) ? c.units[0] : c.units
+                    const property = Array.isArray(unit?.properties) ? unit?.properties[0] : unit?.properties
+                    contractsMap[c.id] = {
+                        property_id: property?.id,
+                        property_name: property?.name
+                    }
+                })
+            }
+
+            // 3. Merge Payments with Contract/Property info
+            const paymentsData = rawPaymentsData.map((p: any) => {
+                const contractInfo = contractsMap[p.contract_id || '']
+                return {
+                    ...p,
+                    contracts: {
+                        units: {
+                            properties: {
+                                id: contractInfo?.property_id,
+                                name: contractInfo?.property_name
+                            }
+                        },
+                        tenants: {
+                            name: Array.isArray(p.tenants) ? p.tenants[0]?.name : p.tenants?.name
+                        }
+                    }
+                }
+            })
+
+            // 4. Fetch Expenses
             let expensesQuery = supabase
                 .from('expenses')
                 .select(`
@@ -86,20 +126,15 @@ export function useReports() {
             if (expensesError) throw expensesError
 
             // Helper to check if a date falls within the selected specific months
-            // This handles the "gap" case e.g. Jan and Mar selected, but not Feb.
             const isDateInSelectedMonths = (dateStr: string) => {
-                const d = new Date(dateStr)
-                // Adjust for timezone issues if necessary, but usually date string yyyy-mm-dd is fine
-                // We use getMonth() which is 0-11.
-                // Note: creating Date from "2024-01-01" might be UTC. 
-                // Let's be careful. simpler: parse month part from string "YYYY-MM-DD"
                 const monthPart = parseInt(dateStr.split('-')[1]) - 1 // 0-11
                 return selectedIndices.includes(monthPart)
             }
 
             // Filter by properties AND specific months
             const filteredPayments = paymentsData.filter((p: any) => {
-                const matchProperty = properties.length > 0 ? properties.includes(p.contracts?.units?.properties?.id) : true
+                const pId = p.contracts?.units?.properties?.id
+                const matchProperty = properties.length > 0 ? properties.includes(pId) : true
                 const matchMonth = isDateInSelectedMonths(p.date)
                 return matchProperty && matchMonth
             })
@@ -252,44 +287,49 @@ export function useReports() {
     const fetchOccupancy = useCallback(async (properties: string[]) => {
         setIsLoading(true)
         try {
-            const { data, error } = await supabase
+            // 1. Fetch units with property name
+            const { data: unitsData, error } = await supabase
                 .from('units')
-                .select(`
-                    *,
-                    properties(id, name),
-                    contracts(
-                        status,
-                        rent_amount,
-                        tenants(name, doc_id, phone, email)
-                    )
-                `)
+                .select(`*, properties(id, name)`)
 
             if (error) throw error
 
             const filtered = properties.length > 0
-                ? data.filter((u: any) => properties.includes(u.property_id))
-                : data
+                ? unitsData.filter((u: any) => properties.includes(u.property_id))
+                : unitsData
+
+            // 2. Batch fetch active contracts for these units
+            const unitIds = filtered.map((u: any) => u.id)
+            const contractsMap: Record<string, any> = {}
+
+            if (unitIds.length > 0) {
+                const { data: contractsData } = await supabase
+                    .from('contracts')
+                    .select(`
+                        id, unit_id, status, rent_amount,
+                        tenants(name, doc_id, phone, email)
+                    `)
+                    .in('unit_id', unitIds)
+                    .eq('status', 'active')
+
+                contractsData?.forEach((c: any) => {
+                    contractsMap[c.unit_id] = c
+                })
+            }
 
             return filtered.map((u: any) => {
-                // Find active contract if exists, or just the first one if the unit is occupied
-                // Ideally, we filter by status='active' in the join, but Supabase simple join filters are limited in select string
-                // We do it in JS
-                const activeContract = u.contracts?.find((c: any) => c.status === 'active') || u.contracts?.[0]
-                const tenantName = activeContract?.tenants?.name
-                const tenantDocId = activeContract?.tenants?.doc_id
-                const tenantPhone = activeContract?.tenants?.phone
-                const tenantEmail = activeContract?.tenants?.email
-                const rentAmount = activeContract?.rent_amount
-
+                const activeContract = contractsMap[u.id]
+                const tenant = Array.isArray(activeContract?.tenants) ? activeContract.tenants[0] : activeContract?.tenants
+                
                 return {
                     property: u.properties?.name || 'Desconocida',
                     unit: u.name,
                     status: u.status === 'occupied' ? 'Ocupado' : 'Vacante',
-                    tenant: u.status === 'occupied' ? (tenantName || 'Sin Asignar') : '-',
-                    docId: u.status === 'occupied' ? (tenantDocId || '-') : '-',
-                    phone: u.status === 'occupied' ? (tenantPhone || '-') : '-',
-                    email: u.status === 'occupied' ? (tenantEmail || '-') : '-',
-                    rent: u.status === 'occupied' ? (rentAmount || 0) : 0
+                    tenant: u.status === 'occupied' ? (tenant?.name || 'Sin Asignar') : '-',
+                    docId: u.status === 'occupied' ? (tenant?.doc_id || '-') : '-',
+                    phone: u.status === 'occupied' ? (tenant?.phone || '-') : '-',
+                    email: u.status === 'occupied' ? (tenant?.email || '-') : '-',
+                    rent: u.status === 'occupied' ? (activeContract?.rent_amount || 0) : 0
                 }
             })
         } catch (err: any) {
@@ -304,44 +344,58 @@ export function useReports() {
     const fetchDelinquency = useCallback(async (properties: string[]) => {
         setIsLoading(true)
         try {
+            // 1. Fetch delinquent tenants
             const { data: tenants, error } = await supabase
                 .from('tenants')
-                .select(`
-                    *,
-                    contracts (
-                        id,
-                        rent_amount,
-                        units (
-                            name,
-                            property_id,
-                            properties(id, name)
-                        )
-                    )
-                `)
-                .eq('status', 'active') // Check active tenants who might owe money? Or explicit 'delinquent' status?
-                // Ideally we check payment history, but for now lets rely on status or manual flag if exists,
-                // OR checking last payment date.
-                // For MVP: let's filter those with status 'delinquent' if you have it, 
-                // OR calculate it.
-                // Seeing as we don't have a complex debt calc yet, 
-                // let's fetch ALL active tenants and see who hasn't paid current month?
-                // Just fetching 'delinquent' status as per request placeholder logic for now.
+                .select(`*`)
                 .eq('status', 'delinquent')
 
             if (error) throw error
+            if (!tenants || tenants.length === 0) return []
+
+            // 2. Fetch active contracts for these tenants
+            const tenantIds = tenants.map((t: any) => t.id)
+            const { data: contractsData, error: contractsError } = await supabase
+                .from('contracts')
+                .select(`
+                    id, tenant_id, rent_amount,
+                    units (
+                        name, property_id,
+                        properties(id, name)
+                    )
+                `)
+                .in('tenant_id', tenantIds)
+                .eq('status', 'active')
+
+            if (contractsError) throw contractsError
+
+            // 3. Map contracts by tenant_id
+            const contractsMap: Record<string, any> = {}
+            contractsData?.forEach((c: any) => {
+                // For delinquency, we take the first active contract found for the tenant
+                if (!contractsMap[c.tenant_id]) {
+                    contractsMap[c.tenant_id] = c
+                }
+            })
 
             const filtered = properties.length > 0
-                ? tenants.filter((t: any) => t.contracts?.some((c: any) => properties.includes(c.units?.property_id)))
+                ? tenants.filter((t: any) => {
+                    const c = contractsMap[t.id]
+                    return c && properties.includes(c.units?.property_id)
+                })
                 : tenants
 
             return filtered.map((t: any) => {
-                const c = t.contracts?.[0]
+                const c = contractsMap[t.id]
+                const unit = Array.isArray(c?.units) ? c.units[0] : c?.units
+                const property = Array.isArray(unit?.properties) ? unit.properties[0] : unit?.properties
+
                 return {
                     tenant: t.name,
-                    property: c?.units?.properties?.name || 'Sin Propiedad',
-                    unit: c?.units?.name || 'N/A',
-                    months: 2, // Dummy
-                    debt: (c?.rent_amount || 0) * 2
+                    property: property?.name || 'Sin Propiedad',
+                    unit: unit?.name || 'N/A',
+                    months: 2, // Dummy - Ideally calculated from payment history
+                    debt: (c?.rent_amount || 0) * 2 // Dummy
                 }
             })
         } catch (err: any) {
@@ -378,28 +432,43 @@ export function useReports() {
     const fetchPropertyPerformance = useCallback(async (properties: string[]) => {
         setIsLoading(true)
         try {
-            // Fetch all payments (Income)
+            // 1. Fetch all payments (Income) - Simplified
             const { data: payments } = await supabase
                 .from('payments')
-                .select(`amount, contracts(units(property_id))`)
+                .select(`amount, contract_id`)
                 .in('status', ['paid', 'approved'])
-                .eq('currency', 'USD') // Normalize to USD for this report or handle both? Let's do USD only for performance summary for now.
+                .eq('currency', 'USD') 
 
-            // Fetch all expenses
+            // 2. Fetch all expenses
             const { data: expenses } = await supabase
                 .from('expenses')
                 .select(`amount, property_id`)
 
-            // We need property names
+            // 3. We need property names and contract associations
             const { data: props } = await supabase.from('properties').select('id, name')
+            
+            // 4. Batch fetch contract/property mapping for performance summary
+            const contractIds = Array.from(new Set(payments?.map((p: any) => p.contract_id).filter(Boolean)))
+            const contractsMap: Record<string, string> = {} // contract_id -> property_id
+
+            if (contractIds.length > 0) {
+                const { data: contractsData } = await supabase
+                    .from('contracts')
+                    .select(`id, units(property_id)`)
+                    .in('id', contractIds)
+                
+                contractsData?.forEach((c: any) => {
+                    const unit = Array.isArray(c.units) ? c.units[0] : c.units
+                    contractsMap[c.id] = unit?.property_id
+                })
+            }
 
             // Aggregate
-            // This is heavy on client side but fine for small scale
             const report = props?.map(p => {
                 if (properties.length > 0 && !properties.includes(p.id)) return null
 
                 const income = payments
-                    ?.filter((pay: any) => pay.contracts?.units?.property_id === p.id)
+                    ?.filter((pay: any) => contractsMap[pay.contract_id] === p.id)
                     .reduce((sum, curr) => sum + (curr.amount || 0), 0) || 0
 
                 const expense = expenses

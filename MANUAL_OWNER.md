@@ -23,6 +23,8 @@ El administrador puede cargar su logo personal. Este logo aparecerá en la cabec
 
 Este es el documento más importante para usted. Se genera periódicamente (mensual) y detalla:
 
+- **Canales de recepción**: Además de consultarlo en el portal, el administrador puede enviárselo directamente a su correo electrónico registrado.
+
 ### A. Ingresos (Haberes)
 
 Son los cobros de alquiler efectivamente recaudados.

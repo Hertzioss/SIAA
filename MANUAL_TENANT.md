@@ -61,3 +61,13 @@ Si tiene algún problema en su inmueble (ej. filtración, electricidad):
 ## 7. Mi Perfil
 
 Revise que sus datos estén actualizados (Teléfono y Correo) para asegurarse de recibir notificaciones de vencimiento y recibos de pago.
+
+## 8. Notificaciones y Alertas
+
+El sistema cuenta con un centro de notificaciones donde podrá recibir:
+
+- **Avisos de Cobro**: Recordatorios de sus facturas pendientes.
+- **Confirmaciones**: Avisos cuando sus pagos han sido aprobados.
+- **Comunicados**: Mensajes generales de la administración.
+
+Busque el icono de la campana en su portal para mantenerse al día.
