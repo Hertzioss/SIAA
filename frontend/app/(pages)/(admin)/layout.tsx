@@ -31,7 +31,7 @@ export default function AdminLayout({
 
             // 2. Si no hay sesión, lo mandamos fuera
             if (!session) {
-                console.log('No hay sesión')
+                // console.log('No hay sesión')
                 router.push('/signin')
             } else {
                 // 3. Check Role or Super Admin

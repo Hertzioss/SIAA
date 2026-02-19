@@ -69,9 +69,10 @@ export async function enableOwnerAccess(ownerId: string, email: string, password
         revalidatePath('/owners')
         return { success: true, data: { user: authUser.user, password: finalPassword } }
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("Error enabling owner access:", error)
-        return { success: false, error: error.message }
+        const message = error instanceof Error ? error.message : "Error desconocido enabling owner access"
+        return { success: false, error: message }
     }
 }
 
@@ -102,8 +103,9 @@ export async function disableOwnerAccess(ownerId: string) {
         revalidatePath('/owners')
         return { success: true }
 
-    } catch (error: any) {
-        return { success: false, error: error.message }
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : "Error desconocido disabling owner access"
+        return { success: false, error: message }
     }
 }
 
@@ -145,8 +147,9 @@ export async function resetOwnerPassword(ownerId: string, password?: string) {
 
         return { success: true, data: { password: newPassword, email: owner.email } }
 
-    } catch (error: any) {
-        return { success: false, error: error.message }
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : "Error desconocido resetting owner password"
+        return { success: false, error: message }
     }
 }
 
@@ -222,12 +225,12 @@ export async function updateOwner(
 
         // 4. Sync Auth User Email if necessary
         if (currentOwner.user_id && ownerData.email && ownerData.email !== currentOwner.email) {
-            console.log(`Email changed from ${currentOwner.email} to ${ownerData.email}. Recreating user account...`)
+            // console.log(`Email changed from ${currentOwner.email} to ${ownerData.email}. Recreating user account...`)
 
             // A. Delete existing user
             const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(currentOwner.user_id)
             if (deleteError) {
-                console.error("Error deleting old auth user:", deleteError)
+                // console.error("Error deleting old auth user:", deleteError)
                 throw new Error("Error eliminando cuenta de usuario anterior: " + deleteError.message)
             }
 
@@ -275,8 +278,9 @@ export async function updateOwner(
         revalidatePath('/owners')
         return { success: true }
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("Error updating owner:", error)
-        return { success: false, error: error.message }
+        const message = error instanceof Error ? error.message : "Error desconocido updating owner"
+        return { success: false, error: message }
     }
 }

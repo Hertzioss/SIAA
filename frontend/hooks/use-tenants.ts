@@ -39,7 +39,8 @@ export function useTenants() {
                                 name
                             )
                         )
-                    )
+                    ),
+                    contacts:tenant_contacts (*)
                 `)
                 .order('created_at', { ascending: false });
 

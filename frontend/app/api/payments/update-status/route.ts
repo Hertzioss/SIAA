@@ -16,7 +16,7 @@ export async function POST(request: Request) {
         }
 
         // Debug Log
-        console.log(`Updating payment ${id} to status: ${status}. Current valid statuses should be: pending, approved, rejected.`);
+        // console.log(`Updating payment ${id} to status: ${status}. Current valid statuses should be: pending, approved, rejected.`);
 
         // 1. Update Payment Status in DB
         const { data: payment, error: updateError } = await supabaseAdmin
@@ -84,13 +84,13 @@ Por favor ingrese al portal para corregir o reenviar su comprobante.
                 const html = generateEmailHtml(subject, message.replace(/\n/g, '<br/>'), tenant.name)
 
                 try {
-                    console.log(`Attempting to send email to ${tenant.email} via nodemailer...`)
+                    // console.log(`Attempting to send email to ${tenant.email} via nodemailer...`)
                     await sendEmail({
                         to: tenant.email,
                         subject,
                         html
                     })
-                    console.log(`Email sent successfully to ${tenant.email}`)
+                    // console.log(`Email sent successfully to ${tenant.email}`)
                 } catch (emailError: any) {
                     console.error("Error sending payment notification:", emailError)
                     console.error("Stack:", emailError.stack)

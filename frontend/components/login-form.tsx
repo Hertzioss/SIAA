@@ -41,7 +41,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
         password,
       })
 
-      console.log(response)
+      // console.log(response)
 
       if (error) throw error
 

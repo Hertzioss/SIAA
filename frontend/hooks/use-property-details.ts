@@ -3,15 +3,54 @@ import { supabase } from '@/lib/supabase';
 import { format, differenceInDays, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 
+export interface UnitSummary {
+    id: string;
+    name: string;
+    type: string;
+    area: string | number;
+    status: string;
+    tenant: string;
+    rent: number;
+}
+
+export interface ChartDataEntry {
+    name: string;
+    value: number;
+    color?: string;
+    count?: number;
+}
+
+export interface PropertyStats {
+    totalUnits: number;
+    occupancyRate: number;
+    totalRevenue: number;
+    paymentChartData: ChartDataEntry[];
+    arrearsChartData: ChartDataEntry[];
+}
+
+export interface TenantSummary {
+    id: string;
+    contractId: string;
+    name: string;
+    contact: string;
+    email: string;
+    phone: string;
+    unit: string;
+    status: string;
+    leaseEnd: string;
+}
+
 export function usePropertyDetails(propertyId: string) {
     const [loading, setLoading] = useState(true);
     const [property, setProperty] = useState<any>(null);
-    const [units, setUnits] = useState<any[]>([]);
-    const [tenants, setTenants] = useState<any[]>([]);
-    const [stats, setStats] = useState<any>({
+    const [units, setUnits] = useState<UnitSummary[]>([]);
+    const [tenants, setTenants] = useState<TenantSummary[]>([]);
+    const [stats, setStats] = useState<PropertyStats>({
         totalUnits: 0,
         occupancyRate: 0,
         totalRevenue: 0,
+        paymentChartData: [],
+        arrearsChartData: []
     });
     const [refreshTrigger, setRefreshTrigger] = useState(0);
 
@@ -105,7 +144,7 @@ export function usePropertyDetails(propertyId: string) {
                     area: "N/A",
                     status: unitStatus,
                     tenant: contract?.tenant?.name || "-",
-                    rent: contract ? contract.rent_amount : u.rent_amount
+                    rent: contract ? contract.rent_amount : (u.default_rent_amount || 0)
                 };
             });
 

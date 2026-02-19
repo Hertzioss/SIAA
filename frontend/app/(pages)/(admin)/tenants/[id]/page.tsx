@@ -17,11 +17,18 @@ import { toast } from "sonner"
 import { supabase } from "@/lib/supabase"
 import { Tenant } from "@/types/tenant"
 import { Contract } from "@/hooks/use-contracts"
+import { Payment } from "@/types/payment"
+
+interface CallLogEntry {
+    date: string
+    note: string
+    user: string
+}
 
 // Extended type for state, including joined data
-interface TenantDetail extends Tenant {
+interface TenantDetail extends Omit<Tenant, 'contracts'> {
     contracts?: Contract[]
-    payments?: any[]
+    payments?: Payment[]
     // Temporary/Derived fields
     property?: string
     contractType?: string
@@ -37,9 +44,9 @@ export default function TenantDetailPage() {
     const [error, setError] = useState<string | null>(null)
 
     const [newCallNote, setNewCallNote] = useState("")
-    const [callLog, setCallLog] = useState<any[]>([]) // Local state for now
+    const [callLog, setCallLog] = useState<CallLogEntry[]>([]) // Local state for now
     const [isReceiptOpen, setIsReceiptOpen] = useState(false)
-    const [selectedPayment, setSelectedPayment] = useState<any>(null)
+    const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null)
 
     const fetchTenantData = useCallback(async () => {
         setLoading(true)
@@ -67,6 +74,7 @@ export default function TenantDetailPage() {
                 `)
                 .eq('tenant_id', id)
                 .order('start_date', { ascending: false })
+                .returns<Contract[]>()
 
             if (contractsError) throw contractsError
 
@@ -80,7 +88,7 @@ export default function TenantDetailPage() {
             if (paymentsError) throw paymentsError
 
             // Derive info from active contract
-            const activeContract = contractsData?.find((c: any) => c.status === 'active')
+            const activeContract = contractsData?.find((c: Contract) => c.status === 'active')
             const propertyName = activeContract?.units?.properties?.name || "Sin Propiedad Asignada"
             const contractType = activeContract?.type === 'residential' ? 'Residencial' : 'Comercial'
 
@@ -92,9 +100,10 @@ export default function TenantDetailPage() {
                 contractType: contractType || 'Sin contrato'
             })
 
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error("Error fetching tenant details:", err)
-            setError(err.message)
+            const message = err instanceof Error ? err.message : "Error desconocido"
+            setError(message)
             toast.error("Error al cargar detalles del inquilino")
         } finally {
             setLoading(false)
@@ -126,7 +135,7 @@ export default function TenantDetailPage() {
         toast.success("Nota registrada (Local)")
     }
 
-    const handleViewReceipt = (payment: any) => {
+    const handleViewReceipt = (payment: Payment) => {
         setSelectedPayment(payment)
         setIsReceiptOpen(true)
     }
@@ -299,12 +308,12 @@ export default function TenantDetailPage() {
                                                 <TableCell>{payment.concept}</TableCell>
                                                 <TableCell className="font-medium">${payment.amount}</TableCell>
                                                 <TableCell>
-                                                    <Badge variant={payment.status === 'completed' || payment.status === 'paid' ? 'default' : 'secondary'}>
+                                                    <Badge variant={payment.status === 'approved' || payment.status === 'paid' ? 'default' : 'secondary'}>
                                                         {payment.status}
                                                     </Badge>
                                                 </TableCell>
                                                 <TableCell className="text-right">
-                                                    {(payment.status === 'completed' || payment.status === 'paid') && (
+                                                    {(payment.status === 'approved' || payment.status === 'paid') && (
                                                         <Button variant="ghost" size="sm" onClick={() => handleViewReceipt(payment)}>
                                                             <FileText className="h-4 w-4 mr-2" /> Recibo
                                                         </Button>
@@ -349,12 +358,12 @@ export default function TenantDetailPage() {
                                 </TableHeader>
                                 <TableBody>
                                     {tenant.contracts && tenant.contracts.length > 0 ? (
-                                        tenant.contracts.map((contract: any, index) => (
+                                        tenant.contracts.map((contract, index) => (
                                             <TableRow key={index} className={contract.status === 'expired' ? 'opacity-60' : ''}>
                                                 <TableCell className="font-medium">{contract.contract_number || `CNT-${contract.id.slice(0, 8)}`}</TableCell>
                                                 <TableCell>{contract.units?.properties?.name || contract.unit_id}</TableCell>
                                                 <TableCell>{new Date(contract.start_date).toLocaleDateString()}</TableCell>
-                                                <TableCell>{new Date(contract.end_date).toLocaleDateString()}</TableCell>
+                                                <TableCell>{contract.end_date ? new Date(contract.end_date).toLocaleDateString() : 'Indefinido'}</TableCell>
                                                 <TableCell>
                                                     <Badge variant={contract.status === 'active' ? 'default' : 'outline'}>
                                                         {contract.status === 'active' ? 'Vigente' : contract.status === 'expired' ? 'Vencido' : contract.status}

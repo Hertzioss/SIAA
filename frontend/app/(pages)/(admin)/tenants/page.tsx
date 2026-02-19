@@ -90,13 +90,20 @@ export default function TenantsPage() {
     // Calculate Derived Data based on filters
     const filteredTenants = tenants.filter(tenant => {
         const matchesSearch = tenant.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            tenant.doc_id.toLowerCase().includes(searchTerm.toLowerCase())
+            tenant.doc_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            tenant.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            tenant.phone?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            tenant.contacts?.some(c => 
+                c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                c.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                c.phone?.toLowerCase().includes(searchTerm.toLowerCase())
+            )
 
-        const matchesProperty = propertyFilter === "all" || (tenant as any).contracts?.some((c: any) =>
+        const matchesProperty = propertyFilter === "all" || tenant.contracts?.some((c) =>
             c.unit?.property?.id === propertyFilter
         )
 
-        const matchesOwner = ownerFilter === "all" || (tenant as any).contracts?.some((c: any) => {
+        const matchesOwner = ownerFilter === "all" || tenant.contracts?.some((c) => {
             const propertyId = c.unit?.property?.id;
             if (!propertyId) return false;
             const property = properties.find(p => p.id === propertyId);
@@ -120,11 +127,11 @@ export default function TenantsPage() {
     const sortedTenants = [...filteredTenants]
     if (sortConfig) {
         sortedTenants.sort((a, b) => {
-            // @ts-ignore
+            // @ts-ignore 
             if (a[sortConfig.key] < b[sortConfig.key]) {
                 return sortConfig.direction === 'asc' ? -1 : 1
             }
-            // @ts-ignore
+            // @ts-ignore 
             if (a[sortConfig.key] > b[sortConfig.key]) {
                 return sortConfig.direction === 'asc' ? 1 : -1
             }
@@ -306,14 +313,14 @@ export default function TenantsPage() {
                                                     <div>
                                                         <p className="font-medium">{tenant.name}</p>
                                                         <p className="text-xs text-muted-foreground">{tenant.doc_id}</p>
-                                                        {((tenant as any).contracts?.[0]?.unit?.property?.name) && (
+                                                        {(tenant.contracts?.[0]?.unit?.property?.name) && (
                                                             <div className="flex flex-col gap-0.5 mt-1">
                                                                 <p className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
                                                                     <Home className="h-3 w-3" />
-                                                                    {(tenant as any).contracts[0].unit.property.name} - {(tenant as any).contracts[0].unit.name}
+                                                                    {tenant.contracts[0].unit.property.name} - {tenant.contracts[0].unit.name}
                                                                 </p>
                                                                 {(() => {
-                                                                    const propertyId = (tenant as any).contracts[0].unit.property.id;
+                                                                    const propertyId = tenant.contracts[0].unit.property.id;
                                                                     const fullProperty = properties.find(p => p.id === propertyId);
                                                                     const ownerName = fullProperty?.owners?.[0]?.name;
 
@@ -333,9 +340,25 @@ export default function TenantsPage() {
                                                 </div>
                                             </TableCell>
                                             <TableCell>
-                                                <div className="flex flex-col text-sm">
+                                                <div className="flex flex-col text-xs gap-1">
                                                     {tenant.email && <span className="flex items-center gap-1"><Mail className="h-3 w-3" /> {tenant.email}</span>}
                                                     {tenant.phone && <span className="flex items-center gap-1"><Phone className="h-3 w-3" /> {tenant.phone}</span>}
+                                                    {tenant.contacts && tenant.contacts.length > 0 && (
+                                                        <div className="mt-1 pt-1 border-t border-dashed">
+                                                            <p className="text-[10px] font-semibold text-muted-foreground uppercase mb-1">Contactos:</p>
+                                                            {tenant.contacts.slice(0, 2).map((c, i) => (
+                                                                <div key={i} className="flex flex-col mb-1 last:mb-0 bg-muted/30 p-1 rounded">
+                                                                    <span className="font-medium flex items-center gap-1 truncate max-w-[150px]">
+                                                                        <User className="h-2 w-2" /> {c.name}
+                                                                    </span>
+                                                                    {c.phone && <span className="text-[10px] flex items-center gap-1"><Phone className="h-2 w-2" /> {c.phone}</span>}
+                                                                </div>
+                                                            ))}
+                                                            {tenant.contacts.length > 2 && (
+                                                                <span className="text-[10px] text-primary font-medium">+{tenant.contacts.length - 2} más...</span>
+                                                            )}
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </TableCell>
                                             <TableCell>

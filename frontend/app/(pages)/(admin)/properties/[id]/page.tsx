@@ -27,9 +27,9 @@ import {
     Clock,
     ChevronLeft,
     ChevronRight,
-    AlertTriangle,
+    // AlertTriangle,
     FileText,
-    Calendar,
+    // Calendar,
     Mail,
     Trash
 } from "lucide-react"
@@ -56,7 +56,7 @@ import {
 } from "recharts"
 import { usePropertyDetails } from "@/hooks/use-property-details"
 import { useExpenses } from "@/hooks/use-expenses"
-import { useMaintenance } from "@/hooks/use-maintenance"
+import { useMaintenance, MaintenanceRequest } from "@/hooks/use-maintenance"
 import { supabase } from "@/lib/supabase"
 import { useProperties } from "@/hooks/use-properties"
 import { useContracts } from "@/hooks/use-contracts"
@@ -80,8 +80,8 @@ export default function PropertyDetailsPage() {
         units,
         tenants,
         stats,
-        expenses: propertyExpenses, // Rename to avoid conflict if needed, though useExpenses returns 'expenses'
-        maintenance: propertyMaintenance,
+
+
         loading,
         refresh
     } = usePropertyDetails(params.id as string)
@@ -138,7 +138,7 @@ export default function PropertyDetailsPage() {
     const [isMaintenanceDialogOpen, setIsMaintenanceDialogOpen] = useState(false)
     const [maintenanceTitle, setMaintenanceTitle] = useState("")
     const [maintenanceDescription, setMaintenanceDescription] = useState("")
-    const [maintenancePriority, setMaintenancePriority] = useState("medium")
+    const [maintenancePriority, setMaintenancePriority] = useState<MaintenanceRequest['priority']>("medium")
     const [maintenanceUnitId, setMaintenanceUnitId] = useState("common")
 
     // Handlers
@@ -158,7 +158,7 @@ export default function PropertyDetailsPage() {
             floor: newUnitFloor || null
         }
 
-        console.log("Creating unit with payload:", payload)
+        // console.log("Creating unit with payload:", payload)
 
         try {
             const { error } = await supabase
@@ -182,9 +182,10 @@ export default function PropertyDetailsPage() {
             setNewUnitFloor("")
 
             refresh()
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error("Error creating unit:", err)
-            toast.error("Error al crear unidad: " + (err.message || "Error desconocido"))
+            const message = err instanceof Error ? err.message : "Error desconocido"
+            toast.error("Error al crear unidad: " + message)
         }
     }
 
@@ -218,7 +219,7 @@ export default function PropertyDetailsPage() {
             property_id: params.id as string,
             title: maintenanceTitle,
             description: maintenanceDescription,
-            priority: maintenancePriority as any,
+            priority: maintenancePriority,
             status: 'open',
             unit_id: maintenanceUnitId === 'common' ? null : maintenanceUnitId
         })
@@ -255,7 +256,7 @@ export default function PropertyDetailsPage() {
     if (!property) return <div className="p-8 text-center text-muted-foreground">Propiedad no encontrada</div>
 
     // Filter units
-    const filteredUnits = units.filter((unit: any) =>
+    const filteredUnits = units.filter((unit) =>
         unit.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (unit.tenant && unit.tenant.toLowerCase().includes(searchTerm.toLowerCase()))
     )
@@ -273,7 +274,7 @@ export default function PropertyDetailsPage() {
         currentTenantsPage * ITEMS_PER_PAGE
     )
 
-    const getStatusColor = (status: string) => {
+    const getStatusColor = (status: string): "default" | "secondary" | "destructive" | "outline" | null | undefined => {
         switch (status) {
             case "Ocupado": return "default"
             case "Vacante": return "secondary"
@@ -425,7 +426,7 @@ export default function PropertyDetailsPage() {
                 <CardContent>
                     <div className="text-2xl font-bold">{stats.occupancyRate}%</div>
                     <p className="text-xs text-muted-foreground">
-                        {units.filter((u: any) => u.status === 'Ocupado').length} ocupadas / {units.filter((u: any) => u.status === 'Vacante').length} vacantes
+                        {units.filter((u) => u.status === 'Ocupado').length} ocupadas / {units.filter((u) => u.status === 'Vacante').length} vacantes
                     </p>
                 </CardContent>
             </Card>
@@ -486,7 +487,7 @@ export default function PropertyDetailsPage() {
                                                 paddingAngle={5}
                                                 dataKey="value"
                                             >
-                                                {stats.paymentChartData.map((entry: any, index: number) => (
+                                                {stats.paymentChartData.map((entry, index) => (
                                                     <Cell key={`cell-${index}`} fill={entry.color} />
                                                 ))}
                                             </Pie>
@@ -513,11 +514,11 @@ export default function PropertyDetailsPage() {
                                             <YAxis dataKey="name" type="category" width={70} tick={{ fontSize: 12 }} />
                                             <Tooltip
                                                 cursor={{ fill: 'transparent' }}
-                                                formatter={(value: number, name: string, props: any) => [`${value}% (${props.payload.count} inq.)`, "Porcentaje"]}
+                                                formatter={(value, name, props) => [`${value}% (${props.payload?.count || 0} inq.)`, "Porcentaje"]}
                                                 contentStyle={{ backgroundColor: 'hsl(var(--popover))', borderColor: 'hsl(var(--border))', color: 'hsl(var(--popover-foreground))' }}
                                             />
                                             <Bar dataKey="value" fill="#3b82f6" radius={[0, 4, 4, 0]} barSize={20}>
-                                                {stats.arrearsChartData.map((entry: any, index: number) => (
+                                                {stats.arrearsChartData.map((entry, index) => (
                                                     <Cell key={`cell-${index}`} fill={index === 0 ? '#22c55e' : index === 1 ? '#eab308' : '#ef4444'} />
                                                 ))}
                                             </Bar>
@@ -580,13 +581,13 @@ export default function PropertyDetailsPage() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {currentUnits.map((unit: any) => (
+                                {currentUnits.map((unit) => (
                                     <TableRow key={unit.id}>
                                         <TableCell className="font-medium">{unit.name}</TableCell>
                                         <TableCell>{unit.type}</TableCell>
                                         <TableCell>{unit.area}</TableCell>
                                         <TableCell>
-                                            <Badge variant={getStatusColor(unit.status) as any}>
+                                            <Badge variant={getStatusColor(unit.status)}>
                                                 {unit.status}
                                             </Badge>
                                         </TableCell>
@@ -661,7 +662,7 @@ export default function PropertyDetailsPage() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {currentTenants.map((tenant: any) => (
+                                {currentTenants.map((tenant) => (
                                     <TableRow key={tenant.contractId}>
                                         <TableCell className="font-medium">{tenant.name}</TableCell>
                                         <TableCell>{tenant.unit}</TableCell>
@@ -935,7 +936,7 @@ export default function PropertyDetailsPage() {
                                         <div className="grid grid-cols-2 gap-4">
                                             <div className="grid gap-2">
                                                 <Label>Prioridad</Label>
-                                                <Select value={maintenancePriority} onValueChange={setMaintenancePriority}>
+                                                <Select value={maintenancePriority} onValueChange={(val) => setMaintenancePriority(val as MaintenanceRequest['priority'])}>
                                                     <SelectTrigger>
                                                         <SelectValue />
                                                     </SelectTrigger>
@@ -955,7 +956,7 @@ export default function PropertyDetailsPage() {
                                                     </SelectTrigger>
                                                     <SelectContent>
                                                         <SelectItem value="common">Áreas Comunes</SelectItem>
-                                                        {units.map((u: any) => (
+                                                        {units.map((u) => (
                                                             <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
                                                         ))}
                                                     </SelectContent>
