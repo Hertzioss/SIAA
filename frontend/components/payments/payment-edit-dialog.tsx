@@ -79,10 +79,9 @@ export function PaymentEditDialog({ open, onOpenChange, payment, onSave }: Payme
 
             if (formData.currency === 'VES' && formData.exchange_rate) {
                 updates.exchange_rate = parseFloat(formData.exchange_rate)
-            } else if (formData.currency === 'USD') {
-                 // Should we nullify exchange rate if USD? Maybe not, keep historical if they switch currencies?
-                 // Usually for USD payment exchange rate is irrelevant or 1.
-                 // Let's leave it as is unless explicitly changed.
+            } else if (formData.currency === 'USD' && formData.exchange_rate) {
+                 // Allow saving exchange rate for USD payments too (historical reporting)
+                 updates.exchange_rate = parseFloat(formData.exchange_rate)
             }
 
             await onSave(payment.id, updates)
@@ -168,9 +167,10 @@ export function PaymentEditDialog({ open, onOpenChange, payment, onSave }: Payme
                         </div>
                     </div>
 
-                    {formData.currency === 'VES' && (
-                         <div className="space-y-2">
-                            <Label htmlFor="rate">Tasa de Cambio</Label>
+
+                    <div className="space-y-2">
+                        <Label htmlFor="rate">Tasa de Cambio {formData.currency === 'USD' ? '(Referencia Bs)' : '(Bs/USD)'}</Label>
+                        <div className="flex gap-2">
                             <Input
                                 id="rate"
                                 type="number"
@@ -179,8 +179,47 @@ export function PaymentEditDialog({ open, onOpenChange, payment, onSave }: Payme
                                 onChange={(e) => handleChange("exchange_rate", e.target.value)}
                                 placeholder="Ej. 36.50"
                             />
+                            {/* Calculator Helper */}
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                onClick={() => {
+                                    // Simple prompt or toggle calculator logic
+                                    // For simplicity, let's toggle a small popover or just use a prompt
+                                    const amount = parseFloat(formData.amount)
+                                    if (!amount) {
+                                        toast.error("Ingrese primero el monto del pago")
+                                        return
+                                    }
+                                    
+                                    const refAmountStr = prompt(formData.currency === 'VES' 
+                                        ? "Ingrese el monto equivalente en Dólares ($):" 
+                                        : "Ingrese el monto equivalente en Bolívares (Bs):"
+                                    )
+                                    
+                                    if (refAmountStr) {
+                                        const refAmount = parseFloat(refAmountStr)
+                                        if (refAmount && refAmount > 0) {
+                                            let calculatedRate = 0
+                                            if (formData.currency === 'VES') {
+                                                // Tasa = VES / USD_Ref
+                                                calculatedRate = amount / refAmount
+                                            } else {
+                                                // Tasa = BS_Ref / USD
+                                                calculatedRate = refAmount / amount
+                                            }
+                                            handleChange("exchange_rate", calculatedRate.toFixed(4))
+                                            toast.success(`Tasa calculada: ${calculatedRate.toFixed(4)}`)
+                                        }
+                                    }
+                                }}
+                                title="Calcular Tasa basada en monto referencial"
+                            >
+                                <span className="text-lg">🧮</span>
+                            </Button>
                         </div>
-                    )}
+                    </div>
 
                     <div className="space-y-2">
                         <Label htmlFor="reference">Referencia / Comprobante</Label>
