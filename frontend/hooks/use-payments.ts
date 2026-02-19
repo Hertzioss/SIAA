@@ -57,7 +57,7 @@ interface ContractData {
 interface PaymentQueryRow extends Pick<BasePayment, 
     'id' | 'amount' | 'date' | 'status' | 'currency' | 'method' | 'payment_method' | 
     'exchange_rate' | 'reference_number' | 'reference' | 'billing_period' | 'notes' | 
-    'contract_id' | 'tenant_id' | 'created_at' | 'proof_url'
+    'contract_id' | 'tenant_id' | 'created_at' | 'proof_url' | 'concept' | 'metadata'
 > {
     tenants: {
         name: string;
@@ -78,12 +78,10 @@ export function usePayments() {
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(10);
     const [total, setTotal] = useState(0);
-    const [statusFilter, setStatusFilter] = useState<PaymentStatusFilter>('all');
+    const [statusFilter, setStatusFilter] = useState<PaymentStatusFilter>('pending');
+    const [searchTerm, setSearchTerm] = useState("");
 
-    // We can't search text easily on joined relations server-side with standard Supabase client in one go without complex RPC or multiple queries.
-    // For simplicity/speed in this MVP, let's keep client-side filtering for search text, but server-side for status/pagination?
-    // Actually, mixing is hard. Let's do simple pagination on the result.
-    // OPTION B: Fetch based on filters.
+    // Use server-side searching for better performance with large datasets
 
     const fetchPayments = useCallback(async () => {
         setLoading(true);
@@ -91,12 +89,31 @@ export function usePayments() {
             let query = supabase
                 .from('payments')
                 .select(`
-                    id, amount, date, status, currency, method, payment_method, exchange_rate, reference_number, reference, billing_period, notes, contract_id, tenant_id, created_at, proof_url,
+                    id, amount, date, status, currency, method, payment_method, exchange_rate, reference_number, reference, billing_period, notes, contract_id, tenant_id, created_at, proof_url, concept, metadata,
                     tenants(name, doc_id, email)
                 `, { count: 'estimated' });
 
             if (statusFilter !== 'all') {
                 query = query.eq('status', statusFilter);
+            }
+
+            if (searchTerm) {
+                // To search by tenant name across relations in a single server-side query without a DB View,
+                // we first fetch matching tenant IDs.
+                const { data: matchingTenants } = await supabase
+                    .from('tenants')
+                    .select('id')
+                    .ilike('name', `%${searchTerm}%`);
+                
+                const tenantIds = matchingTenants?.map(t => t.id) || [];
+                
+                // Build the OR filter string
+                let orFilter = `reference_number.ilike.%${searchTerm}%,notes.ilike.%${searchTerm}%`;
+                if (tenantIds.length > 0) {
+                    orFilter += `,tenant_id.in.(${tenantIds.map(id => `"${id}"`).join(',')})`;
+                }
+                
+                query = query.or(orFilter);
             }
 
             // Server-side Pagination
@@ -148,7 +165,13 @@ export function usePayments() {
                     
                     const propertyData = Array.isArray(unitData?.properties) ? unitData?.properties[0] : unitData?.properties;
 
-                    const tenantData = (Array.isArray(p.tenants) ? p.tenants[0] : p.tenants) || undefined;
+                    const tenantFromMetadata = p.metadata?.tenant_name ? {
+                        name: p.metadata.tenant_name as string,
+                        doc_id: (p.metadata.tenant_doc_id as string) || "",
+                        email: (Array.isArray(p.tenants) ? p.tenants[0]?.email : p.tenants?.email) || undefined
+                    } : null;
+
+                    const tenantData = tenantFromMetadata || (Array.isArray(p.tenants) ? p.tenants[0] : p.tenants) || undefined;
 
                     return {
                         ...p,
@@ -185,7 +208,6 @@ export function usePayments() {
             // No client-side sort or slice needed anymore
             setPayments(formatted);
             setTotal(count || 0);
-
         } catch (err: unknown) {
             const error = err as Error;
             console.error('Error fetching payments details:', error.message, error.stack);
@@ -193,7 +215,7 @@ export function usePayments() {
         } finally {
             setLoading(false);
         }
-    }, [page, pageSize, statusFilter]);
+    }, [page, pageSize, statusFilter, searchTerm]);
 
     // Fetch single payment with full details (for receipt)
     const fetchFullPayment = async (id: string): Promise<Payment | null> => {
@@ -299,6 +321,23 @@ export function usePayments() {
             toast.error('No se pudo actualizar el pago', { description: error.message })
         }
     }
+    const deletePayment = async (id: string) => {
+        try {
+            const { error } = await supabase
+                .from('payments')
+                .delete()
+                .eq('id', id)
+
+            if (error) throw error
+
+            toast.success("Pago eliminado correctamente")
+            fetchPayments() // Refresh list
+        } catch (err: unknown) {
+            const error = err as Error;
+            console.error('Error deleting payment:', error)
+            toast.error('No se pudo eliminar el pago', { description: error.message })
+        }
+    }
 
     useEffect(() => {
         fetchPayments();
@@ -313,10 +352,13 @@ export function usePayments() {
         pageSize,
         statusFilter,
         setStatusFilter,
+        searchTerm,
+        setSearchTerm,
         fetchPayments,
         fetchFullPayment,
         updatePaymentStatus,
         updatePayment,
+        deletePayment,
         setPageSize
     };
 }

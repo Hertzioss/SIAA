@@ -137,9 +137,25 @@ export function useTenantPayments() {
                 throw error
             }
 
-            setHistory(data || [])
+            const formattedData = (data as any[])?.map(p => {
+                const metadata = p.metadata as Record<string, any> | null;
+                const tenantFromMetadata = metadata?.tenant_name ? {
+                    name: metadata.tenant_name as string,
+                    doc_id: (metadata.tenant_doc_id as string) || "",
+                    email: (Array.isArray(p.tenants) ? p.tenants[0]?.email : p.tenants?.email) || undefined
+                } : null;
+
+                return {
+                    ...p,
+                    tenants: tenantFromMetadata || (Array.isArray(p.tenants) ? p.tenants[0] : p.tenants) || undefined,
+                    // For consistency with Payment interface if needed elsewhere
+                    tenant: tenantFromMetadata || (Array.isArray(p.tenants) ? p.tenants[0] : p.tenants) || undefined
+                };
+            });
+
+            setHistory(formattedData || [])
             return {
-                data,
+                data: formattedData,
                 count: count || 0,
                 totalPages: Math.ceil((count || 0) / pageSize)
             }

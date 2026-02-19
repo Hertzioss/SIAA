@@ -1,17 +1,19 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
+import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Textarea } from "@/components/ui/textarea"
 import { CloudUpload, Loader2, DollarSign, Search, User, Check, Building2, Calendar as CalendarIcon, FileText } from "lucide-react"
 import { useTenantPayments, PaymentInsert } from "@/hooks/use-tenant-payments"
 import { useTenants } from "@/hooks/use-tenants"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
-import { useContracts } from "@/hooks/use-contracts"
+import { useContracts, Contract } from "@/hooks/use-contracts"
 import { Checkbox } from "@/components/ui/checkbox"
 import { fetchBcvRate } from "@/services/exchange-rate"
 import { supabase } from "@/lib/supabase"
@@ -37,6 +39,26 @@ interface PaymentFormProps {
     isAdmin?: boolean
 }
 
+interface DistributionPreviewItem {
+    month: number
+    year: number
+    amount: number
+    isFull: boolean
+    currency: 'USD' | 'VES'
+    partIndex: number
+    reference: string
+    originalAmount: string
+}
+
+interface TargetAccount {
+    id: string
+    bank_name: string
+    account_number: string
+    currency: string
+    account_type: string
+    owners: { name: string } | { name: string }[] | null
+}
+
 export function PaymentForm({ defaultTenant, onSuccess, onCancel, className, isAdmin = false }: PaymentFormProps) {
     const { tenants } = useTenants() // Fetch all tenants for search
     const { registerPayment, isLoading: isSubmitting, calculatePaymentDistribution } = useTenantPayments()
@@ -46,14 +68,14 @@ export function PaymentForm({ defaultTenant, onSuccess, onCancel, className, isA
     const [selectedTenant, setSelectedTenant] = useState<Tenant | undefined>(defaultTenant)
     const [searchOpen, setSearchOpen] = useState(false)
 
-    const [activeContract, setActiveContract] = useState<any>(null)
+    const [activeContract, setActiveContract] = useState<Contract | null>(null)
     const [selectedFile, setSelectedFile] = useState<File | null>(null)
     const [previewUrl, setPreviewUrl] = useState<string | null>(null)
     const fileInputRef = useRef<HTMLInputElement>(null)
 
     // Confirmation Dialog State
     const [isConfirmationOpen, setIsConfirmationOpen] = useState(false)
-    const [distributionPreview, setDistributionPreview] = useState<any[]>([])
+    const [distributionPreview, setDistributionPreview] = useState<DistributionPreviewItem[]>([])
     const [isPreviewMode, setIsPreviewMode] = useState(false)
 
 
@@ -80,7 +102,7 @@ export function PaymentForm({ defaultTenant, onSuccess, onCancel, className, isA
 
     const [exchangeRate, setExchangeRate] = useState('0.00')
     const [notes, setNotes] = useState('')
-    const [targetAccounts, setTargetAccounts] = useState<any[]>([])
+    const [targetAccounts, setTargetAccounts] = useState<TargetAccount[]>([])
 
     // Update internal tenant when prop changes
     useEffect(() => {
@@ -110,7 +132,8 @@ export function PaymentForm({ defaultTenant, onSuccess, onCancel, className, isA
             setTargetAccounts([])
             try {
                 // 1. Get Property ID
-                const propertyId = activeContract.units.properties.id
+                const propertyId = activeContract.units?.properties?.id
+                if (!propertyId) return
 
                 // 2. Get Owners of this Property
                 const { data: ownersData, error: ownersError } = await supabase
@@ -230,11 +253,11 @@ export function PaymentForm({ defaultTenant, onSuccess, onCancel, className, isA
             const startYear = parseInt(year) || new Date().getFullYear()
             const rate = parseFloat(exchangeRate) || 1
 
-            let allSplits: any[] = []
+            const allSplits: DistributionPreviewItem[] = []
 
             paymentParts.forEach((part, partIndex) => {
                 const amount = parseFloat(part.amount)
-                let partSplits: any[] = []
+                let partSplits: { month: number, year: number, amount: number, isFull: boolean }[] = []
                 
                 if (part.currency === 'USD') {
                     partSplits = calculatePaymentDistribution(amount, startMonth, startYear, rent)
@@ -297,7 +320,11 @@ export function PaymentForm({ defaultTenant, onSuccess, onCancel, className, isA
                 owner_bank_account_id: originalPart.accountId !== 'na' ? originalPart.accountId : undefined,
                 status: (isAdmin && autoConciliate) ? 'approved' : 'pending',
                 billing_period: billingPeriod,
-                sendEmail: (isAdmin && autoConciliate && sendEmail)
+                sendEmail: (isAdmin && autoConciliate && sendEmail),
+                metadata: {
+                    tenant_name: selectedTenant!.name,
+                    tenant_doc_id: selectedTenant!.doc_id
+                }
             }
             inserts.push(paymentData)
         }
@@ -535,9 +562,9 @@ export function PaymentForm({ defaultTenant, onSuccess, onCancel, className, isA
                                         <SelectItem value="na">No Especificada / Efectivo</SelectItem>
                                         {targetAccounts
                                             .filter(acc => acc.currency === part.currency)
-                                            .map((acc, idx) => (
+                                            .map((acc) => (
                                                 <SelectItem key={acc.id} value={acc.id}>
-                                                    {acc.bank_name} - {acc.currency} ({acc.owners?.name})
+                                                    {acc.bank_name} - {acc.currency} ({Array.isArray(acc.owners) ? acc.owners[0]?.name : acc.owners?.name})
                                                 </SelectItem>
                                             ))}
                                     </SelectContent>
@@ -558,16 +585,18 @@ export function PaymentForm({ defaultTenant, onSuccess, onCancel, className, isA
                             </div>
 
                             {/* Admin Rate Helper */}
-                            {isAdmin && part.currency === 'VES' && (
+                            {isAdmin && (
                                 <div className="mt-2 p-3 bg-blue-50 border border-blue-100 rounded-md">
                                     <Label className="text-xs text-blue-700 font-semibold mb-2 block">Calculadora de Tasa (Admin)</Label>
                                     <div className="flex items-end gap-2">
                                         <div className="space-y-1 flex-1">
-                                            <Label htmlFor={`ref-usd-${index}`} className="text-xs">Monto Referencial ($)</Label>
+                                            <Label htmlFor={`ref-amount-${index}`} className="text-xs">
+                                                {part.currency === 'VES' ? 'Monto Referencial ($)' : 'Monto Referencial (Bs)'}
+                                            </Label>
                                             <Input
-                                                id={`ref-usd-${index}`}
+                                                id={`ref-amount-${index}`}
                                                 type="number"
-                                                placeholder="Ej. 100"
+                                                placeholder={part.currency === 'VES' ? "Ej. 100" : "Ej. 4000"}
                                                 className="h-8 text-sm"
                                                 value={referenceAmountUSD}
                                                 onChange={(e) => setReferenceAmountUSD(e.target.value)}
@@ -579,14 +608,24 @@ export function PaymentForm({ defaultTenant, onSuccess, onCancel, className, isA
                                             variant="secondary"
                                             className="h-8"
                                             onClick={() => {
-                                                const vesAmount = parseFloat(part.amount)
-                                                const refUsd = parseFloat(referenceAmountUSD)
-                                                if (vesAmount && refUsd && refUsd > 0) {
-                                                    const calculatedRate = (vesAmount / refUsd).toFixed(4)
+                                                const currentAmount = parseFloat(part.amount)
+                                                const refAmount = parseFloat(referenceAmountUSD)
+                                                
+                                                if (currentAmount && refAmount && refAmount > 0) {
+                                                    let calculatedRate = "0.00"
+                                                    if (part.currency === 'VES') {
+                                                        // Tasa = BS / USD
+                                                        calculatedRate = (currentAmount / refAmount).toFixed(4)
+                                                    } else {
+                                                        // Tasa = BS_Referente / USD_Actual
+                                                        calculatedRate = (refAmount / currentAmount).toFixed(4)
+                                                    }
                                                     setExchangeRate(calculatedRate)
                                                     toast.success(`Tasa calculada: ${calculatedRate}`)
                                                 } else {
-                                                    toast.error("Ingrese monto en Bs y referencia en USD válida")
+                                                    const unit = part.currency === 'VES' ? 'Bs' : 'USD'
+                                                    const refUnit = part.currency === 'VES' ? 'USD' : 'Bs'
+                                                    toast.error(`Ingrese monto en ${unit} y referencia en ${refUnit} válida`)
                                                 }
                                             }}
                                         >
@@ -627,6 +666,17 @@ export function PaymentForm({ defaultTenant, onSuccess, onCancel, className, isA
                 </div>
 
                 <div className="space-y-2">
+                    <Label>Notas Adicionales</Label>
+                    <Textarea 
+                        placeholder="Observaciones sobre el pago..."
+                        value={notes}
+                        onChange={(e) => setNotes(e.target.value)}
+                        className="resize-none"
+                        rows={3}
+                    />
+                </div>
+
+                <div className="space-y-2">
                     <Label>Comprobante (Opcional)</Label>
                     <div className="flex flex-col gap-3">
                         <div className="flex items-center gap-2">
@@ -662,10 +712,12 @@ export function PaymentForm({ defaultTenant, onSuccess, onCancel, className, isA
 
                         {previewUrl && (
                             <div className="mt-2 relative w-full h-40 bg-muted rounded-md overflow-hidden border">
-                                <img
+                                <Image
                                     src={previewUrl}
                                     alt="Preview"
-                                    className="w-full h-full object-contain"
+                                    fill
+                                    className="object-contain"
+                                    unoptimized
                                 />
                             </div>
                         )}

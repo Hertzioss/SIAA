@@ -18,6 +18,7 @@ interface PaymentActionDialogProps {
     paymentDate?: string
     exchangeRate?: number
     registrationDate?: string
+    concept?: string
     onConfirm: (id: string, action: 'approved' | 'rejected', notes: string, sendEmail: boolean) => Promise<void>
 }
 
@@ -27,7 +28,7 @@ interface PaymentActionDialogProps {
  */
 export function PaymentActionDialog({
     open, onOpenChange, action, paymentId, tenantEmail,
-    amount, currency, paymentDate, exchangeRate, registrationDate,
+    amount, currency, paymentDate, exchangeRate, registrationDate, concept,
     onConfirm
 }: PaymentActionDialogProps) {
     const [loading, setLoading] = useState(false)
@@ -39,7 +40,7 @@ export function PaymentActionDialog({
 
         try {
             setLoading(true)
-            await onConfirm(paymentId, action === 'approve' ? 'approved' : 'rejected', notes, sendEmail)
+            await onConfirm(paymentId, action === 'approve' ? 'approved' : 'rejected', notes || (action === 'approve' ? `Conciliado: ${concept || ''}` : ""), sendEmail)
             onOpenChange(false)
             setNotes("") // Reset
         } catch (error) {
@@ -100,6 +101,12 @@ export function PaymentActionDialog({
                                 <span>Tasa:</span>
                                 <span>{exchangeRate || '-'}</span>
                             </div>
+                            {concept && (
+                                <div className="pt-2 mt-2 border-t border-muted">
+                                    <div className="text-xs font-semibold text-muted-foreground">Concepto:</div>
+                                    <div className="text-xs italic">"{concept}"</div>
+                                </div>
+                            )}
                         </div>
                     )}
 

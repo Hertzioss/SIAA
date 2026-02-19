@@ -104,7 +104,9 @@ CREATE TABLE payments (
     currency VARCHAR(10) DEFAULT 'USD',
     exchange_rate DECIMAL(10,2),
     notes TEXT,
-    proof_url TEXT
+    proof_url TEXT,
+    billing_period DATE,
+    metadata JSONB DEFAULT '{}'::jsonb
 );
 
 -- 10. Expenses

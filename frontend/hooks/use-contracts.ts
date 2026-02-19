@@ -18,6 +18,7 @@ export type Contract = {
     units?: {
         name: string
         properties?: {
+            id?: string
             name: string
         }
     }

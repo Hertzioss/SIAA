@@ -13,10 +13,29 @@ import { PaymentDialog } from "@/components/tenants/payment-dialog"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import { PrintableReceiptHandler } from "@/components/printable-receipt-handler"
-import { Check, X, Search, FileText, Loader2, Edit2, ChevronLeft, ChevronRight, ArrowUpDown, Printer as PrinterIcon, Pencil, ArrowLeftRight } from "lucide-react"
+import { Check, X, Search, FileText, Loader2, Edit2, ChevronLeft, ChevronRight, ArrowUpDown, Printer as PrinterIcon, Pencil, ArrowLeftRight, Trash2, MoreVertical, Eye } from "lucide-react"
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { parseISO, format as formatFn } from "date-fns"
 import { ExportButtons } from "@/components/export-buttons"
 import { PaymentEditDialog } from "@/components/payments/payment-edit-dialog"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 /**
  * Página para la gestión y conciliación de pagos.
@@ -27,66 +46,19 @@ export default function PaymentsPage() {
         payments, loading, total,
         page, setPage, pageSize, setPageSize,
         statusFilter, setStatusFilter,
-        updatePaymentStatus, updatePayment, fetchFullPayment
+        searchTerm, setSearchTerm,
+        updatePaymentStatus, updatePayment, fetchFullPayment, deletePayment
     } = usePayments()
 
-    const [searchTerm, setSearchTerm] = useState("")
+    const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setSearchTerm(e.target.value)
+        setPage(1) // Reset to first page on search
+    }
 
     // Dialog State
     const [dialogOpen, setDialogOpen] = useState(false)
     const [selectedPaymentId, setSelectedPaymentId] = useState<string | null>(null)
     const [dialogAction, setDialogAction] = useState<'approve' | 'reject' | null>(null)
-
-    // Client-side search filter (as discussed in hook plan)
-    const filteredPayments = payments.filter(payment => {
-        const search = searchTerm.toLowerCase()
-        return (
-            payment.tenant?.name.toLowerCase().includes(search) ||
-            payment.reference?.toLowerCase().includes(search) ||
-            payment.unit?.name.toLowerCase().includes(search)
-        )
-    })
-
-    // Sorting State
-    const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null)
-
-    const requestSort = (key: string) => {
-        let direction: 'asc' | 'desc' = 'asc'
-        if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
-            direction = 'desc'
-        }
-        setSortConfig({ key, direction })
-    }
-
-    const sortedPayments = [...filteredPayments]
-    if (sortConfig) {
-        sortedPayments.sort((a: Payment, b: Payment) => {
-            let aValue = a[sortConfig.key as keyof Payment]
-            let bValue = b[sortConfig.key as keyof Payment]
-
-            // Handle nested properties manually or flattened
-            if (sortConfig.key === 'tenant') {
-                aValue = a.tenant?.name || ''
-                bValue = b.tenant?.name || ''
-            } else if (sortConfig.key === 'unit') {
-                aValue = a.unit?.name || ''
-                bValue = b.unit?.name || ''
-            }
-
-            const valA = aValue ?? ''
-            const valB = bValue ?? ''
-
-            if (valA < valB) {
-                return sortConfig.direction === 'asc' ? -1 : 1
-            }
-            if (valA > valB) {
-                return sortConfig.direction === 'asc' ? 1 : -1
-            }
-            return 0
-        })
-    }
-
-    // const totalPages = Math.ceil(total / pageSize)
 
     const handleActionClick = (id: string, action: 'approve' | 'reject') => {
         setSelectedPaymentId(id)
@@ -103,13 +75,16 @@ export default function PaymentsPage() {
     // Receipt Component State
     const [selectedPaymentForReceipt, setSelectedPaymentForReceipt] = useState<Payment | null>(null)
 
+    // Delete Confirmation State
+    const [paymentToDelete, setPaymentToDelete] = useState<string | null>(null)
+
     return (
         <div className="space-y-6 p-6">
-            <div className="flex justify-between items-center">
+            <div className="flex justify-between items-center mb-6">
                 <h1 className="text-3xl font-bold tracking-tight">Conciliación de Pagos</h1>
                 <div className="flex gap-2">
                      <ExportButtons
-                        data={sortedPayments}
+                        data={payments}
                         filename="reporte_pagos"
                         title="Reporte de Pagos"
                         columns={[
@@ -125,289 +100,281 @@ export default function PaymentsPage() {
                             { header: "Estado", key: "status", transform: (val: string) => val === 'approved' ? 'Conciliado' : val === 'rejected' ? 'Rechazado' : 'Pendiente' }
                         ]}
                     />
-                    {/* <Button onClick={() => setIsRegisterDialogOpen(true)} className="bg-green-600 hover:bg-green-700">
-                        <DollarSign className="mr-2 h-4 w-4" /> Registrar Pago
-                    </Button> */}
                 </div>
             </div>
 
-            <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-                    <CardTitle>Historial de Pagos</CardTitle>
-                    <div className="flex flex-col sm:flex-row w-full max-w-xl items-center gap-4">
-                        <Select value={statusFilter} onValueChange={(val: PaymentStatusFilter) => setStatusFilter(val)}>
-                            <SelectTrigger className="w-[180px]">
-                                <SelectValue placeholder="Estado" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">Todos</SelectItem>
-                                <SelectItem value="pending">Pendientes</SelectItem>
-                                <SelectItem value="approved">Conciliados</SelectItem>
-                                <SelectItem value="rejected">Rechazados</SelectItem>
-                            </SelectContent>
-                        </Select>
+            <div className="flex flex-col md:flex-row gap-4 items-center justify-between bg-card p-4 rounded-lg border shadow-sm mb-6">
+                <div className="relative w-full md:w-80">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                        placeholder="Buscar por referencia o nota..."
+                        value={searchTerm}
+                        onChange={handleSearchChange}
+                        className="pl-9"
+                    />
+                </div>
+                {/* Posible lugar para filtros adicionales en el futuro */}
+            </div>
 
-                        <div className="flex w-full items-center space-x-2">
-                            <Input
-                                placeholder="Buscar por inquilino, referencia..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                className="w-full"
-                            />
-                            <Button size="icon" variant="ghost">
-                                <Search className="h-4 w-4" />
-                            </Button>
-                        </div>
-                    </div>
-                </CardHeader>
-                <CardContent>
-                    <div className="rounded-md border">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>
-                                        <Button variant="ghost" onClick={() => requestSort('created_at')} className="hover:bg-transparent px-0 font-bold">
-                                            Fecha Registro
-                                            <ArrowUpDown className="ml-2 h-4 w-4" />
-                                        </Button>
-                                    </TableHead>
-                                    <TableHead>
-                                        <Button variant="ghost" onClick={() => requestSort('date')} className="hover:bg-transparent px-0 font-bold">
-                                            Fecha Pago
-                                            <ArrowUpDown className="ml-2 h-4 w-4" />
-                                        </Button>
-                                    </TableHead>
-                                    <TableHead>
-                                        <Button variant="ghost" onClick={() => requestSort('billing_period')} className="hover:bg-transparent px-0 font-bold">
-                                            Mes pagado
-                                            <ArrowUpDown className="ml-2 h-4 w-4" />
-                                        </Button>
-                                    </TableHead>
-                                    <TableHead>
-                                        <Button variant="ghost" onClick={() => requestSort('tenant')} className="hover:bg-transparent px-0 font-bold">
-                                            Inquilino
-                                            <ArrowUpDown className="ml-2 h-4 w-4" />
-                                        </Button>
-                                    </TableHead>
-                                    <TableHead>
-                                        <Button variant="ghost" onClick={() => requestSort('unit')} className="hover:bg-transparent px-0 font-bold">
-                                            Propiedad / Unidad
-                                            <ArrowUpDown className="ml-2 h-4 w-4" />
-                                        </Button>
-                                    </TableHead>
-                                    <TableHead className="text-right">
-                                        <Button variant="ghost" onClick={() => requestSort('amount')} className="hover:bg-transparent px-0 font-bold w-full justify-end">
-                                            Monto
-                                            <ArrowUpDown className="ml-2 h-4 w-4" />
-                                        </Button>
-                                    </TableHead>
-                                    <TableHead>Moneda</TableHead>
-                                    <TableHead>Tasa</TableHead>
-                                    <TableHead>Referencia</TableHead>
-                                    <TableHead>
-                                        <Button variant="ghost" onClick={() => requestSort('status')} className="hover:bg-transparent px-0 font-bold">
-                                            Estado
-                                            <ArrowUpDown className="ml-2 h-4 w-4" />
-                                        </Button>
-                                    </TableHead>
-                                    <TableHead className="text-right">Acciones</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {loading ? (
-                                    <TableRow>
-                                        <TableCell colSpan={9} className="text-center h-24">
-                                            <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
-                                        </TableCell>
-                                    </TableRow>
-                                ) : sortedPayments.length === 0 ? (
-                                    <TableRow>
-                                        <TableCell colSpan={9} className="text-center h-24 text-muted-foreground">
-                                            No se encontraron pagos registrados
-                                        </TableCell>
-                                    </TableRow>
-                                ) : (
-                                    sortedPayments.map((payment) => (
-                                        <TableRow key={payment.id}>
-                                            <TableCell className="text-xs text-muted-foreground">
-                                                {payment.created_at ? format(new Date(payment.created_at), "dd/MM/yyyy HH:mm") : "-"}
-                                            </TableCell>
-                                            <TableCell>
-                                                {payment.date ? formatFn(parseISO(payment.date), 'dd/MM/yyyy') : "-"}
-                                            </TableCell>
-                                            <TableCell>
-                                                {/* Billing Period formatted as Month Year */}
-                                                <span className="capitalize">
-                                                    {payment.billing_period
-                                                        ? formatFn(parseISO(payment.billing_period), 'MMMM yyyy', { locale: es })
-                                                        : '-'}
-                                                </span>
-                                            </TableCell>
-                                            <TableCell className="font-medium">
-                                                {payment.tenant?.name || "Desconocido"}
-                                            </TableCell>
-                                            <TableCell>
-                                                <div className="flex flex-col">
-                                                    <span className="text-xs text-muted-foreground">{payment.unit?.property_name}</span>
-                                                    <span>{payment.unit?.name}</span>
-                                                </div>
-                                            </TableCell>
-                                            <TableCell className="text-right">
-                                                <span className={payment.status === 'rejected' ? "line-through text-muted-foreground" : ""}>
-                                                    {payment.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                                                </span>
-                                            </TableCell>
-                                            <TableCell>
-                                                <Badge variant="outline" className={payment.currency === 'USD' ? 'text-green-600 border-green-200' : 'text-blue-600 border-blue-200'}>
-                                                    {payment.currency === 'VES' ? 'Bs.' : (payment.currency || 'USD')}
-                                                </Badge>
-                                            </TableCell>
-                                            <TableCell>
-                                                {payment.exchange_rate ? payment.exchange_rate.toFixed(2) : '-'}
-                                            </TableCell>
-                                            <TableCell>
-                                                <span className="font-mono text-xs">{payment.reference || "-"}</span>
-                                            </TableCell>
-                                            <TableCell>
-                                                <Badge variant={
-                                                    payment.status === 'approved' ? 'default' :
-                                                        payment.status === 'rejected' ? 'destructive' : 'secondary'
-                                                }>
-                                                    {payment.status === 'approved' ? 'Conciliado' :
-                                                        payment.status === 'rejected' ? 'Rechazado' : 'Pendiente'}
-                                                </Badge>
-                                            </TableCell>
-                                            <TableCell className="text-right">
-                                                <div className="flex justify-end gap-2">
-                                                    {/* Show actions if pending or allow editing */}
-                                                    {payment.status === 'pending' ? (
-                                                        <>
-                                                            <Button
-                                                                size="sm"
-                                                                variant="outline"
-                                                                className="text-green-600 hover:text-green-700 hover:bg-green-50"
-                                                                onClick={() => handleActionClick(payment.id, 'approve')}
-                                                                title="Aprobar / Conciliar"
-                                                            >
-                                                                <Check className="h-4 w-4" />
-                                                            </Button>
-                                                            <Button
-                                                                size="sm"
-                                                                variant="outline"
-                                                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                                                                onClick={() => handleActionClick(payment.id, 'reject')}
-                                                                title="Rechazar"
-                                                            >
-                                                                <X className="h-4 w-4" />
-                                                            </Button>
-                                                        </>
-                                                    ) : (
-                                                        // "Change Status" button for non-pending to allow re-evaluation
-                                                        <Button
-                                                            size="sm"
-                                                            variant="ghost"
-                                                            onClick={() => handleActionClick(payment.id, payment.status === 'approved' ? 'reject' : 'approve')}
-                                                            title="Cambiar Estado (Revertir/Re-evaluar)"
-                                                        >
-                                                            <ArrowLeftRight className="h-4 w-4 text-orange-500" />
-                                                        </Button>
-                                                    )}
-                                                    {payment.proof_url && (
-                                                        <Button size="sm" variant="ghost" asChild>
-                                                            <a href={payment.proof_url} target="_blank" rel="noreferrer">
-                                                                <FileText className="h-4 w-4" />
-                                                            </a>
-                                                        </Button>
-                                                    )}
+            <Tabs value={statusFilter} onValueChange={(value) => {
+                setStatusFilter(value as PaymentStatusFilter)
+                setPage(1)
+            }} className="w-full">
+                <div className="flex items-center justify-between mb-4">
+                    <TabsList className="bg-muted/50 p-1">
+                        <TabsTrigger 
+                            value="pending" 
+                            className="data-[state=active]:bg-orange-600 data-[state=active]:text-white transition-all"
+                        >
+                            Pendientes
+                            <Badge className="ml-2 bg-orange-100 text-orange-700 hover:bg-orange-100 border-orange-200">
+                                {statusFilter === 'pending' ? total : '...'}
+                            </Badge>
+                        </TabsTrigger>
+                        <TabsTrigger 
+                            value="approved"
+                            className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white transition-all"
+                        >
+                            Histórico (Conciliados)
+                        </TabsTrigger>
+                        <TabsTrigger 
+                            value="rejected"
+                            className="data-[state=active]:bg-red-600 data-[state=active]:text-white transition-all"
+                        >
+                            Rechazados
+                        </TabsTrigger>
+                        <TabsTrigger 
+                            value="all"
+                            className="data-[state=active]:bg-slate-800 data-[state=active]:text-white transition-all"
+                        >
+                            Todos
+                        </TabsTrigger>
+                    </TabsList>
+                </div>
 
-                                                    {/* Always allow edit - for corrections */}
-                                                    <Button
-                                                        size="sm"
-                                                        variant="ghost" 
-                                                        onClick={() => setEditingPayment(payment)}
-                                                        title="Editar Datos del Pago"
-                                                    >
-                                                        <Pencil className="h-4 w-4 text-primary" />
-                                                    </Button>
-
-                                                    {(payment.status === 'approved' || payment.status === 'paid') && (
-                                                        <Button
-                                                            size="sm"
-                                                            variant="outline"
-                                                            className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                                                            onClick={async () => {
-                                                                const fullPayment = await fetchFullPayment(payment.id);
-                                                                if (fullPayment) {
-                                                                    setSelectedPaymentForReceipt(fullPayment)
-                                                                }
-                                                            }}
-                                                            title="Imprimir Recibo"
-                                                        >
-                                                            <PrinterIcon className="h-4 w-4 mr-1" />
-                                                        </Button>
-                                                    )}
-
-                                                    
-                                                </div>
-                                            </TableCell>
+                <TabsContent value={statusFilter} className="mt-0">
+                    <Card>
+                        <CardHeader className="pb-0">
+                            <CardTitle className="text-lg font-medium">
+                                {statusFilter === 'pending' && "Pagos Pendientes por Conciliar"}
+                                {statusFilter === 'approved' && "Historial de Pagos Conciliados"}
+                                {statusFilter === 'rejected' && "Pagos Rechazados"}
+                                {statusFilter === 'all' && "Listado Completo de Pagos"}
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="pt-6">
+                            <div className="rounded-md border">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Fecha Registro</TableHead>
+                                            <TableHead>Fecha Pago</TableHead>
+                                            <TableHead>Mes pagado</TableHead>
+                                            <TableHead>Inquilino</TableHead>
+                                            <TableHead>Propiedad / Unidad</TableHead>
+                                            <TableHead className="text-right">Monto</TableHead>
+                                            <TableHead>Moneda</TableHead>
+                                            <TableHead>Tasa</TableHead>
+                                            <TableHead>Referencia</TableHead>
+                                            <TableHead>Estado</TableHead>
+                                            <TableHead className="text-right">Acciones</TableHead>
                                         </TableRow>
-                                    ))
-                                )}
-                            </TableBody>
-                        </Table>
-                    </div>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {loading ? (
+                                            <TableRow>
+                                                <TableCell colSpan={11} className="text-center h-24">
+                                                    <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
+                                                </TableCell>
+                                            </TableRow>
+                                        ) : payments.length === 0 ? (
+                                            <TableRow>
+                                                <TableCell colSpan={11} className="text-center h-24 text-muted-foreground">
+                                                    No se encontraron pagos registrados
+                                                </TableCell>
+                                            </TableRow>
+                                        ) : (
+                                            payments.map((payment) => (
+                                                <TableRow key={payment.id}>
+                                                    <TableCell className="text-xs text-muted-foreground">
+                                                        {payment.created_at ? format(new Date(payment.created_at), "dd/MM/yyyy HH:mm") : "-"}
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        {payment.date ? formatFn(parseISO(payment.date), 'dd/MM/yyyy') : "-"}
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <span className="capitalize">
+                                                            {payment.billing_period
+                                                                ? formatFn(parseISO(payment.billing_period), 'MMMM yyyy', { locale: es })
+                                                                : '-'}
+                                                        </span>
+                                                    </TableCell>
+                                                    <TableCell className="font-medium">
+                                                        {payment.tenant?.name || "Desconocido"}
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <div className="flex flex-col">
+                                                            <span className="text-xs text-muted-foreground">{payment.unit?.property_name}</span>
+                                                            <span>{payment.unit?.name}</span>
+                                                        </div>
+                                                    </TableCell>
+                                                    <TableCell className="text-right">
+                                                        <span className={payment.status === 'rejected' ? "line-through text-muted-foreground" : ""}>
+                                                            {payment.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                                                        </span>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <Badge variant="outline" className={payment.currency === 'USD' ? 'text-green-600 border-green-200' : 'text-blue-600 border-blue-200'}>
+                                                            {payment.currency === 'VES' ? 'Bs.' : (payment.currency || 'USD')}
+                                                        </Badge>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        {payment.exchange_rate ? payment.exchange_rate.toFixed(2) : '-'}
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <span className="font-mono text-xs">{payment.reference || "-"}</span>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <Badge variant={
+                                                            payment.status === 'approved' ? 'default' :
+                                                                payment.status === 'rejected' ? 'destructive' : 'secondary'
+                                                        }>
+                                                            {payment.status === 'approved' ? 'Conciliado' :
+                                                                payment.status === 'rejected' ? 'Rechazado' : 'Pendiente'}
+                                                        </Badge>
+                                                    </TableCell>
+                                                    <TableCell className="text-right">
+                                                        <div className="flex justify-end">
+                                                            <DropdownMenu>
+                                                                <DropdownMenuTrigger asChild>
+                                                                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                                                        <span className="sr-only">Abrir menú de acciones</span>
+                                                                        <MoreVertical className="h-4 w-4" />
+                                                                    </Button>
+                                                                </DropdownMenuTrigger>
+                                                                <DropdownMenuContent align="end" className="w-48">
+                                                                    <DropdownMenuLabel>Acciones</DropdownMenuLabel>
+                                                                    <DropdownMenuSeparator />
+                                                                    
+                                                                    {payment.status === 'pending' ? (
+                                                                        <>
+                                                                            <DropdownMenuItem onClick={() => handleActionClick(payment.id, 'approve')} className="text-green-600 focus:text-green-700">
+                                                                                <Check className="mr-2 h-4 w-4" />
+                                                                                Aprobar / Conciliar
+                                                                            </DropdownMenuItem>
+                                                                            <DropdownMenuItem onClick={() => handleActionClick(payment.id, 'reject')} className="text-red-600 focus:text-red-700">
+                                                                                <X className="mr-2 h-4 w-4" />
+                                                                                Rechazar
+                                                                            </DropdownMenuItem>
+                                                                        </>
+                                                                    ) : (
+                                                                        <DropdownMenuItem onClick={() => handleActionClick(payment.id, payment.status === 'approved' ? 'reject' : 'approve')}>
+                                                                            <ArrowLeftRight className="mr-2 h-4 w-4 text-orange-500" />
+                                                                            Cambiar Estado
+                                                                        </DropdownMenuItem>
+                                                                    )}
 
-                    {/* Pagination Controls */}
-                    <div className="flex items-center justify-end space-x-2 py-4">
-                        <div className="flex-1 text-sm text-muted-foreground">
-                            Mostrando {filteredPayments.length} registros (Total: {total})
-                        </div>
-                        <div className="space-x-2 flex items-center">
-                            <p className="text-sm text-muted-foreground mr-2">Filas por página:</p>
-                            <Select
-                                value={pageSize.toString()}
-                                onValueChange={(val) => {
-                                    setPageSize(Number(val))
-                                    setPage(1)
-                                }}
-                            >
-                                <SelectTrigger className="w-[70px] h-8 inline-flex">
-                                    <SelectValue placeholder={pageSize.toString()} />
-                                </SelectTrigger>
-                                <SelectContent side="top">
-                                    {[5, 10, 20, 50].map((size) => (
-                                        <SelectItem key={size} value={size.toString()}>
-                                            {size}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                            <div className="w-4"></div>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setPage(p => Math.max(1, p - 1))}
-                                disabled={page === 1 || loading}
-                            >
-                                <ChevronLeft className="h-4 w-4" />
-                                Anterior
-                            </Button>
-                            <span className="text-sm font-medium mx-2">
-                                Página {page} de {Math.ceil(total / pageSize) || 1}
-                            </span>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setPage(p => p + 1)}
-                                disabled={filteredPayments.length < pageSize && (page * pageSize) >= total || loading}
-                            >
-                                Siguiente
-                                <ChevronRight className="h-4 w-4" />
-                            </Button>
-                        </div>
-                    </div>
-                </CardContent>
-            </Card>
+                                                                    <DropdownMenuSeparator />
+                                                                    
+                                                                    <DropdownMenuItem onClick={() => setEditingPayment(payment)}>
+                                                                        <Pencil className="mr-2 h-4 w-4 text-primary" />
+                                                                        Editar Datos
+                                                                    </DropdownMenuItem>
+
+                                                                    {(payment.status === 'approved' || payment.status === 'paid') && (
+                                                                        <DropdownMenuItem 
+                                                                            onClick={async () => {
+                                                                                const fullPayment = await fetchFullPayment(payment.id);
+                                                                                if (fullPayment) setSelectedPaymentForReceipt(fullPayment)
+                                                                            }}
+                                                                        >
+                                                                            <PrinterIcon className="mr-2 h-4 w-4 text-blue-600" />
+                                                                            Imprimir Recibo
+                                                                        </DropdownMenuItem>
+                                                                    )}
+
+                                                                    {payment.proof_url && (
+                                                                        <DropdownMenuItem asChild>
+                                                                            <a href={payment.proof_url} target="_blank" rel="noreferrer">
+                                                                                <Eye className="mr-2 h-4 w-4" />
+                                                                                Ver Comprobante
+                                                                            </a>
+                                                                        </DropdownMenuItem>
+                                                                    )}
+
+                                                                    <DropdownMenuSeparator />
+                                                                    
+                                                                    <DropdownMenuItem 
+                                                                        onClick={() => setPaymentToDelete(payment.id)}
+                                                                        className="text-red-600 focus:text-red-700 focus:bg-red-50"
+                                                                    >
+                                                                        <Trash2 className="mr-2 h-4 w-4" />
+                                                                        Eliminar Pago
+                                                                    </DropdownMenuItem>
+                                                                </DropdownMenuContent>
+                                                            </DropdownMenu>
+                                                        </div>
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))
+                                        )}
+                                    </TableBody>
+                                </Table>
+                            </div>
+
+                            {/* Pagination Controls */}
+                            <div className="flex items-center justify-end space-x-2 py-4">
+                                <div className="flex-1 text-sm text-muted-foreground">
+                                    Mostrando {payments.length} registros (Total: {total})
+                                </div>
+                                <div className="space-x-2 flex items-center">
+                                    <p className="text-sm text-muted-foreground mr-2">Filas por página:</p>
+                                    <Select
+                                        value={pageSize.toString()}
+                                        onValueChange={(val) => {
+                                            setPageSize(Number(val))
+                                            setPage(1)
+                                        }}
+                                    >
+                                        <SelectTrigger className="w-[70px] h-8 inline-flex">
+                                            <SelectValue placeholder={pageSize.toString()} />
+                                        </SelectTrigger>
+                                        <SelectContent side="top">
+                                            {[5, 10, 20, 50].map((size) => (
+                                                <SelectItem key={size} value={size.toString()}>
+                                                    {size}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    <div className="w-4"></div>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setPage(p => Math.max(1, p - 1))}
+                                        disabled={page === 1 || loading}
+                                    >
+                                        <ChevronLeft className="h-4 w-4" />
+                                        Anterior
+                                    </Button>
+                                    <span className="text-sm font-medium mx-2">
+                                        Página {page} de {Math.ceil(total / pageSize) || 1}
+                                    </span>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setPage(p => p + 1)}
+                                        disabled={payments.length < pageSize && (page * pageSize) >= total || loading}
+                                    >
+                                        Siguiente
+                                        <ChevronRight className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+            </Tabs>
 
             <PaymentActionDialog
                 open={dialogOpen}
@@ -421,6 +388,7 @@ export default function PaymentsPage() {
                 paymentDate={payments.find(p => p.id === selectedPaymentId)?.date || undefined}
                 exchangeRate={payments.find(p => p.id === selectedPaymentId)?.exchange_rate || undefined}
                 registrationDate={payments.find(p => p.id === selectedPaymentId)?.created_at || undefined}
+                concept={payments.find(p => p.id === selectedPaymentId)?.concept || undefined}
 
                 onConfirm={updatePaymentStatus}
             />
@@ -445,6 +413,32 @@ export default function PaymentsPage() {
                     onClose={() => setSelectedPaymentForReceipt(null)}
                 />
             )}
+
+            <AlertDialog open={!!paymentToDelete} onOpenChange={(open) => !open && setPaymentToDelete(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>¿Está absolutamente seguro?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Esta acción no se puede deshacer. Se eliminará permanentemente el registro del pago
+                            del sistema.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={async () => {
+                                if (paymentToDelete) {
+                                    await deletePayment(paymentToDelete)
+                                    setPaymentToDelete(null)
+                                }
+                            }}
+                            className="bg-red-600 hover:bg-red-700"
+                        >
+                            Eliminar Pago
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     )
 }

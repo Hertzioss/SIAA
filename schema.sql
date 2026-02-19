@@ -154,6 +154,8 @@ CREATE TABLE public.payments (
     exchange_rate DECIMAL(10,4),
     notes TEXT,
     proof_url TEXT,
+    billing_period DATE,
+    metadata JSONB DEFAULT '{}'::jsonb,
     created_at TIMESTAMP DEFAULT NOW()
 );
 ALTER TABLE public.payments ENABLE ROW LEVEL SECURITY;
