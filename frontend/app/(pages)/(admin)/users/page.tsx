@@ -63,6 +63,7 @@ export default function UsersPage() {
     // Tenant Pagination
     const totalPagesTenants = Math.ceil(tenantUsers.length / ITEMS_PER_PAGE)
     const currentTenantUsers = tenantUsers.slice(
+        (currentPageTenants - 1) * ITEMS_PER_PAGE,
         currentPageTenants * ITEMS_PER_PAGE
     )
 
