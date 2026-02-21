@@ -28,13 +28,18 @@ export function useDashboardData(propertyId: string, ownerId: string = 'all') {
             // 1. Fetch Payments (Approved & Pending)
             let paymentsQuery = supabase
                 .from('payments')
-                .select('amount, date, status, currency, contract:contracts(unit:units(property_id, name), tenant:tenants(name))');
+                .select('amount, date, status, currency, contract_id, tenants(name)');
 
             // 2. Fetch Contracts (Active)
             let contractsQuery = supabase
                 .from('contracts')
                 .select('id, end_date, status, rent_amount, unit:units(property_id, name), tenant:tenants(name)')
                 .eq('status', 'active');
+
+            // Also fetch all contracts (active + historical) to build a map for payment filtering
+            let allContractsQuery = supabase
+                .from('contracts')
+                .select('id, unit:units(property_id, name)');
 
             // 3. Fetch Units (Total for Occupancy)
             let unitsQuery = supabase
@@ -53,19 +58,30 @@ export function useDashboardData(propertyId: string, ownerId: string = 'all') {
                 .select('id, amount, date, property_id, owner_id'); // Note: Expenses schema might need currency too if multi-currency supported
 
             // Execute queries
-            const [paymentsRes, contractsRes, unitsRes, maintenanceRes, expensesRes] = await Promise.all([
+            const [paymentsRes, contractsRes, unitsRes, maintenanceRes, expensesRes, allContractsRes] = await Promise.all([
                 paymentsQuery,
                 contractsQuery,
                 unitsQuery,
                 maintenanceQuery,
-                expensesQuery
+                expensesQuery,
+                allContractsQuery
             ]);
 
             const payments = paymentsRes.data || [];
             const contracts = contractsRes.data || [];
+            const allContracts = allContractsRes.data || [];
             const units = unitsRes.data || [];
             const maintenance = maintenanceRes.data || [];
             const expenses = expensesRes.data || [];
+
+            // Build a map: contract_id -> { property_id, unit_name } for payment filtering/display
+            const contractMap: Record<string, { property_id: string; unit_name: string }> = {};
+            allContracts.forEach((c: any) => {
+                const unitData = Array.isArray(c.unit) ? c.unit[0] : c.unit;
+                if (c.id && unitData?.property_id) {
+                    contractMap[c.id] = { property_id: unitData.property_id, unit_name: unitData.name || '' };
+                }
+            });
 
             // FILTERING LOGIC
             const filterByOwner = (itemPropertyId: string) => {
@@ -79,7 +95,8 @@ export function useDashboardData(propertyId: string, ownerId: string = 'all') {
             };
 
             const isVisible = (itemPropertyId: any) => {
-                if (!itemPropertyId) return false;
+                // If no property_id, only show when no filter is active
+                if (!itemPropertyId) return (propertyId === 'all' && ownerId === 'all');
                 return filterByOwner(itemPropertyId) && filterByProperty(itemPropertyId);
             };
 
@@ -90,7 +107,10 @@ export function useDashboardData(propertyId: string, ownerId: string = 'all') {
                 return ownerMatch && propertyMatch;
             }
 
-            const filteredPayments = payments.filter((p: any) => isVisible(p.contract?.unit?.property_id));
+            const filteredPayments = payments.filter((p: any) => {
+                const propertyId_ = contractMap[p.contract_id]?.property_id;
+                return isVisible(propertyId_);
+            });
             const filteredContracts = contracts.filter((c: any) => isVisible(c.unit?.property_id));
             const filteredUnits = units.filter((u: any) => isVisible(u.property_id));
             const filteredMaintenance = maintenance.filter((m: any) => isVisible(m.property_id));
@@ -175,12 +195,13 @@ export function useDashboardData(propertyId: string, ownerId: string = 'all') {
                 .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())
                 .slice(0, 5)
                 .map((p: any) => {
-                    // Currency formatting
                     const symbol = p.currency === 'VES' || p.currency === 'Bs' ? 'Bs' : '$';
+                    const tenantData = Array.isArray(p.tenants) ? p.tenants[0] : p.tenants;
+                    const unitName = contractMap[p.contract_id]?.unit_name ?? 'Unidad';
                     return {
                         type: "payment",
                         title: "Pago Registrado",
-                        desc: `${p.contract?.tenant?.name} - ${p.contract?.unit?.name}`,
+                        desc: `${tenantData?.name ?? 'Inquilino'} - ${unitName}`,
                         amount: `${symbol} ${p.amount}`,
                         status: p.status === 'approved' ? 'success' : 'warning',
                         date: p.date
