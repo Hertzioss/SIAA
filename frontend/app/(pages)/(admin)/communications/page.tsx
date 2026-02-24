@@ -8,11 +8,18 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { Plus, Pencil, Trash2, Mail, Loader2, Search } from "lucide-react"
+import { Plus, Pencil, Trash2, Mail, Loader2, Search, Info } from "lucide-react"
 import { toast } from "sonner"
 import { useTemplates, NotificationTemplate } from "@/hooks/use-templates"
 import { CreateNotificationDialog } from "@/components/notifications/create-notification-dialog"
 import { useNotifications } from "@/hooks/use-notifications" // Need this to send the actual notification
+import { useRef } from "react"
+
+const TEMPLATE_TAGS = [
+    { tag: '{inquilino}', label: 'Nombre del inquilino', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400' },
+    { tag: '{email}',     label: 'Correo del inquilino', color: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400' },
+    { tag: '{fecha}',     label: 'Fecha actual',          color: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' },
+]
 
 /**
  * Página de gestión de plantillas de comunicación.
@@ -22,6 +29,7 @@ import { useNotifications } from "@/hooks/use-notifications" // Need this to sen
 export default function CommunicationsPage() {
     const { templates, loading, createTemplate, updateTemplate, deleteTemplate } = useTemplates()
     const { createNotification } = useNotifications()
+    const messageRef = useRef<HTMLTextAreaElement>(null)
 
     // UI State
     const [isDialogOpen, setIsDialogOpen] = useState(false)
@@ -43,6 +51,23 @@ export default function CommunicationsPage() {
     const resetForm = () => {
         setFormData({ name: "", title: "", message: "", type: "info" })
         setEditingTemplate(null)
+    }
+
+    const insertTag = (tag: string) => {
+        const textarea = messageRef.current
+        if (!textarea) {
+            setFormData(prev => ({ ...prev, message: prev.message + tag }))
+            return
+        }
+        const start = textarea.selectionStart
+        const end = textarea.selectionEnd
+        const newMessage = formData.message.slice(0, start) + tag + formData.message.slice(end)
+        setFormData(prev => ({ ...prev, message: newMessage }))
+        // Restore cursor position after the inserted tag
+        setTimeout(() => {
+            textarea.focus()
+            textarea.setSelectionRange(start + tag.length, start + tag.length)
+        }, 0)
     }
 
     const openCreateDialog = () => {
@@ -157,11 +182,32 @@ export default function CommunicationsPage() {
                                 />
                             </div>
                             <div className="grid gap-2">
+                                <div className="flex items-center gap-2">
+                                    <Info className="h-4 w-4 text-muted-foreground" />
+                                    <span className="text-xs font-medium text-muted-foreground">Tags disponibles — haz clic para insertar en el mensaje:</span>
+                                </div>
+                                <div className="flex flex-wrap gap-2 rounded-md border bg-muted/40 p-3">
+                                    {TEMPLATE_TAGS.map(({ tag, label, color }) => (
+                                        <button
+                                            key={tag}
+                                            type="button"
+                                            onClick={() => insertTag(tag)}
+                                            className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-opacity hover:opacity-70 cursor-pointer ${color}`}
+                                            title={`Insertar ${tag}`}
+                                        >
+                                            <code className="font-mono">{tag}</code>
+                                            <span className="opacity-70">→ {label}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                            <div className="grid gap-2">
                                 <Label htmlFor="message">Contenido del Mensaje</Label>
                                 <Textarea
                                     id="message"
+                                    ref={messageRef}
                                     placeholder="Escriba el cuerpo del mensaje..."
-                                    className="min-h-[150px]"
+                                    className="min-h-[150px] font-mono text-sm"
                                     value={formData.message}
                                     onChange={(e) => setFormData({ ...formData, message: e.target.value })}
                                     required

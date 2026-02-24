@@ -5,9 +5,11 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Loader2 } from "lucide-react"
 import { useTenants } from "@/hooks/use-tenants"
 import { useProperties } from "@/hooks/use-properties"
+import { supabase } from "@/lib/supabase"
 
 interface CreateNotificationDialogProps {
     open: boolean
@@ -40,6 +42,7 @@ export function CreateNotificationDialog({ open, onOpenChange, onSubmit, initial
     const [tenantId, setTenantId] = useState<string>("")
     const [propertyId, setPropertyId] = useState<string>("")
     const [recipientType, setRecipientType] = useState<'tenant' | 'contacts' | 'both'>('tenant')
+    const [copyToAdmin, setCopyToAdmin] = useState(false)
 
     const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -73,6 +76,25 @@ export function CreateNotificationDialog({ open, onOpenChange, onSubmit, initial
                 },
                 recipientType
             })
+
+            // Send admin copy if requested
+            if (copyToAdmin) {
+                const { data: company } = await supabase
+                    .from('companies')
+                    .select('email, name')
+                    .single()
+                if (company?.email) {
+                    await fetch('/api/emails/send', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            recipients: [{ email: company.email, name: company.name || 'Administrador' }],
+                            subject: `[COPIA ADMIN] ${title}`,
+                            message
+                        })
+                    })
+                }
+            }
             onOpenChange(false)
             // Reset form
             setTitle("")
@@ -82,6 +104,7 @@ export function CreateNotificationDialog({ open, onOpenChange, onSubmit, initial
             setTenantId("")
             setPropertyId("")
             setRecipientType("tenant")
+            setCopyToAdmin(false)
         } catch (error) {
             console.error("Error submitting notification:", error)
             // Toast is likely handled in onSubmit (the hook), but we catch here to prevent crash
@@ -203,6 +226,22 @@ export function CreateNotificationDialog({ open, onOpenChange, onSubmit, initial
                             className="min-h-[100px]"
                             required
                         />
+                    </div>
+
+                    <div className="flex items-center gap-3 rounded-lg border px-4 py-3">
+                        <Checkbox
+                            id="copy-admin"
+                            checked={copyToAdmin}
+                            onCheckedChange={(v) => setCopyToAdmin(Boolean(v))}
+                        />
+                        <div className="grid gap-0.5">
+                            <Label htmlFor="copy-admin" className="cursor-pointer font-medium">
+                                Enviar copia al administrador
+                            </Label>
+                            <p className="text-xs text-muted-foreground">
+                                Se enviará una copia del comunicado al correo de la empresa configurado en Perfil.
+                            </p>
+                        </div>
                     </div>
                     <DialogFooter>
                         <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

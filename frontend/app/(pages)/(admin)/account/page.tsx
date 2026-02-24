@@ -10,7 +10,8 @@ import { Separator } from "@/components/ui/separator"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Plus, Trash2, Edit, Building, CreditCard, DollarSign, Save, Lock } from "lucide-react"
+import { Plus, Trash2, Edit, Building, CreditCard, DollarSign, Save, Lock, Mail } from "lucide-react"
+import { Switch } from "@/components/ui/switch"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
 import { SecurityForm } from "@/components/security-form"
@@ -55,6 +56,8 @@ export default function AccountPage() {
     const [isAccountDialogOpen, setIsAccountDialogOpen] = useState(false)
     const [loading, setLoading] = useState(false)
     const [uploading, setUploading] = useState(false)
+    const [emailEnabled, setEmailEnabled] = useState(true)
+    const [savingEmail, setSavingEmail] = useState(false)
     const [profileData, setProfileData] = useState({
         name: "",
         rif: "",
@@ -80,6 +83,7 @@ export default function AccountPage() {
                 email: res.data.email || "",
                 logo_url: res.data.logo_url
             })
+            setEmailEnabled(res.data.email_enabled !== false)
         }
         setLoading(false)
     }
@@ -142,6 +146,22 @@ export default function AccountPage() {
         toast.success("Se guardó correctamente")
     }
 
+    const handleSaveEmailSettings = async () => {
+        setSavingEmail(true)
+        try {
+            const res = await updateCompany({ email_enabled: emailEnabled })
+            if (res.success) {
+                toast.success("Configuración de email guardada")
+            } else {
+                toast.error("Error al guardar: " + res.error)
+            }
+        } catch {
+            toast.error("Error inesperado")
+        } finally {
+            setSavingEmail(false)
+        }
+    }
+
     const handleAddAccount = () => {
         setIsAccountDialogOpen(false)
         toast.success("Cuenta bancaria agregada")
@@ -159,7 +179,7 @@ export default function AccountPage() {
             </div>
 
             <Tabs defaultValue="profile" className="w-full">
-                <TabsList className="grid w-full grid-cols-4 max-w-[800px]">
+                <TabsList className="grid w-full grid-cols-5 max-w-[1000px]">
                     <TabsTrigger value="profile">
                         <Building className="mr-2 h-4 w-4" /> Perfil
                     </TabsTrigger>
@@ -168,6 +188,9 @@ export default function AccountPage() {
                     </TabsTrigger>
                     <TabsTrigger value="accounting">
                         <DollarSign className="mr-2 h-4 w-4" /> Contabilidad
+                    </TabsTrigger>
+                    <TabsTrigger value="notifications">
+                        <Mail className="mr-2 h-4 w-4" /> Notificaciones
                     </TabsTrigger>
                     <TabsTrigger value="security">
                         <Lock className="mr-2 h-4 w-4" /> Seguridad
@@ -414,6 +437,53 @@ export default function AccountPage() {
                             <div className="flex justify-end pt-4">
                                 <Button onClick={handleSaveAccounting}>
                                     <Save className="mr-2 h-4 w-4" /> Guardar Configuración
+                                </Button>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+
+                {/* NOTIFICATIONS TAB */}
+                <TabsContent value="notifications" className="mt-6 space-y-6">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Notificaciones por Email</CardTitle>
+                            <CardDescription>
+                                Control global del envío de correos electrónicos del sistema.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-6">
+                            <div className="flex items-center justify-between rounded-lg border p-4">
+                                <div className="space-y-0.5">
+                                    <p className="text-base font-medium">Envío de Emails</p>
+                                    <p className="text-sm text-muted-foreground">
+                                        {emailEnabled
+                                            ? "Los correos se envían normalmente a inquilinos y propietarios."
+                                            : "El envío de correos está desactivado. Ningún email saldrá del sistema."}
+                                    </p>
+                                </div>
+                                <Switch
+                                    checked={emailEnabled}
+                                    onCheckedChange={setEmailEnabled}
+                                />
+                            </div>
+
+                            {!emailEnabled && (
+                                <div className="flex items-start gap-3 rounded-lg bg-amber-50 border border-amber-200 p-4 text-amber-800 dark:bg-amber-950/20 dark:border-amber-800 dark:text-amber-400">
+                                    <Mail className="h-5 w-5 mt-0.5 shrink-0" />
+                                    <div className="text-sm">
+                                        <p className="font-medium">Envío de emails desactivado</p>
+                                        <p className="mt-1 text-amber-700 dark:text-amber-500">
+                                            Los recibos de pago, recordatorios y comunicaciones no se enviarán hasta que vuelva a activar esta opción.
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
+
+                            <div className="flex justify-end">
+                                <Button onClick={handleSaveEmailSettings} disabled={savingEmail}>
+                                    <Save className="mr-2 h-4 w-4" />
+                                    {savingEmail ? "Guardando..." : "Guardar Configuración"}
                                 </Button>
                             </div>
                         </CardContent>

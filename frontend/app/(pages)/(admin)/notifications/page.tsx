@@ -6,11 +6,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Mail, Send, Paperclip, Eye, RotateCw, Inbox, CheckCircle, Trash2, Bell } from "lucide-react"
+import { Mail, Send, Paperclip, Eye, RotateCw, Inbox, CheckCircle, Trash2, Bell, ChevronLeft, ChevronRight } from "lucide-react"
 import { useNotifications, Notification } from "@/hooks/use-notifications"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import { CreateNotificationDialog } from "@/components/notifications/create-notification-dialog"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 /**
  * Página de gestión de notificaciones.
@@ -29,6 +30,7 @@ export default function NotificationsPage() {
         page,
         setPage,
         pageSize,
+        setPageSize,
         totalCount
     } = useNotifications()
     const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
@@ -104,8 +106,14 @@ export default function NotificationsPage() {
                                                     {notification.title}
                                                     {!notification.is_read && <span className="ml-2 inline-block w-2 h-2 rounded-full bg-blue-600"></span>}
                                                 </TableCell>
-                                                <TableCell className="max-w-[300px] truncate" title={notification.message}>
-                                                    {notification.message}
+                                                <TableCell className="whitespace-pre-wrap">
+                                                    <span>{notification.message}</span>
+                                                    {notification.tenant_email && (
+                                                        <span className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
+                                                            <Mail className="h-3 w-3 shrink-0" />
+                                                            {notification.tenant_email}
+                                                        </span>
+                                                    )}
                                                 </TableCell>
                                                 <TableCell>{formatDate(notification.created_at)}</TableCell>
                                                 <TableCell>
@@ -134,27 +142,46 @@ export default function NotificationsPage() {
                     </Card>
 
                     {/* Pagination Controls */}
-                    <div className="flex items-center justify-end space-x-2 py-4">
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setPage(p => Math.max(1, p - 1))}
-                            disabled={page === 1 || loading}
-                        >
-                            Anterior
-                        </Button>
-                        <div className="text-sm text-muted-foreground">
-                            Página {page} de {Math.ceil(totalCount / pageSize) || 1}
+                    {Math.ceil(totalCount / pageSize) > 1 && (
+                        <div className="flex items-center justify-end px-4 py-4 border-t">
+                            <div className="flex items-center space-x-2">
+                                <p className="text-sm text-muted-foreground mr-2">Filas por página:</p>
+                                <Select
+                                    value={pageSize.toString()}
+                                    onValueChange={(v) => { setPageSize(Number(v)); setPage(1); }}
+                                >
+                                    <SelectTrigger className="w-[70px] h-8">
+                                        <SelectValue placeholder={pageSize.toString()} />
+                                    </SelectTrigger>
+                                    <SelectContent side="top">
+                                        {[10, 25, 50, 100].map((size) => (
+                                            <SelectItem key={size} value={size.toString()}>{size}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                <div className="w-4"></div>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setPage(p => Math.max(1, p - 1))}
+                                    disabled={page === 1 || loading}
+                                >
+                                    <ChevronLeft className="h-4 w-4 mr-1" /> Anterior
+                                </Button>
+                                <div className="text-sm text-muted-foreground">
+                                    Página {page} de {Math.ceil(totalCount / pageSize) || 1}
+                                </div>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setPage(p => p + 1)}
+                                    disabled={page * pageSize >= totalCount || loading}
+                                >
+                                    Siguiente <ChevronRight className="h-4 w-4 ml-1" />
+                                </Button>
+                            </div>
                         </div>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setPage(p => p + 1)}
-                            disabled={page * pageSize >= totalCount || loading}
-                        >
-                            Siguiente
-                        </Button>
-                    </div>
+                    )}
                 </TabsContent>
 
                 {/* PAYMENTS SPECIFIC TAB */}

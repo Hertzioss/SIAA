@@ -22,12 +22,13 @@ export async function getCompany() {
 }
 
 export async function updateCompany(data: {
-    name: string
-    rif: string
-    address: string
-    phone: string
-    email: string
+    name?: string
+    rif?: string
+    address?: string
+    phone?: string
+    email?: string
     logo_url?: string | null
+    email_enabled?: boolean
 }) {
     try {
         // Check if company exists

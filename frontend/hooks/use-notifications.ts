@@ -11,6 +11,7 @@ export interface Notification {
     message: string;
     is_read: boolean;
     created_at: string;
+    tenant_email?: string | null;  // joined from tenants table
 }
 
 export function useNotifications() {
@@ -32,13 +33,20 @@ export function useNotifications() {
 
             const { data, count, error } = await supabase
                 .from('notifications')
-                .select('*', { count: 'exact' })
+                .select('*, tenants(email)', { count: 'exact' })
                 .order('created_at', { ascending: false })
                 .range(from, to);
 
             if (error) throw error;
 
-            setNotifications(data || []);
+            // Flatten tenant email onto the notification object
+            const mapped = (data || []).map((n: any) => ({
+                ...n,
+                tenant_email: n.tenants?.email ?? null,
+                tenants: undefined
+            }));
+
+            setNotifications(mapped);
             setTotalCount(count || 0);
 
             // Unread count (separate query might be better if pagination limits fetch, but for now this count logic is weak if not fetching all)

@@ -115,12 +115,20 @@ export function useTenants() {
                         .update({ status: 'occupied' })
                         .eq('id', contractData.unit_id);
 
+                    // Fetch unit name for the notification
+                    const { data: unitData } = await supabase
+                        .from('units')
+                        .select('name')
+                        .eq('id', contractData.unit_id)
+                        .single();
+                    const unitName = unitData?.name || contractData.unit_id;
+
                     // Create Welcome Notification for Admins
                     await supabase
                         .from('notifications')
                         .insert({
                             title: 'Nuevo Inquilino Registrado',
-                            message: `Se ha registrado al inquilino ${tenant.name} en la unidad ${contractData.unit_id} (referencia interna).`,
+                            message: `Se ha registrado al inquilino ${tenant.name} en la unidad ${unitName}.`,
                             type: 'info',
                             tenant_id: tenant.id
                         });
