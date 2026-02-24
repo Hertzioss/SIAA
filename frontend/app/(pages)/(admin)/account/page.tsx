@@ -10,7 +10,7 @@ import { Separator } from "@/components/ui/separator"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Plus, Trash2, Edit, Building, CreditCard, DollarSign, Save, Lock, Mail } from "lucide-react"
+import { Plus, Trash2, Edit, Building, CreditCard, DollarSign, Save, Lock, Mail, SendHorizonal } from "lucide-react"
 import { Switch } from "@/components/ui/switch"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
@@ -58,6 +58,8 @@ export default function AccountPage() {
     const [uploading, setUploading] = useState(false)
     const [emailEnabled, setEmailEnabled] = useState(true)
     const [savingEmail, setSavingEmail] = useState(false)
+    const [testEmail, setTestEmail] = useState('')
+    const [sendingTest, setSendingTest] = useState(false)
     const [profileData, setProfileData] = useState({
         name: "",
         rif: "",
@@ -159,6 +161,35 @@ export default function AccountPage() {
             toast.error("Error inesperado")
         } finally {
             setSavingEmail(false)
+        }
+    }
+
+    const handleSendTest = async () => {
+        if (!testEmail) return
+        setSendingTest(true)
+        try {
+            const res = await fetch('/api/emails/send', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    recipients: [{ email: testEmail, name: 'Prueba' }],
+                    subject: 'Email de prueba — Sistema',
+                    message: 'Este es un email de prueba enviado desde la configuración del sistema. Si lo recibiste, el servicio de email está funcionando correctamente.'
+                })
+            })
+            const data = await res.json()
+            if (data.skipped) {
+                toast.warning('El envío está desactivado. Activa el toggle y guarda antes de probar.')
+            } else if (data.success) {
+                toast.success(`Email de prueba enviado a ${testEmail}`)
+                setTestEmail('')
+            } else {
+                toast.error('Error al enviar: ' + (data.error || 'desconocido'))
+            }
+        } catch {
+            toast.error('Error inesperado al enviar el email de prueba')
+        } finally {
+            setSendingTest(false)
         }
     }
 
@@ -485,6 +516,42 @@ export default function AccountPage() {
                                     <Save className="mr-2 h-4 w-4" />
                                     {savingEmail ? "Guardando..." : "Guardar Configuración"}
                                 </Button>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Prueba de Envío</CardTitle>
+                            <CardDescription>
+                                Envía un email de prueba para verificar que el servicio está configurado correctamente.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="space-y-2">
+                                <div className="flex gap-2">
+                                    <Input
+                                        type="email"
+                                        placeholder="correo@ejemplo.com"
+                                        value={testEmail}
+                                        onChange={(e) => setTestEmail(e.target.value)}
+                                        onKeyDown={(e) => e.key === 'Enter' && handleSendTest()}
+                                    />
+                                    <Button
+                                        onClick={handleSendTest}
+                                        disabled={sendingTest || !testEmail}
+                                        variant="outline"
+                                    >
+                                        <SendHorizonal className="mr-2 h-4 w-4" />
+                                        {sendingTest ? 'Enviando...' : 'Enviar Prueba'}
+                                    </Button>
+                                </div>
+                                {profileData.email && (
+                                    <p className="text-xs text-muted-foreground flex items-center gap-1">
+                                        <Mail className="h-3 w-3" />
+                                        Enviado desde: <span className="font-medium">{profileData.email}</span>
+                                    </p>
+                                )}
                             </div>
                         </CardContent>
                     </Card>

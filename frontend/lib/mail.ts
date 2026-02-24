@@ -1,17 +1,3 @@
-import nodemailer from 'nodemailer'
-
-const transporter = nodemailer.createTransport({
-    host: process.env.MAILRELAY_HOST,
-    port: Number(process.env.MAILRELAY_PORT),
-    secure: false, // true for 465, false for other ports
-    auth: {
-        user: process.env.MAILRELAY_USER,
-        pass: process.env.MAILRELAY_PASS,
-    },
-    debug: true,
-    logger: true,
-})
-
 export interface SendEmailData {
     to: string | string[]
     subject: string
@@ -19,18 +5,36 @@ export interface SendEmailData {
 }
 
 export const sendEmail = async ({ to, subject, html }: SendEmailData) => {
-    try {
-        const info = await transporter.sendMail({
-            from: process.env.MAILRELAY_FROM_EMAIL || '"Escritorio Legal Admin" <admin@escritorio.legal>',
-            to: Array.isArray(to) ? to.join(', ') : to,
+    const apiKey = process.env.RESEND_APIKEY
+    const from = process.env.FROM_EMAIL || 'onboarding@resend.dev'
+
+    if (!apiKey) {
+        throw new Error('RESEND_APIKEY is not defined in environment variables')
+    }
+
+    const recipients = Array.isArray(to) ? to : [to]
+
+    const response = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            from,
+            to: recipients,
             subject,
             html,
-        })
+        }),
+    })
 
-        console.log('Message sent: %s', info.messageId)
-        return info
-    } catch (error) {
-        console.error('Error sending email:', error)
-        throw error
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({ message: response.statusText }))
+        console.error('Resend API error:', error)
+        throw new Error(`Resend error: ${error?.message || response.statusText}`)
     }
+
+    const data = await response.json()
+    console.log('Email sent via Resend, id:', data.id)
+    return data
 }
