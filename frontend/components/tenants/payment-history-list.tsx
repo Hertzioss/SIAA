@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { parseLocalDate } from "@/lib/utils"
-import { format } from "date-fns"
+import { format, isValid } from "date-fns"
 
 import { Loader2, Printer } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -106,7 +106,7 @@ export function PaymentHistoryList({ tenantId }: PaymentHistoryListProps) {
                     <TableBody>
                         {history.map((payment) => (
                             <TableRow key={payment.id}>
-                                <TableCell>{format(parseLocalDate(payment.date), 'dd-MM-yyyy')}</TableCell>
+                                <TableCell>{payment.date && isValid(parseLocalDate(payment.date)) ? format(parseLocalDate(payment.date), 'dd-MM-yyyy') : payment.date || '-'}</TableCell>
                                 <TableCell className="max-w-[200px] truncate" title={payment.concept || undefined}>
                                     {payment.concept}
                                 </TableCell>

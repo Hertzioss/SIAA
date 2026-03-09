@@ -10,7 +10,7 @@ import { useTenantPayments } from "@/hooks/use-tenant-payments"
 import { PaymentWithDetails, MonthlyBalance } from "@/types/payment"
 import { useContracts } from "@/hooks/use-contracts"
 import { useCurrentTenant } from "@/hooks/use-current-tenant"
-import { format, addMonths } from "date-fns"
+import { format, addMonths, isValid } from "date-fns"
 import { es } from "date-fns/locale"
 import { PrintableReceiptHandler } from "@/components/printable-receipt-handler"
 import { PendingBalanceCard } from "@/components/payments/pending-balance-card"
@@ -138,7 +138,7 @@ export default function PaymentHistoryPage() {
                                 <TableBody>
                                     {history.map((payment) => (
                                         <TableRow key={payment.id}>
-                                            <TableCell>{format(parseLocalDate(payment.date), 'dd-MM-yyyy')}</TableCell>
+                                            <TableCell>{payment.date && isValid(parseLocalDate(payment.date)) ? format(parseLocalDate(payment.date), 'dd-MM-yyyy') : payment.date || '-'}</TableCell>
                                             <TableCell>{payment.concept}</TableCell>
                                             <TableCell>{payment.payment_method}</TableCell>
                                             <TableCell>{payment.reference_number || '-'}</TableCell>

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react"
 import { useReactToPrint } from "react-to-print"
-import { format } from "date-fns"
+import { format, isValid } from "date-fns"
 import { parseLocalDate } from "@/lib/utils"
 import { PaymentReceipt } from "@/components/payment-receipt"
 import { PaymentWithDetails } from "@/types/payment"
@@ -56,7 +56,7 @@ export function PrintableReceiptHandler({ payment, onClose }: PrintableReceiptHa
             <PaymentReceipt
                 ref={printRef}
                 payment={{
-                    date: format(parseLocalDate(payment.date), 'dd-MM-yyyy'),
+                    date: payment.date && isValid(parseLocalDate(payment.date)) ? format(parseLocalDate(payment.date), 'dd-MM-yyyy') : payment.date || '-',
                     id: payment.id,
                     amount: payment.amount.toString(),
                     concept: payment.concept ?? '',

@@ -32,7 +32,7 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { parseISO, format as formatFn } from "date-fns"
+import { parseISO, format as formatFn, isValid } from "date-fns"
 import { ExportButtons } from "@/components/export-buttons"
 import { PaymentEditDialog } from "@/components/payments/payment-edit-dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -88,9 +88,9 @@ export default function PaymentsPage() {
                         filename="reporte_pagos"
                         title="Reporte de Pagos"
                         columns={[
-                            { header: "Fecha Registro", key: "created_at", transform: (val: string) => val ? format(new Date(val), "dd/MM/yyyy HH:mm") : "-" },
-                            { header: "Fecha Pago", key: "date", transform: (val: string) => val ? formatFn(parseISO(val), 'dd/MM/yyyy') : "-" },
-                            { header: "Mes Pagado", key: "billing_period", transform: (val: string) => val ? formatFn(parseISO(val), 'MMMM yyyy', { locale: es }) : "-" },
+                            { header: "Fecha Registro", key: "created_at", transform: (val: string) => val && isValid(new Date(val)) ? format(new Date(val), "dd/MM/yyyy HH:mm") : "-" },
+                            { header: "Fecha Pago", key: "date", transform: (val: string) => val && isValid(parseISO(val)) ? formatFn(parseISO(val), 'dd/MM/yyyy') : "-" },
+                            { header: "Mes Pagado", key: "billing_period", transform: (val: string) => val && isValid(parseISO(val)) ? formatFn(parseISO(val), 'MMMM yyyy', { locale: es }) : "-" },
                             { header: "Inquilino", key: "tenant.name" },
                             { header: "Unidad", key: "unit", transform: (u: Payment['unit']) => u ? `${u.name} (${u.property_name || ''})` : '-' },
                             { header: "Monto", key: "amount" },
@@ -197,14 +197,14 @@ export default function PaymentsPage() {
                                             payments.map((payment) => (
                                                 <TableRow key={payment.id}>
                                                     <TableCell className="text-xs text-muted-foreground">
-                                                        {payment.created_at ? format(new Date(payment.created_at), "dd/MM/yyyy HH:mm") : "-"}
+                                                        {payment.created_at && isValid(new Date(payment.created_at)) ? format(new Date(payment.created_at), "dd/MM/yyyy HH:mm") : "-"}
                                                     </TableCell>
                                                     <TableCell>
-                                                        {payment.date ? formatFn(parseISO(payment.date), 'dd/MM/yyyy') : "-"}
+                                                        {payment.date && isValid(parseISO(payment.date)) ? formatFn(parseISO(payment.date), 'dd/MM/yyyy') : "-"}
                                                     </TableCell>
                                                     <TableCell>
                                                         <span className="capitalize">
-                                                            {payment.billing_period
+                                                            {payment.billing_period && isValid(parseISO(payment.billing_period))
                                                                 ? formatFn(parseISO(payment.billing_period), 'MMMM yyyy', { locale: es })
                                                                 : '-'}
                                                         </span>
