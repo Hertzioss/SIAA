@@ -69,7 +69,7 @@ export function useProperties() {
         } catch (err: any) {
             console.error('Error fetching properties:', err);
             setError(err.message);
-            toast.error('Error al cargar propiedades');
+            toast.error('Error al cargar inmuebles');
         } finally {
             setLoading(false);
         }

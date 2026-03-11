@@ -80,8 +80,8 @@ export function PaymentForm({ defaultTenant, onSuccess, onCancel, className, isA
 
 
     // Form State
-    const [month, setMonth] = useState('enero')
-    const [year, setYear] = useState('2023')
+    const [month, setMonth] = useState(['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'][new Date().getMonth()])
+    const [year, setYear] = useState(new Date().getFullYear().toString())
     const [date, setDate] = useState('')
 
     // Admin features
@@ -339,7 +339,7 @@ export function PaymentForm({ defaultTenant, onSuccess, onCancel, className, isA
     }
 
     const propertyLabel = activeContract
-        ? `${activeContract.units?.properties?.name || 'Propiedad'} - ${activeContract.units?.name || 'Unidad'}`
+        ? `${activeContract.units?.properties?.name || 'Inmueble'} - ${activeContract.units?.name || 'Unidad'}`
         : 'Sin contrato activo'
 
     return (

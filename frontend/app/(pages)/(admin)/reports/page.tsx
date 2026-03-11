@@ -529,18 +529,18 @@ export default function ReportsPage() {
                                             className="w-full justify-between"
                                         >
                                             {filters.properties.length === 0
-                                                ? "Seleccionar propiedades..."
+                                                ? "Seleccionar inmuebles..."
                                                 : filters.properties.length === selectableProperties.length
-                                                    ? "Todas las Propiedades (Filtradas)"
+                                                    ? "Todos los inmuebles (Filtrados)"
                                                     : `${filters.properties.length} seleccionada(s)`}
                                             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                         </Button>
                                     </PopoverTrigger>
                                     <PopoverContent className="w-full p-0">
                                         <Command>
-                                            <CommandInput placeholder="Buscar propiedad..." />
+                                            <CommandInput placeholder="Buscar inmueble..." />
                                             <CommandList>
-                                                <CommandEmpty>No se encontraron propiedades.</CommandEmpty>
+                                                <CommandEmpty>No se encontraron inmuebles.</CommandEmpty>
                                                 <CommandGroup>
                                                     <CommandItem
                                                         onSelect={toggleAllProperties}
@@ -554,7 +554,7 @@ export default function ReportsPage() {
                                                                     : "opacity-0"
                                                             )}
                                                         />
-                                                        Todas las Propiedades
+                                                        Todos los inmuebles
                                                     </CommandItem>
                                                     {selectableProperties.map((property) => (
                                                         <CommandItem
@@ -592,8 +592,8 @@ export default function ReportsPage() {
                                             {filters.properties.length === 0
                                                 ? "Ninguna seleccionada (Todas las disponibles)"
                                                 : filters.properties.length === properties.length
-                                                    ? "Todas las Propiedades"
-                                                    : `${filters.properties.length} propiedades seleccionadas`}
+                                                    ? "Todos los Inmuebles"
+                                                    : `${filters.properties.length} inmuebles seleccionados`}
                                         </strong></li>
                                         {filters.owners.length > 0 && (
                                             <li>Filtro Propietarios: <strong>

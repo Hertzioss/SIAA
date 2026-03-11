@@ -158,7 +158,7 @@ export function CreateNotificationDialog({ open, onOpenChange, onSubmit, initial
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="all">Todos los Inquilinos</SelectItem>
-                                    <SelectItem value="property">Por Propiedad</SelectItem>
+                                    <SelectItem value="property">Por Inmueble</SelectItem>
                                     <SelectItem value="tenant">Un Inquilino</SelectItem>
                                 </SelectContent>
                             </Select>
@@ -167,10 +167,10 @@ export function CreateNotificationDialog({ open, onOpenChange, onSubmit, initial
 
                     {scope === 'property' && (
                         <div className="grid gap-2">
-                            <Label htmlFor="property">Propiedad</Label>
+                            <Label htmlFor="property">Inmueble</Label>
                             <Select value={propertyId} onValueChange={setPropertyId} required={scope === 'property'}>
                                 <SelectTrigger>
-                                    <SelectValue placeholder="Seleccione propiedad" />
+                                    <SelectValue placeholder="Seleccione inmueble" />
                                 </SelectTrigger>
                                 <SelectContent>
                                     {properties.map((p) => (

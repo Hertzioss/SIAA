@@ -64,7 +64,7 @@ export const generateOwnerCredentialsEmail = (name: string, email: string, passw
         : `
         <p>Hola <strong>${name}</strong>,</p>
         <p>Le damos la bienvenida al <strong>Portal de Propietarios</strong>.</p>
-        <p>Se ha creado una cuenta para que pueda acceder al Portal de Propietarios, donde podrá visualizar el estado de sus propiedades, contratos y pagos.</p>
+        <p>Se ha creado una cuenta para que pueda acceder al Portal de Propietarios, donde podrá visualizar el estado de sus inmuebles, contratos y pagos.</p>
         <p>Sus credenciales de acceso son:</p>
         <div style="background-color: #f4f4f5; padding: 16px; border-radius: 6px; margin: 16px 0;">
             <p style="margin: 0; font-family: monospace;">Usuario: <strong>${email}</strong></p>

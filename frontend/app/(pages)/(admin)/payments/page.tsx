@@ -47,8 +47,19 @@ export default function PaymentsPage() {
         page, setPage, pageSize, setPageSize,
         statusFilter, setStatusFilter,
         searchTerm, setSearchTerm,
+        sortColumn, setSortColumn,
+        sortDirection, setSortDirection,
         updatePaymentStatus, updatePayment, fetchFullPayment, deletePayment
     } = usePayments()
+
+    const handleSort = (column: string) => {
+        if (sortColumn === column) {
+            setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
+        } else {
+            setSortColumn(column)
+            setSortDirection('asc')
+        }
+    }
 
     const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setSearchTerm(e.target.value)
@@ -167,16 +178,30 @@ export default function PaymentsPage() {
                                 <Table>
                                     <TableHeader>
                                         <TableRow>
-                                            <TableHead>Fecha Registro</TableHead>
-                                            <TableHead>Fecha Pago</TableHead>
-                                            <TableHead>Mes pagado</TableHead>
+                                            <TableHead className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSort('created_at')}>
+                                                <div className="flex items-center gap-1">Fecha Registro <ArrowUpDown className="h-3 w-3" /></div>
+                                            </TableHead>
+                                            <TableHead className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSort('date')}>
+                                                <div className="flex items-center gap-1">Fecha Pago <ArrowUpDown className="h-3 w-3" /></div>
+                                            </TableHead>
+                                            <TableHead className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSort('billing_period')}>
+                                                <div className="flex items-center gap-1">Mes pagado <ArrowUpDown className="h-3 w-3" /></div>
+                                            </TableHead>
                                             <TableHead>Inquilino</TableHead>
-                                            <TableHead>Propiedad / Unidad</TableHead>
-                                            <TableHead className="text-right">Monto</TableHead>
-                                            <TableHead>Moneda</TableHead>
+                                            <TableHead>Inmueble / Unidad</TableHead>
+                                            <TableHead className="text-right cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSort('amount')}>
+                                                <div className="flex items-center justify-end gap-1">Monto <ArrowUpDown className="h-3 w-3" /></div>
+                                            </TableHead>
+                                            <TableHead className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSort('currency')}>
+                                                <div className="flex items-center gap-1">Moneda <ArrowUpDown className="h-3 w-3" /></div>
+                                            </TableHead>
                                             <TableHead>Tasa</TableHead>
-                                            <TableHead>Referencia</TableHead>
-                                            <TableHead>Estado</TableHead>
+                                            <TableHead className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSort('reference_number')}>
+                                                <div className="flex items-center gap-1">Referencia <ArrowUpDown className="h-3 w-3" /></div>
+                                            </TableHead>
+                                            <TableHead className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSort('status')}>
+                                                <div className="flex items-center gap-1">Estado <ArrowUpDown className="h-3 w-3" /></div>
+                                            </TableHead>
                                             <TableHead className="text-right">Acciones</TableHead>
                                         </TableRow>
                                     </TableHeader>

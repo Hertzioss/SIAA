@@ -229,7 +229,7 @@ export default function OwnersPage() {
                                                                 <div className="col-span-6 flex items-center justify-end gap-6 text-sm">
                                                                     <div className="flex gap-4 min-w-[180px]">
                                                                         <div className="flex flex-col items-center">
-                                                                            <span className="text-muted-foreground text-xs">Propiedades</span>
+                                                                            <span className="text-muted-foreground text-xs">Inmuebles</span>
                                                                             <span className="font-medium text-base">{owner.properties?.length || 0}</span>
                                                                         </div>
                                                                         <div className="flex flex-col items-center">
@@ -271,7 +271,7 @@ export default function OwnersPage() {
                                     </AccordionTrigger>
                                     <AccordionContent className="px-4 pb-4 pt-2">
                                         <div className="pl-14 space-y-4">
-                                            <h4 className="text-sm font-semibold text-muted-foreground">Propiedades</h4>
+                                            <h4 className="text-sm font-semibold text-muted-foreground">Inmuebles</h4>
                                             
                                             {/* Properties Table */}
                                             {owner.properties && owner.properties.length > 0 ? (
@@ -300,7 +300,7 @@ export default function OwnersPage() {
                                                 </div>
                                             ) : (
                                                 <div className="text-sm text-muted-foreground italic">
-                                                    No hay propiedades registradas.
+                                                    No hay inmuebles registrados.
                                                 </div>
                                             )}
                                         </div>

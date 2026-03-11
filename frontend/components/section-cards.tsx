@@ -25,7 +25,7 @@ interface SectionCardsProps {
 
 /**
  * Componente para mostrar tarjetas de métricas clave (KPIs).
- * Incluye ingresos, ocupación, conteo de propiedades y solicitudes.
+ * Incluye ingresos, ocupación, conteo de inmuebles y solicitudes.
  */
 export function SectionCards({ stats }: SectionCardsProps) {
   return (
@@ -76,7 +76,7 @@ export function SectionCards({ stats }: SectionCardsProps) {
       </Card>
       <Card className="@container/card">
         <CardHeader>
-          <CardDescription>Propiedades Activas</CardDescription>
+          <CardDescription>Inmuebles Activos</CardDescription>
           <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
             {stats.properties}
           </CardTitle>

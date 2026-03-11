@@ -9,7 +9,7 @@ Bienvenido a **SIAA**, el Sistema Integral de Administración de Alquileres. Est
 ## Índice
 
 1. [Dashboard (Panel Principal)](#1-dashboard-panel-principal)
-2. [Gestión de Propiedades](#2-gestión-de-propiedades)
+2. [Gestión de ](#2-gestión-de-inmuebles)Inmuebles
 3. [Gestión de Inquilinos](#3-gestión-de-inquilinos)
 4. [Contratos](#4-contratos)
 5. [Pagos y Conciliación](#5-pagos-y-conciliación)
@@ -28,26 +28,26 @@ Bienvenido a **SIAA**, el Sistema Integral de Administración de Alquileres. Est
 
 Al iniciar sesión, verá el "Dashboard". Esta pantalla es su centro de comando.
 
-- **Tarjetas Superiores**: Muestran estadísticas rápidas (Total Propiedades, Inquilinos Activos, Pagos del Mes).
+- **Tarjetas Superiores**: Muestran estadísticas rápidas (Total Inmuebles, Inquilinos Activos, Pagos del Mes).
 - **Gráficos**: Visualización de ocupación y recaudación.
 - **Alertas**: Lista de tareas pendientes como contratos próximos a vencer o pagos por aprobar.
 
-## 2. Gestión de Propiedades
+## 2. Gestión de Inmuebles
 
 Para registrar edificios, casas o locales.
 
-1. Vaya a **Propiedades** en el menú lateral.
-2. Haga clic en **+ Nueva Propiedad**.
+1. Vaya a **Inmuebles** en el menú lateral.
+2. Haga clic en **+ Nueva Inmueble**.
 3. Complete el formulario:
    - **Nombre**: Ej. "Residencias El Parque".
    - **Tipo**: Edificio, Centro Comercial, etc.
    - **Dirección**: Ubicación exacta.
 4. **Agregar Unidades**:
-   - Dentro de la propiedad creada, busque la sección "Unidades".
+   - Dentro de la inmueble creada, busque la sección "Unidades".
    - Haga clic en **Agregar Unidad**.
    - Defina: Nombre (Apt 101), Tipo (Apartamento, Oficina, Local o Depósito), Piso, y Canon Base.
 5. **Asignar Propietario**:
-   - En la lista de propiedades se muestra el propietario asociado.
+   - En la lista de inmuebles se muestra el propietario asociado.
    - Puede vincular al propietario y su porcentaje de participación.
 
 ## 3. Gestión de Inquilinos
@@ -65,7 +65,7 @@ Base de datos de personas que alquilan.
 El núcleo legal del alquiler.
 
 1. Vaya a **Contratos** y seleccione **Crear Contrato**.
-2. **Selección**: Elija la Propiedad -> Unidad -> Inquilino.
+2. **Selección**: Elija la Inmueble -> Unidad -> Inquilino.
 3. **Plazos**: Defina Fecha Inicio y Fecha Fin.
 4. **Montos**:
    - **Canon**: Monto mensual.
@@ -123,7 +123,7 @@ Registre entradas y salidas de dinero para mantener las cuentas claras.
 1. Vaya a **Ingresos y Egresos**, pestaña **Egresos**.
 2. Haga clic en **Registrar Egreso**.
 3. **Categoría**:
-   - **Mantenimiento**: Reparaciones, pintura (asociado a Propiedad).
+   - **Mantenimiento**: Reparaciones, pintura (asociado a Inmueble).
    - **Impuestos / Servicios**: Pagos fijos.
    - **Retiro de Propietario**: Dinero transferido al dueño del inmueble.
    - **Otros**: Use la casilla para especificar cualquier otro concepto.
@@ -143,7 +143,7 @@ Gestión de los dueños de los inmuebles.
 1. Vaya a **Propietarios** -> **Registrar Dueño**.
 2. Ingrese sus datos personales: Nombre, RIF/Cédula, Teléfono, Email.
 3. **Logo del Propietario**: Puede subir el logo del propietario, el cual aparecerá en los recibos de pago.
-4. Para vincularlo a una propiedad, edite la propiedad y agregue al propietario en la sección "Beneficiarios", indicando su % de participación (Ej. 100% si es único dueño).
+4. Para vincularlo a una inmueble, edite la inmueble y agregue al propietario en la sección "Beneficiarios", indicando su % de participación (Ej. 100% si es único dueño).
 
 ## 9. Reportes
 
@@ -156,7 +156,7 @@ Generador de informes en PDF y Excel.
    - **Estado de Cuenta Propietarios**: Informe detallado para enviar a los dueños, mostrando sus ingresos (recibidos de alquileres) menos sus gastos particulares.
 3. **Filtros**:
    - Seleccione el **Año** y los **Meses** a consultar.
-   - Puede filtrar por una Propiedad específica o generar un reporte global.
+   - Puede filtrar por una Inmueble específica o generar un reporte global.
 4. Presione **Generar** y luego use los botones para **Imprimir** o **Descargar Excel**.
 5. **Enviar por Correo (Estado de Cuenta Propietarios)**:
    - Una vez generado el reporte de propietarios, verá un botón **Enviar**.

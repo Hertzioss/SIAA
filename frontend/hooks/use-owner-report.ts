@@ -361,7 +361,7 @@ export function useOwnerReport() {
                     <div style="background: #f3f4f6; padding: 12px; border-radius: 8px; margin: 16px 0;">
                         <p style="margin: 4px 0; font-size: 14px;"><strong>Propietario:</strong> ${ownerData.ownerName}</p>
                         <p style="margin: 4px 0; font-size: 14px;"><strong>Documento:</strong> ${ownerData.ownerDocId}</p>
-                        <p style="margin: 4px 0; font-size: 14px;"><strong>Propiedades:</strong> ${ownerData.propertyCount}</p>
+                        <p style="margin: 4px 0; font-size: 14px;"><strong>Inmuebles:</strong> ${ownerData.propertyCount}</p>
                     </div>
 
                     <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">

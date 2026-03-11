@@ -21,7 +21,7 @@ const getHeaderTitle = () => {
     case "/owners":
       return "Propietarios";
     case "/properties":
-      return "Propiedades";
+      return "Inmuebles";
     case "/tenants":
       return "Inquilinos";
     default:

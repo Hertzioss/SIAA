@@ -605,7 +605,7 @@ export function OwnerDialog({
                                                         <p className="text-xs text-muted-foreground">
                                                             {owner?.user_id
                                                                 ? "El propietario tiene acceso habilitado."
-                                                                : "Habilite el acceso para que pueda ver sus propiedades."}
+                                                                : "Habilite el acceso para que pueda ver sus inmuebles."}
                                                         </p>
                                                     </div>
                                                 </div>

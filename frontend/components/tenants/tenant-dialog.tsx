@@ -344,13 +344,13 @@ export function TenantDialog({ open, onOpenChange, mode, tenant, properties, onS
 
                         <div className="grid grid-cols-2 gap-4">
                             <div className="grid gap-2">
-                                <Label>Propiedad</Label>
+                                <Label>Inmueble</Label>
                                 <Select value={selectedPropertyId} onValueChange={(val) => {
                                     setSelectedPropertyId(val)
                                     setSelectedUnitId("")
                                 }}>
                                     <SelectTrigger>
-                                        <SelectValue placeholder="Seleccione propiedad" />
+                                        <SelectValue placeholder="Seleccione inmueble" />
                                     </SelectTrigger>
                                     <SelectContent>
                                         {properties.map(prop => (
@@ -531,7 +531,7 @@ export function TenantDialog({ open, onOpenChange, mode, tenant, properties, onS
                                     setSelectedContract(undefined)
                                     setIsContractDialogOpen(true)
                                 }}>
-                                    <Plus className="mr-2 h-4 w-4" /> Asignar Propiedad / Crear Contrato
+                                    <Plus className="mr-2 h-4 w-4" /> Asignar Inmueble / Crear Contrato
                                 </Button>
                             </div>
 

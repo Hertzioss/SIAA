@@ -21,7 +21,7 @@ interface PropertyDialogProps {
 }
 
 /**
- * Diálogo para la gestión de propiedades.
+ * Diálogo para la gestión de inmuebles.
  * Permite registrar, editar y ver detalles de inmuebles, incluyendo asignación de propietarios.
  */
 export function PropertyDialog({ open, onOpenChange, mode, property, propertyTypes, onSubmit }: PropertyDialogProps) {
@@ -144,21 +144,21 @@ export function PropertyDialog({ open, onOpenChange, mode, property, propertyTyp
             <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle>
-                        {mode === 'create' && 'Registrar Nueva Propiedad'}
-                        {mode === 'edit' && 'Editar Propiedad'}
-                        {mode === 'view' && 'Detalles de Propiedad'}
+                        {mode === 'create' && 'Registrar Nuevo Inmueble'}
+                        {mode === 'edit' && 'Editar Inmueble'}
+                        {mode === 'view' && 'Detalles del Inmueble'}
                     </DialogTitle>
                     <DialogDescription>
                         {mode === 'view'
-                            ? 'Información detallada de la propiedad.'
-                            : 'Complete los detalles de la propiedad y sus propietarios.'}
+                            ? 'Información detallada del inmueble.'
+                            : 'Complete los detalles del inmueble y sus propietarios.'}
                     </DialogDescription>
                 </DialogHeader>
 
                 <div className="grid gap-6 py-4">
-                    {/* TIPO DE PROPIEDAD */}
+                    {/* TIPO DE INMUEBLE */}
                     <div className="space-y-4">
-                        <h4 className="font-medium leading-none">Tipo de Propiedad</h4>
+                        <h4 className="font-medium leading-none">Tipo de Inmueble</h4>
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <Label>Clasificación</Label>
@@ -349,7 +349,7 @@ export function PropertyDialog({ open, onOpenChange, mode, property, propertyTyp
                     {!isView && (
                         <Button onClick={handleSubmit} disabled={loading}>
                             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            {mode === 'create' ? 'Registrar Propiedad' : 'Guardar Cambios'}
+                            {mode === 'create' ? 'Registrar Inmueble' : 'Guardar Cambios'}
                         </Button>
                     )}
                     {isView && (

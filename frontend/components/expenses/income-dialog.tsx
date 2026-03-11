@@ -152,10 +152,10 @@ export function IncomeDialog({ open, onOpenChange, mode, income, properties, own
                     </div>
 
                     <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="property" className="text-right">Propiedad (Opcional)</Label>
+                        <Label htmlFor="property" className="text-right">Inmueble (Opcional)</Label>
                         <Select value={propertyId || "none"} onValueChange={(val) => setPropertyId(val === "none" ? null : val)}>
                             <SelectTrigger className="col-span-3">
-                                <SelectValue placeholder="Sin propiedad específica" />
+                                <SelectValue placeholder="Sin inmueble específico" />
                             </SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="none">-- Ninguna --</SelectItem>

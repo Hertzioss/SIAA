@@ -172,7 +172,7 @@ export function ContractDialog({
                                     <div className="font-medium">{contract?.status || "Activo"}</div>
                                 </div>
                                 <div className="space-y-1">
-                                    <Label className="text-muted-foreground text-xs">Propiedad</Label>
+                                    <Label className="text-muted-foreground text-xs">Inmueble</Label>
                                     <div className="flex items-center gap-2">
                                         <Building className="h-4 w-4 text-muted-foreground" />
                                         <span className="font-medium">{contract?.property || "N/A"}</span>
@@ -210,7 +210,7 @@ export function ContractDialog({
                     <div className="grid gap-4 py-4">
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <Label htmlFor="property">Propiedad (Unidad)</Label>
+                                <Label htmlFor="property">Inmueble (Unidad)</Label>
                                 <Select
                                     value={formData.unit_id}
                                     onValueChange={(val) => {

@@ -29,8 +29,8 @@ import { useProperties } from "@/hooks/use-properties"
 import { Property, Unit } from "@/types/property"
 
 /**
- * Página principal de administración de propiedades.
- * Permite listar, crear, editar y eliminar propiedades y sus unidades.
+ * Página principal de administración de inmuebles.
+ * Permite listar, crear, editar y eliminar inmuebles y sus unidades.
  * Incluye filtrado, paginación y exportación de datos.
  */
 export default function PropertiesPage() {
@@ -214,7 +214,7 @@ export default function PropertiesPage() {
             try {
                 if (itemToDelete.type === 'property') {
                     await deleteProperty(itemToDelete.id)
-                    toast.success("Propiedad eliminada exitosamente.")
+                    toast.success("Inmueble eliminado exitosamente.")
                 } else {
                     await deleteUnit(itemToDelete.id)
                     toast.success("Unidad eliminada exitosamente.")
@@ -238,7 +238,7 @@ export default function PropertiesPage() {
         <div className="container mx-auto p-6 space-y-8">
             <div className="flex justify-between items-center">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight">Propiedades</h1>
+                    <h1 className="text-3xl font-bold tracking-tight">Inmuebles</h1>
                     <p className="text-muted-foreground">
                         Gestión jerárquica de edificios, oficinas, galpones y unidades.
                     </p>
@@ -246,7 +246,7 @@ export default function PropertiesPage() {
                 <div className="flex gap-2">
                     <ExportButtons
                         data={properties}
-                        filename="propiedades"
+                        filename="Inmuebles"
                         columns={[
                             { header: "Nombre", key: "name" },
                             { header: "Tipo", key: "property_type.label" },
@@ -276,7 +276,7 @@ export default function PropertiesPage() {
                                 }
                             },
                         ]}
-                        title="Reporte de Propiedades"
+                        title="Reporte de Inmuebles"
                     />
                     <Button onClick={handleCreate}>
                         <Plus className="mr-2 h-4 w-4" /> Agregar Propiedad
@@ -289,7 +289,7 @@ export default function PropertiesPage() {
                     <div className="flex items-center justify-between">
                         <div>
                             <CardTitle>Portafolio de Inmuebles</CardTitle>
-                            <CardDescription>Vista general de propiedades.</CardDescription>
+                            <CardDescription>Vista general de inmuebles.</CardDescription>
                         </div>
                         <div className="flex items-center gap-2">
                             <Select
@@ -331,7 +331,7 @@ export default function PropertiesPage() {
                         </div>
                     ) : sortedProperties.length === 0 ? (
                         <div className="text-center py-8 text-muted-foreground">
-                            No se encontraron propiedades.
+                            No se encontraron inmuebles.
                         </div>
                     ) : (
                         <Accordion type="single" collapsible className="w-full">
@@ -393,8 +393,8 @@ export default function PropertiesPage() {
                                                         <div className="flex flex-col items-end">
                                                             <span className="font-medium text-base">{property.units?.length || 0}</span>
                                                             {property.units && property.units.length > 0 && (
-                                                                <div className="flex gap-2 text-[10px] text-muted-foreground">
-                                                                    <span className="text-green-600 font-medium">
+                                                                <div className="flex gap-2 text-[14px] text-muted-foreground">
+                                                                    <span className="text-primary font-medium">
                                                                         {property.units.filter((u) => u.status === 'occupied').length} Oc
                                                                     </span>
                                                                     <span className="text-muted-foreground">/</span>
@@ -535,7 +535,7 @@ export default function PropertiesPage() {
                 {totalPages > 1 && (
                     <CardFooter className="flex justify-between items-center py-4">
                         <div className="flex-1 text-sm text-muted-foreground">
-                            Mostrando {((currentPage - 1) * itemsPerPage) + 1} a {Math.min(currentPage * itemsPerPage, filteredProperties.length)} de {filteredProperties.length} propiedades
+                            Mostrando {((currentPage - 1) * itemsPerPage) + 1} a {Math.min(currentPage * itemsPerPage, filteredProperties.length)} de {filteredProperties.length} inmuebles
                         </div>
                         <div className="flex items-center space-x-2">
                             <p className="text-sm text-muted-foreground mr-2">Filas por página:</p>

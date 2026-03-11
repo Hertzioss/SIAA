@@ -83,7 +83,7 @@ export default function PropertyDetailPage() {
                 <Button variant="ghost" size="sm" asChild className="-ml-2 text-muted-foreground">
                     <Link href="/owners/my-properties">
                         <ArrowLeft className="mr-2 h-4 w-4" />
-                        Volver a mis propiedades
+                        Volver a mis inmuebles
                     </Link>
                 </Button>
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">

@@ -10,7 +10,7 @@ Documento de referencia para la entrega del sistema SIAA al cliente final.
 | ------------------ | ------------- | -------------------------------------------------------------------- |
 | `MANUAL_ADMIN.md`  | Administrador | Guía completa de todas las funcionalidades del sistema               |
 | `MANUAL_TENANT.md` | Inquilinos    | Guía de autogestión: reportar pagos, ver historial, imprimir recibos |
-| `MANUAL_OWNER.md`  | Propietarios  | Interpretación de reportes financieros y gestión de propiedades      |
+| `MANUAL_OWNER.md`  | Propietarios  | Interpretación de reportes financieros y gestión de inmuebles      |
 
 ---
 
@@ -20,9 +20,9 @@ Documento de referencia para la entrega del sistema SIAA al cliente final.
 
 Panel con estadísticas, gráficos de ocupación/recaudación y alertas.
 
-### 2. Propiedades y Unidades
+### 2. Inmuebles y Unidades
 
-- Registro de propiedades (edificios, centros comerciales)
+- Registro de inmuebles (edificios, centros comerciales)
 - Unidades con tipos: **Apartamento**, **Oficina**, **Local**, **Depósito**
 - Vinculación de propietarios con porcentaje de participación
 
@@ -33,7 +33,7 @@ Panel con estadísticas, gráficos de ocupación/recaudación y alertas.
 
 ### 4. Contratos
 
-- Asociación Propiedad → Unidad → Inquilino
+- Asociación Inmueble → Unidad → Inquilino
 - Estados automáticos: Activo / Vencido
 
 ### 5. Pagos y Conciliación
@@ -62,7 +62,7 @@ Formato imprimible tamaño media carta (8.5" × 5.5") que incluye:
 ### 8. Propietarios
 
 - Registro con logo personalizable
-- Vinculación a propiedades con % de participación
+- Vinculación a inmuebles con % de participación
 
 ### 9. Reportes
 
@@ -83,7 +83,7 @@ Formato imprimible tamaño media carta (8.5" × 5.5") que incluye:
 | ----------------- | ---------------------------------------------------------------------- |
 | **Administrador** | Acceso completo a todos los módulos                                    |
 | **Inquilino**     | Portal de autogestión: reportar pagos, historial, recibos, solicitudes |
-| **Propietario**   | Dashboard de propiedades, reportes financieros, estado de cuenta       |
+| **Propietario**   | Dashboard de inmuebles, reportes financieros, estado de cuenta       |
 
 ---
 
@@ -104,7 +104,7 @@ Formato imprimible tamaño media carta (8.5" × 5.5") que incluye:
 1. **Logo del Sistema**: Ir a Configuración → subir logo de la empresa
 2. **Datos de la Empresa**: Configurar nombre, RIF y teléfono
 3. **Propietarios**: Registrar cada propietario con su logo
-4. **Propiedades**: Crear propiedades, unidades y vincular propietarios
+4. **Inmuebles**: Crear inmuebles, unidades y vincular propietarios
 5. **Inquilinos**: Registrar inquilinos y crear contratos
 
 ---

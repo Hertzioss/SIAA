@@ -34,7 +34,7 @@ export const PropertyPerformanceReport = forwardRef<HTMLDivElement, PropertyPerf
     return (
         <div ref={ref} className="p-8 bg-white min-h-screen text-black">
             <div className="text-center mb-8 border-b pb-4">
-                <h2 className="text-2xl font-bold uppercase tracking-wider mb-1">Rendimiento por Propiedad</h2>
+                <h2 className="text-2xl font-bold uppercase tracking-wider mb-1">Rendimiento por Inmueble</h2>
                 <p className="text-sm text-gray-500">Análisis comparativo de Ingresos vs Egresos (USD)</p>
                 {period && <p className="text-sm text-gray-500 font-medium mt-1 uppercase">{period}</p>}
                 <div className="text-xs text-gray-400 mt-2">
@@ -76,7 +76,7 @@ export const PropertyPerformanceReport = forwardRef<HTMLDivElement, PropertyPerf
                     <Table>
                         <TableHeader>
                             <TableRow className="bg-gray-100 hover:bg-gray-100 border-b-2 border-gray-200">
-                                <TableHead className="font-bold text-gray-700 w-[40%]">Propiedad</TableHead>
+                                <TableHead className="font-bold text-gray-700 w-[40%]">Inmueble</TableHead>
                                 <TableHead className="font-bold text-gray-700 text-right">Ingresos</TableHead>
                                 <TableHead className="font-bold text-gray-700 text-right">Egresos</TableHead>
                                 <TableHead className="font-bold text-gray-700 text-right">Utilidad Neta</TableHead>

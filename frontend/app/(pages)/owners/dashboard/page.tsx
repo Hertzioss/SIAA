@@ -63,7 +63,7 @@ export default function OwnerDashboard() {
                 <div className="flex flex-col gap-2">
                     <h1 className="text-3xl font-bold tracking-tight">Bienvenido, {metrics.ownerName}</h1>
                     <p className="text-muted-foreground">
-                        Resumen financiero y operativo de sus propiedades.
+                        Resumen financiero y operativo de sus inmuebles.
                     </p>
                 </div>
                 
@@ -175,7 +175,7 @@ export default function OwnerDashboard() {
                     <CardHeader>
                         <CardTitle>Actividad Reciente</CardTitle>
                         <CardDescription>
-                            Últimos pagos recibidos de sus propiedades.
+                            Últimos pagos recibidos de sus inmuebles.
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -208,13 +208,13 @@ export default function OwnerDashboard() {
                     <CardHeader>
                         <CardTitle>Estado General</CardTitle>
                         <CardDescription>
-                            Resumen de propiedades
+                            Resumen de inmuebles
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
                         <div className="space-y-2">
                             <div className="flex justify-between text-sm">
-                                <span className="text-muted-foreground">Total Propiedades</span>
+                                <span className="text-muted-foreground">Total Inmuebles</span>
                                 <span className="font-medium">{metrics.totalProperties}</span>
                             </div>
                             <div className="flex justify-between text-sm">

@@ -37,7 +37,7 @@ interface PaymentReceiptProps {
 
 /**
  * Componente visual del recibo de pago.
- * Diseñado para ser impreso, muestra todos los detalles del pago, inquilino, propiedad y montos.
+ * Diseñado para ser impreso, muestra todos los detalles del pago, inquilino, inmueble y montos.
  */
 export const PaymentReceipt = React.forwardRef<HTMLDivElement, PaymentReceiptProps>(({ payment, tenant, company, owners, logoSrc, timezone }, ref) => {
     // Helper to parse amount string to number if needed

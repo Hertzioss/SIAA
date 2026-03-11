@@ -108,7 +108,7 @@ export const OperationalReport = React.forwardRef<HTMLDivElement, OperationalRep
 
         // Group by property
         const groupedData = data.reduce((acc: any, curr: any) => {
-            const prop = curr.property || 'Sin Propiedad'
+            const prop = curr.property || 'Sin Inmueble'
             if (!acc[prop]) acc[prop] = []
             acc[prop].push(curr)
             return acc

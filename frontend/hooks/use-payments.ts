@@ -80,6 +80,8 @@ export function usePayments() {
     const [total, setTotal] = useState(0);
     const [statusFilter, setStatusFilter] = useState<PaymentStatusFilter>('pending');
     const [searchTerm, setSearchTerm] = useState("");
+    const [sortColumn, setSortColumn] = useState('date');
+    const [sortDirection, setSortDirection] = useState<'asc'|'desc'>('desc');
 
     // Use server-side searching for better performance with large datasets
 
@@ -120,10 +122,9 @@ export function usePayments() {
             const from = (page - 1) * pageSize;
             const to = from + pageSize - 1;
 
-            // Sort by Date Descending (Newest first) is the most performant default
-            // The previous "Pending first" client-sort is too expensive for large datasets
+            // Sort based on state
             const { data, count, error } = await query
-                .order('date', { ascending: false })
+                .order(sortColumn, { ascending: sortDirection === 'asc' })
                 .range(from, to);
 
             if (error) throw error;
@@ -215,7 +216,7 @@ export function usePayments() {
         } finally {
             setLoading(false);
         }
-    }, [page, pageSize, statusFilter, searchTerm]);
+    }, [page, pageSize, statusFilter, searchTerm, sortColumn, sortDirection]);
 
     // Fetch single payment with full details (for receipt)
     const fetchFullPayment = async (id: string): Promise<Payment | null> => {
@@ -354,6 +355,10 @@ export function usePayments() {
         setStatusFilter,
         searchTerm,
         setSearchTerm,
+        sortColumn,
+        setSortColumn,
+        sortDirection,
+        setSortDirection,
         fetchPayments,
         fetchFullPayment,
         updatePaymentStatus,

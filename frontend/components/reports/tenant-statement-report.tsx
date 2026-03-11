@@ -30,7 +30,7 @@ export const TenantStatementReport = React.forwardRef<HTMLDivElement, TenantStat
                     </div>
                     {data.contractInfo && (
                         <div>
-                            <p className="text-sm"><span className="font-bold">Propiedad:</span> {data.contractInfo.propertyName}</p>
+                            <p className="text-sm"><span className="font-bold">Inmueble:</span> {data.contractInfo.propertyName}</p>
                             <p className="text-sm"><span className="font-bold">Unidad:</span> {data.contractInfo.unitName}</p>
                             <p className="text-sm"><span className="font-bold">Canon Mensual:</span> ${data.contractInfo.rentAmount.toFixed(2)}</p>
                         </div>

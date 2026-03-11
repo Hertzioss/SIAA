@@ -56,7 +56,7 @@ export default function MyPropertiesPage() {
     return (
         <div className="space-y-6">
             <div>
-                <h1 className="text-3xl font-bold tracking-tight">Mis Propiedades</h1>
+                <h1 className="text-3xl font-bold tracking-tight">Mis Inmuebles</h1>
                 <p className="text-muted-foreground">
                     Listado de inmuebles asociados a su cuenta.
                 </p>
@@ -66,7 +66,7 @@ export default function MyPropertiesPage() {
                 {properties.length === 0 ? (
                     <div className="col-span-full flex flex-col items-center justify-center p-12 border border-dashed rounded-lg bg-muted/50">
                         <Building className="h-12 w-12 text-muted-foreground mb-4" />
-                        <h3 className="text-lg font-medium">No tiene propiedades asociadas</h3>
+                        <h3 className="text-lg font-medium">No tiene inmuebles asociados</h3>
                         <p className="text-muted-foreground text-center max-w-sm mt-2">
                             Si cree que esto es un error, por favor contacte a la administración.
                         </p>

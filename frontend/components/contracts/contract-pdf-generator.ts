@@ -25,7 +25,7 @@ export const generateContractPDF = (contract: any) => {
         head: [['Concepto', 'Detalle']],
         body: [
             ['ID Referencia', contract.id.slice(0, 8)],
-            ['Propiedad', contract.units?.properties?.name || 'N/A'],
+            ['Inmueble', contract.units?.properties?.name || 'N/A'],
             ['Unidad', contract.units?.name || 'N/A'],
             ['Inquilino', contract.tenants?.name || 'N/A'],
             ['Documento Inquilino', contract.tenants?.doc_id || 'N/A'],

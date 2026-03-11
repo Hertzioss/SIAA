@@ -46,7 +46,7 @@ export const MaintenanceReport = forwardRef<HTMLDivElement, MaintenanceReportPro
                         <TableHeader>
                             <TableRow className="bg-gray-100 hover:bg-gray-100">
                                 <TableHead className="font-bold text-gray-700">Fecha</TableHead>
-                                <TableHead className="font-bold text-gray-700">Propiedad</TableHead>
+                                <TableHead className="font-bold text-gray-700">Inmueble</TableHead>
                                 <TableHead className="font-bold text-gray-700">Asunto</TableHead>
                                 <TableHead className="font-bold text-gray-700">Prioridad</TableHead>
                                 <TableHead className="font-bold text-gray-700">Estado</TableHead>

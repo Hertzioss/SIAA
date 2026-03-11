@@ -29,7 +29,7 @@ const ownerNavData = {
             icon: IconDashboard,
         },
         {
-            title: "Mis Propiedades",
+            title: "Mis Inmuebles",
             url: "/owners/my-properties",
             icon: IconBuilding,
         },

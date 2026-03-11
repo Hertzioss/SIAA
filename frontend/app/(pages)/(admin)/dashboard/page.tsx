@@ -108,7 +108,7 @@ export default function Page() {
                 <SelectValue placeholder="Seleccionar Propiedad" />
                 </SelectTrigger>
                 <SelectContent>
-                <SelectItem value="all">Todas las Propiedades</SelectItem>
+                <SelectItem value="all">Todos los Inmuebles</SelectItem>
                 {properties
                     // Optional: Filter properties by selected owner if desired, 
                     // or let backend/hook handle intersection.

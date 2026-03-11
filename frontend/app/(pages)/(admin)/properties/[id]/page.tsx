@@ -307,7 +307,7 @@ export default function PropertyDetailsPage() {
                         <ArrowLeft className="h-4 w-4 mr-1" /> Volver
                     </Button>
                     <span>/</span>
-                    <span>Propiedades</span>
+                    <span>Inmuebles</span>
                     <span>/</span>
                     <span className="text-foreground font-medium">{property.name}</span>
                 </div>

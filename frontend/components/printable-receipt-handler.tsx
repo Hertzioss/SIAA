@@ -78,7 +78,7 @@ export function PrintableReceiptHandler({ payment, onClose }: PrintableReceiptHa
                 tenant={{
                     name: payment.tenants?.name || "Inquilino",
                     docId: payment.tenants?.doc_id || "",
-                    property: `${payment.contracts?.units?.properties?.name || ''} - ${payment.contracts?.units?.name || ''}`.trim() || "Propiedad",
+                    property: `${payment.contracts?.units?.properties?.name || ''} - ${payment.contracts?.units?.name || ''}`.trim() || "Inmueble",
                     propertyType: payment.contracts?.units?.type || "local"
                 }}
                 company={{

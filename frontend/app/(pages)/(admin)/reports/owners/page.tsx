@@ -117,7 +117,7 @@ export default function OwnerReportPage() {
             const exportData = reportData.map(item => ({
                 "Propietario": item.ownerName,
                 "Documento": item.ownerDocId,
-                "Propiedades": item.propertyCount,
+                "Inmuebles": item.propertyCount,
                 "Ingresos ($)": item.totalIncomeUsd,
                 "Ingresos (Bs)": item.totalIncomeBs,
                 "Egresos ($)": item.totalExpensesUsd,
@@ -252,7 +252,7 @@ export default function OwnerReportPage() {
 
                             {/* Property Selector */}
                             <div className="space-y-2">
-                                <label className="text-sm font-medium">Propiedades</label>
+                                <label className="text-sm font-medium">Inmuebles</label>
                                 <Popover open={openPropertySelect} onOpenChange={setOpenPropertySelect}>
                                     <PopoverTrigger asChild>
                                         <Button variant="outline" role="combobox" aria-expanded={openPropertySelect} className="w-full justify-between">

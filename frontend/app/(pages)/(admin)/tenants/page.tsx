@@ -264,7 +264,7 @@ export default function TenantsPage() {
                                     <SelectValue placeholder="Por Propiedad" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="all">Todas las Propiedades</SelectItem>
+                                    <SelectItem value="all">Todos los Inmuebles</SelectItem>
                                     {availableProperties.map(p => (
                                         <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
                                     ))}

@@ -66,7 +66,7 @@ export function OwnerIncomesView() {
     )
 
     const handleExport = () => {
-        const headers = ["Fecha", "Propietario", "Propiedad", "Categoría", "Descripción", "Monto", "Moneda", "Tasa"]
+        const headers = ["Fecha", "Propietario", "Inmueble", "Categoría", "Descripción", "Monto", "Moneda", "Tasa"]
         const csvContent = [
             headers.join(","),
             ...filteredIncomes.map(i => [
