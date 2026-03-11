@@ -28,6 +28,10 @@ export interface Property {
     id: string;
     name: string;
     address: string;
+    units?: {
+        id: string;
+        status: 'vacant' | 'occupied' | 'maintenance';
+    }[];
     // Add other property fields as needed
 }
 

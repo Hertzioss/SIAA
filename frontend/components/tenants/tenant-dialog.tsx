@@ -271,7 +271,7 @@ export function TenantDialog({ open, onOpenChange, mode, tenant, properties, onS
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
+            <DialogContent className="sm:max-w-[1000px] max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle>
                         {mode === 'create' && 'Registrar Nuevo Inquilino'}

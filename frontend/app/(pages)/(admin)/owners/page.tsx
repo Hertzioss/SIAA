@@ -186,47 +186,63 @@ export default function OwnersPage() {
                         </div>
                     ) : (
                         <Accordion type="single" collapsible className="w-full">
-                            {currentPageOwners.map((owner) => (
-                                <AccordionItem key={owner.id} value={owner.id}>
-                                    <AccordionTrigger className="hover:no-underline">
-                                        <div className="grid grid-cols-12 gap-4 w-full pr-4 items-center">
-                                            {/* Owner Info: Col span 4 */}
-                                            <div className="col-span-4 flex items-center gap-4">
-                                                <div className="bg-primary/10 p-2 rounded-lg">
-                                                    {owner.type === 'company' ? <Building className="h-5 w-5 text-primary" /> : <User className="h-5 w-5 text-primary" />}
-                                                </div>
-                                                <div className="text-left">
-                                                    <div className="font-semibold text-lg">{owner.name}</div>
-                                                    <div className="text-sm text-muted-foreground">{owner.doc_id}</div>
-                                                </div>
-                                            </div>
+                            {currentPageOwners.map((owner) => {
+                                                // Unit calculation
+                                                const totalUnitsCount = owner.properties?.reduce((sum, p) => sum + (p.units?.length || 0), 0) || 0;
+                                                const occupiedUnitsCount = owner.properties?.reduce((sum, p) => sum + (p.units?.filter(u => u.status === 'occupied').length || 0), 0) || 0;
+                                                const vacantUnitsCount = owner.properties?.reduce((sum, p) => sum + (p.units?.filter(u => u.status === 'vacant').length || 0), 0) || 0;
 
-                                            {/* Contact Info: Col span 3 */}
-                                            <div className="col-span-3 flex items-center">
-                                                {(owner.email || owner.phone) && (
-                                                    <div className="flex flex-col border-l-2 border-primary/20 pl-4 text-sm">
-                                                        {owner.email && (
-                                                            <span className="flex items-center gap-1 text-muted-foreground">
-                                                                <Mail className="h-3 w-3" /> {owner.email}
-                                                            </span>
-                                                        )}
-                                                        {owner.phone && (
-                                                            <span className="flex items-center gap-1 text-muted-foreground">
-                                                                <Phone className="h-3 w-3" /> {owner.phone}
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                )}
-                                            </div>
+                                                return (
+                                                    <AccordionItem key={owner.id} value={owner.id}>
+                                                        <AccordionTrigger className="hover:no-underline">
+                                                            <div className="grid grid-cols-12 gap-4 w-full pr-4 items-center">
+                                                                {/* Owner Info: Col span 3 */}
+                                                                <div className="col-span-3 flex items-center gap-4">
+                                                                    <div className="bg-primary/10 p-2 rounded-lg">
+                                                                        {owner.type === 'company' ? <Building className="h-5 w-5 text-primary" /> : <User className="h-5 w-5 text-primary" />}
+                                                                    </div>
+                                                                    <div className="text-left">
+                                                                        <div className="font-semibold text-lg">{owner.name}</div>
+                                                                        <div className="text-sm text-muted-foreground">{owner.doc_id}</div>
+                                                                    </div>
+                                                                </div>
 
-                                            {/* Stats & Actions: Col span 5 */}
-                                            <div className="col-span-5 flex items-center justify-end gap-6 text-sm">
-                                                <div className="flex flex-col items-end min-w-[100px]">
-                                                    <span className="text-muted-foreground text-xs">Propiedades</span>
-                                                    <span className="font-medium text-base">{owner.properties?.length || 0}</span>
-                                                </div>
+                                                                {/* Contact Info: Col span 3 */}
+                                                                <div className="col-span-3 flex items-center">
+                                                                    {(owner.email || owner.phone) && (
+                                                                        <div className="flex flex-col border-l-2 border-primary/20 pl-4 text-sm">
+                                                                            {owner.email && (
+                                                                                <span className="flex items-center gap-1 text-muted-foreground">
+                                                                                    <Mail className="h-3 w-3" /> {owner.email}
+                                                                                </span>
+                                                                            )}
+                                                                            {owner.phone && (
+                                                                                <span className="flex items-center gap-1 text-muted-foreground">
+                                                                                    <Phone className="h-3 w-3" /> {owner.phone}
+                                                                                </span>
+                                                                            )}
+                                                                        </div>
+                                                                    )}
+                                                                </div>
 
-                                                {/* Actions */}
+                                                                {/* Stats & Actions: Col span 6 */}
+                                                                <div className="col-span-6 flex items-center justify-end gap-6 text-sm">
+                                                                    <div className="flex gap-4 min-w-[180px]">
+                                                                        <div className="flex flex-col items-center">
+                                                                            <span className="text-muted-foreground text-xs">Propiedades</span>
+                                                                            <span className="font-medium text-base">{owner.properties?.length || 0}</span>
+                                                                        </div>
+                                                                        <div className="flex flex-col items-center">
+                                                                            <span className="text-muted-foreground text-xs">Ocupadas</span>
+                                                                            <span className="font-medium text-base text-blue-600 dark:text-blue-400">{occupiedUnitsCount}</span>
+                                                                        </div>
+                                                                        <div className="flex flex-col items-center">
+                                                                            <span className="text-muted-foreground text-xs">Vacantes</span>
+                                                                            <span className="font-medium text-base text-rose-600 dark:text-rose-400">{vacantUnitsCount}</span>
+                                                                        </div>
+                                                                    </div>
+
+                                                                    {/* Actions */}
                                                 <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                                                     <div
                                                         role="button"
@@ -290,7 +306,8 @@ export default function OwnersPage() {
                                         </div>
                                     </AccordionContent>
                                 </AccordionItem>
-                            ))}
+                                )
+                            })}
                         </Accordion>
                     )}
 

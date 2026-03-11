@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { startOfMonth, endOfMonth, subMonths, format, isSameMonth, parseISO, differenceInDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 
-export function useDashboardData(propertyId: string, ownerId: string = 'all') {
+export function useDashboardData(propertyId: string, ownerId: string = 'all', filterMonth: string = 'all', filterYear: string = 'all') {
     const [loading, setLoading] = useState(true);
     const [data, setData] = useState<any>(null);
 
@@ -28,7 +28,7 @@ export function useDashboardData(propertyId: string, ownerId: string = 'all') {
             // 1. Fetch Payments (Approved & Pending)
             let paymentsQuery = supabase
                 .from('payments')
-                .select('amount, date, status, currency, contract_id, tenants(name)');
+                .select('amount, date, billing_period, status, currency, contract_id, tenants(name)');
 
             // 2. Fetch Contracts (Active)
             let contractsQuery = supabase
@@ -107,6 +107,19 @@ export function useDashboardData(propertyId: string, ownerId: string = 'all') {
                 return ownerMatch && propertyMatch;
             }
 
+            // Month/Year Date Filter exactly for payments and expenses summary stats
+            const matchesDateFilter = (dateString: string) => {
+                if (!dateString) return false;
+                if (filterMonth === 'all' && filterYear === 'all') return true;
+                
+                // Use date formatting (e.g. "2023-05-15") to match year and month
+                const parsedDate = new Date(dateString);
+                const yearMatch = filterYear === 'all' || parsedDate.getFullYear().toString() === filterYear;
+                // JS getMonth is 0-indexed, so add 1 to match string "1"-"12"
+                const monthMatch = filterMonth === 'all' || (parsedDate.getMonth() + 1).toString() === filterMonth;
+                return yearMatch && monthMatch;
+            };
+
             const filteredPayments = payments.filter((p: any) => {
                 const propertyId_ = contractMap[p.contract_id]?.property_id;
                 return isVisible(propertyId_);
@@ -122,19 +135,22 @@ export function useDashboardData(propertyId: string, ownerId: string = 'all') {
             // The prompt only mentioned "Recent Activity" display issue. 
             // I will fix the display in recent activity first.
 
-            // Revenue (Approved Payments)
+            // Only apply month-year to the SUMMARY CARDS (stats)
+            // Revenue (Approved Payments) - filtered by time
             const revenue = filteredPayments
-                .filter((p: any) => p.status === 'approved')
+                .filter((p: any) => p.status === 'approved' && matchesDateFilter(p.billing_period || p.date))
                 .reduce((sum: number, p: any) => sum + Number(p.amount), 0);
 
-            // Arrears (Pending?)
+            // Arrears (Pending?) - filtered by time
             const pending = filteredPayments
-                .filter((p: any) => p.status === 'pending')
+                .filter((p: any) => p.status === 'pending' && matchesDateFilter(p.billing_period || p.date))
                 .reduce((sum: number, p: any) => sum + Number(p.amount), 0);
             
-            // Total Expenses (NEW)
+            // Total Expenses (NEW) - filtered by time
             const totalExpenses = filteredExpenses
+                .filter((e: any) => matchesDateFilter(e.date))
                 .reduce((sum: number, e: any) => sum + Number(e.amount), 0);
+
 
             // Occupancy
             const totalUnits = filteredUnits.length;
@@ -259,7 +275,7 @@ export function useDashboardData(propertyId: string, ownerId: string = 'all') {
         } finally {
             setLoading(false);
         }
-    }, [propertyId, ownerId]);
+    }, [propertyId, ownerId, filterMonth, filterYear]);
 
     useEffect(() => {
         fetchData();

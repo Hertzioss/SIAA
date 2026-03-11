@@ -21,9 +21,14 @@ export function PrintableReceiptHandler({ payment, onClose }: PrintableReceiptHa
     const printRef = useRef<HTMLDivElement>(null)
     const { config, loading } = useSystemConfig() // Get system config
 
+    const documentDate = payment.date && isValid(parseLocalDate(payment.date)) 
+        ? format(parseLocalDate(payment.date), 'dd-MM-yyyy') 
+        : (payment.date || 'SinFecha')
+    const tenantName = payment.tenants?.name || "Inquilino"
+
     const handlePrint = useReactToPrint({
         contentRef: printRef,
-        documentTitle: `Recibo-${payment.id}`,
+        documentTitle: `Recibo ${tenantName} ${documentDate}`,
         onAfterPrint: onClose,
     })
 
@@ -47,9 +52,13 @@ export function PrintableReceiptHandler({ payment, onClose }: PrintableReceiptHa
     const ownerLogo = payment.contracts?.units?.properties?.property_owners?.find((po: { owners: { name: string; doc_id: string; logo_url?: string | null } }) => po.owners?.logo_url)?.owners?.logo_url
     const finalLogo = ownerLogo || config?.logo_url || null
 
-    // Company info for the receipt - always use system config
+    // Helper: first owner's RIF (doc_id)
+    const firstOwnerDocId = payment.contracts?.units?.properties?.property_owners?.[0]?.owners?.doc_id || ""
+
+    // Company info for the receipt
+    // RIF Logic: 1. System config (if not empty), 2. First Owner doc_id, 3. Empty string
     const companyName = config?.name || "Escritorio Legal"
-    const companyRif = config?.rif || ""
+    const companyRif = config?.rif?.trim() ? config.rif : firstOwnerDocId
 
     return (
         <div style={{ position: "fixed", top: "-9999px", left: "-9999px" }}>
@@ -83,6 +92,7 @@ export function PrintableReceiptHandler({ payment, onClose }: PrintableReceiptHa
                     docId: po.owners?.doc_id
                 })) || []}
                 logoSrc={finalLogo}
+                timezone={config?.timezone || 'America/Caracas'}
             />
         </div>
     )

@@ -10,6 +10,7 @@ export interface SystemConfig {
   phone: string
   email: string
   logo_url?: string | null
+  timezone: string
 }
 
 export function useSystemConfig() {
@@ -27,7 +28,8 @@ export function useSystemConfig() {
                     address: res.data.address || "",
                     phone: res.data.phone || "",
                     email: res.data.email || "",
-                    logo_url: res.data.logo_url
+                    logo_url: res.data.logo_url,
+                    timezone: res.data.timezone || "America/Caracas"
                 })
             }
         } catch (error) {

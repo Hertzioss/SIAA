@@ -29,6 +29,7 @@ export async function updateCompany(data: {
     email?: string
     logo_url?: string | null
     email_enabled?: boolean
+    timezone?: string
 }) {
     try {
         // Check if company exists

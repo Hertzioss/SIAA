@@ -10,7 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Building, User } from "lucide-react"
+import { Building, User, Calendar } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { useDashboardData } from "@/hooks/use-dashboard-data"
@@ -20,10 +20,12 @@ import { useOwners } from "@/hooks/use-owners"
 export default function Page() {
   const [selectedProperty, setSelectedProperty] = useState("all")
   const [selectedOwner, setSelectedOwner] = useState("all")
+  const [selectedMonth, setSelectedMonth] = useState((new Date().getMonth() + 1).toString())
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString())
   const router = useRouter()
   
-  // Pass both filters to hook
-  const { data, loading } = useDashboardData(selectedProperty, selectedOwner)
+  // Pass all filters to hook
+  const { data, loading } = useDashboardData(selectedProperty, selectedOwner, selectedMonth, selectedYear)
   
   const { properties } = useProperties()
   const { owners } = useOwners()
@@ -38,7 +40,47 @@ export default function Page() {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <h2 className="text-3xl font-bold tracking-tight">Inicio</h2>
         
-        <div className="flex flex-col sm:flex-row gap-2">
+        <div className="flex flex-col sm:flex-row gap-2 flex-wrap">
+            {/* Month Selector */}
+            <div className="flex items-center gap-2 bg-background border rounded-md px-3 py-2">
+            <Calendar className="h-4 w-4 text-muted-foreground" />
+            <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                <SelectTrigger className="w-[140px] border-0 focus:ring-0 h-auto p-0">
+                <SelectValue placeholder="Mes" />
+                </SelectTrigger>
+                <SelectContent>
+                <SelectItem value="all">Todos los Meses</SelectItem>
+                <SelectItem value="1">Enero</SelectItem>
+                <SelectItem value="2">Febrero</SelectItem>
+                <SelectItem value="3">Marzo</SelectItem>
+                <SelectItem value="4">Abril</SelectItem>
+                <SelectItem value="5">Mayo</SelectItem>
+                <SelectItem value="6">Junio</SelectItem>
+                <SelectItem value="7">Julio</SelectItem>
+                <SelectItem value="8">Agosto</SelectItem>
+                <SelectItem value="9">Septiembre</SelectItem>
+                <SelectItem value="10">Octubre</SelectItem>
+                <SelectItem value="11">Noviembre</SelectItem>
+                <SelectItem value="12">Diciembre</SelectItem>
+                </SelectContent>
+            </Select>
+            </div>
+
+            {/* Year Selector */}
+            <div className="flex items-center gap-2 bg-background border rounded-md px-3 py-2">
+            <Select value={selectedYear} onValueChange={setSelectedYear}>
+                <SelectTrigger className="w-[100px] border-0 focus:ring-0 h-auto p-0">
+                <SelectValue placeholder="Año" />
+                </SelectTrigger>
+                <SelectContent>
+                <SelectItem value="all">Todos los Años</SelectItem>
+                {Array.from({ length: 11 }, (_, i) => new Date().getFullYear() - 5 + i).map(year => (
+                    <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
+                ))}
+                </SelectContent>
+            </Select>
+            </div>
+
             {/* Owner Selector */}
             <div className="flex items-center gap-2 bg-background border rounded-md px-3 py-2">
             <User className="h-4 w-4 text-muted-foreground" />

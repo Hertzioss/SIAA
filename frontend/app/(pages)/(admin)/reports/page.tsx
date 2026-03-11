@@ -447,12 +447,9 @@ export default function ReportsPage() {
                                             <SelectValue placeholder="Seleccione año" />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="2022">2022</SelectItem>
-                                            <SelectItem value="2023">2023</SelectItem>
-                                            <SelectItem value="2024">2024</SelectItem>
-                                            <SelectItem value="2025">2025</SelectItem>
-                                            <SelectItem value="2026">2026</SelectItem>
-                                            <SelectItem value="2027">2027</SelectItem>
+                                            {Array.from({ length: 11 }, (_, i) => new Date().getFullYear() - 5 + i).map(year => (
+                                                <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
+                                            ))}
                                         </SelectContent>
                                     </Select>
                                 </div>

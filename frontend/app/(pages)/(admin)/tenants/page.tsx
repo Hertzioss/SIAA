@@ -188,6 +188,20 @@ export default function TenantsPage() {
             setTenantToDelete(null)
         }
     }
+    const exportData = filteredTenants.map(tenant => {
+        const contract = tenant.contracts?.[0];
+        const propertyId = contract?.unit?.property?.id;
+        const fullProperty = propertyId ? properties.find(p => p.id === propertyId) : null;
+        const ownerName = fullProperty?.owners?.[0]?.name || "-";
+
+        return {
+            ...tenant,
+            propertyName: contract?.unit?.property?.name || "-",
+            unitName: contract?.unit?.name || "-",
+            ownerName: ownerName,
+            statusText: tenant.status === 'solvent' ? 'Solvente' : 'Moroso'
+        };
+    });
 
     return (
         <div className="container mx-auto p-6 space-y-8">
@@ -201,14 +215,17 @@ export default function TenantsPage() {
 
                 <div className="flex gap-2">
                     <ExportButtons
-                        data={filteredTenants}
+                        data={exportData}
                         filename="inquilinos"
                         columns={[
                             { header: "Nombre", key: "name" },
                             { header: "Documento", key: "doc_id" },
                             { header: "Teléfono", key: "phone" },
                             { header: "Email", key: "email" },
-                            { header: "Estado", key: "status" },
+                            { header: "Estado", key: "statusText" },
+                            { header: "Propiedad", key: "propertyName" },
+                            { header: "Unidad", key: "unitName" },
+                            { header: "Propietario", key: "ownerName" },
                         ]}
                         title="Reporte de Inquilinos"
                     />
@@ -299,6 +316,12 @@ export default function TenantsPage() {
                                                 <ArrowUpDown className="ml-2 h-4 w-4" />
                                             </Button>
                                         </TableHead>
+                                        <TableHead>
+                                            <span className="font-bold text-muted-foreground mr-6">
+                                                Ubicación
+                                            </span>
+                                        </TableHead>
+
                                         <TableHead className="text-right">Acciones</TableHead>
                                     </TableRow>
                                 </TableHeader>
@@ -315,25 +338,7 @@ export default function TenantsPage() {
                                                         <p className="text-xs text-muted-foreground">{tenant.doc_id}</p>
                                                         {(tenant.contracts?.[0]?.unit?.property?.name) && (
                                                             <div className="flex flex-col gap-0.5 mt-1">
-                                                                <p className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
-                                                                    <Home className="h-3 w-3" />
-                                                                    {tenant.contracts[0].unit.property.name} - {tenant.contracts[0].unit.name}
-                                                                </p>
-                                                                {(() => {
-                                                                    const propertyId = tenant.contracts[0].unit.property.id;
-                                                                    const fullProperty = properties.find(p => p.id === propertyId);
-                                                                    const ownerName = fullProperty?.owners?.[0]?.name;
-
-                                                                    if (ownerName) {
-                                                                        return (
-                                                                            <p className="flex items-center gap-1 text-[10px] text-muted-foreground/80 pl-4">
-                                                                                <Building className="h-3 w-3" />
-                                                                                {ownerName}
-                                                                            </p>
-                                                                        )
-                                                                    }
-                                                                    return null;
-                                                                })()}
+                                                                {/* Removed owner render from here */}
                                                             </div>
                                                         )}
                                                     </div>
@@ -366,6 +371,38 @@ export default function TenantsPage() {
                                                     {tenant.status === 'solvent' ? 'Solvente' : 'Moroso'}
                                                 </Badge>
                                             </TableCell>
+                                            <TableCell>
+                                                {tenant.contracts?.[0]?.unit ? (
+                                                    <div className="flex flex-col text-xs gap-1">
+                                                        <span className="flex items-center gap-1 font-medium text-foreground">
+                                                            <Building className="h-3 w-3 text-muted-foreground" />
+                                                            {tenant.contracts[0].unit.property?.name}
+                                                        </span>
+                                                        <span className="flex items-center gap-1 text-muted-foreground pl-4">
+                                                            Unidad : {tenant.contracts[0].unit.name}
+                                                        </span>
+                                                        {(() => {
+                                                            const propertyId = tenant.contracts?.[0]?.unit?.property?.id;
+                                                            if (!propertyId) return null;
+                                                            const fullProperty = properties.find(p => p.id === propertyId);
+                                                            const ownerName = fullProperty?.owners?.[0]?.name;
+
+                                                            if (ownerName) {
+                                                                return (
+                                                                    <span className="flex items-center gap-1 text-muted-foreground pl-4">
+                                                                        <User className="h-3 w-3 text-muted-foreground" />
+                                                                        {ownerName}
+                                                                    </span>
+                                                                )
+                                                            }
+                                                            return null;
+                                                        })()}
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-muted-foreground text-xs italic">-</span>
+                                                )}
+                                            </TableCell>
+
                                             <TableCell className="text-right">
                                                 <div className="flex items-center justify-end gap-2">
                                                     <Button variant="ghost" size="icon" onClick={() => handleView(tenant)}>

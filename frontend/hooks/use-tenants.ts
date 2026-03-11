@@ -34,6 +34,8 @@ export function useTenants() {
                     contracts (
                         status,
                         unit:units (
+                            id,
+                            name,
                             property:properties (
                                 id,
                                 name

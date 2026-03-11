@@ -66,7 +66,8 @@ export default function AccountPage() {
         address: "",
         phone: "",
         email: "",
-        logo_url: "" as string | null | undefined
+        logo_url: "" as string | null | undefined,
+        timezone: "America/Caracas"
     })
 
     useEffect(() => {
@@ -83,7 +84,8 @@ export default function AccountPage() {
                 address: res.data.address || "",
                 phone: res.data.phone || "",
                 email: res.data.email || "",
-                logo_url: res.data.logo_url
+                logo_url: res.data.logo_url,
+                timezone: res.data.timezone || "America/Caracas"
             })
             setEmailEnabled(res.data.email_enabled !== false)
         }
@@ -129,7 +131,8 @@ export default function AccountPage() {
                 address: profileData.address,
                 phone: profileData.phone,
                 email: profileData.email,
-                logo_url: profileData.logo_url
+                logo_url: profileData.logo_url,
+                timezone: profileData.timezone
             })
 
             if (res.success) {
@@ -274,6 +277,37 @@ export default function AccountPage() {
                                         onChange={(e) => setProfileData({...profileData, email: e.target.value})}
                                     />
                                 </div>
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Zona Horaria del Sistema</Label>
+                                <Select 
+                                    value={profileData.timezone} 
+                                    onValueChange={(val) => setProfileData({ ...profileData, timezone: val })}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Seleccione zona horaria" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {Intl.supportedValuesOf('timeZone')
+                                            .map(tz => {
+                                                const date = new Date();
+                                                const utcDate = new Date(date.toLocaleString('en-US', { timeZone: 'UTC' }));
+                                                const tzDate = new Date(date.toLocaleString('en-US', { timeZone: tz }));
+                                                const offset = (tzDate.getTime() - utcDate.getTime()) / (1000 * 60 * 60);
+                                                return { tz, offset };
+                                            })
+                                            .sort((a, b) => a.offset - b.offset)
+                                            .map(({ tz, offset }) => {
+                                                const offsetString = offset === 0 ? 'GMT' : `GMT${offset > 0 ? '+' : ''}${offset}`;
+                                                return (
+                                                    <SelectItem key={tz} value={tz}>
+                                                        ({offsetString}) {tz.replace(/_/g, ' ')} 
+                                                    </SelectItem>
+                                                );
+                                            })}
+                                    </SelectContent>
+                                </Select>
+                                <p className="text-xs text-muted-foreground">Define la hora local usada para registrar pagos y emitir recibos.</p>
                             </div>
                             <div className="space-y-2">
                                 <Label>Logo de la Empresa</Label>

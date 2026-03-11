@@ -23,6 +23,10 @@ import { ChevronLeft, ChevronRight } from "lucide-react"
 import { PrintableReceiptHandler } from "@/components/printable-receipt-handler"
 import { PendingBalanceCard } from "@/components/payments/pending-balance-card"
 import { useState } from "react"
+import { FileDown } from "lucide-react"
+import { supabase } from "@/lib/supabase"
+import * as XLSX from "xlsx"
+import { toast } from "sonner"
 
 interface PaymentHistoryListProps {
     tenantId: string
@@ -44,6 +48,44 @@ export function PaymentHistoryList({ tenantId }: PaymentHistoryListProps) {
 
     const generateReceipt = (payment: PaymentWithDetails) => {
         setSelectedPayment(payment)
+    }
+
+    const [isExporting, setIsExporting] = useState(false)
+
+    const handleExportAll = async () => {
+        setIsExporting(true)
+        toast.info("Generando reporte de pagos, por favor espere...")
+        try {
+            const { data, error } = await supabase
+                .from('payments')
+                .select('*')
+                .eq('tenant_id', tenantId)
+                .order('date', { ascending: false })
+            
+            if (error) throw error;
+            
+            const exportData = data.map((p: any) => ({
+                "Fecha": p.date ? format(parseLocalDate(p.date), 'dd-MM-yyyy') : '-',
+                "Concepto": p.concept,
+                "Referencia / Banco": p.reference_number || '-',
+                "Monto": p.amount,
+                "Moneda": p.currency,
+                "Monto Bs (Ref)": p.currency === 'USD' ? (p.amount * (p.exchange_rate || 1)).toFixed(2) : p.amount.toFixed(2),
+                "Estado": p.status === 'paid' || p.status === 'approved' ? 'Pagado' : p.status === 'pending' ? 'Pendiente' : 'Vencido'
+            }))
+            
+            const worksheet = XLSX.utils.json_to_sheet(exportData)
+            const workbook = XLSX.utils.book_new()
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Historial de Pagos")
+            XLSX.writeFile(workbook, `Pagos_Inquilino_${tenantId.slice(0, 5)}.xlsx`)
+            
+            toast.success("Historial de pagos exportado a Excel.")
+        } catch (error) {
+            console.error("Error exporting payments:", error)
+            toast.error("Error al exportar los pagos.")
+        } finally {
+            setIsExporting(false)
+        }
     }
 
     useEffect(() => {
@@ -90,6 +132,14 @@ export function PaymentHistoryList({ tenantId }: PaymentHistoryListProps) {
             {balanceData && balanceData.isPartial && (
                 <PendingBalanceCard data={balanceData} />
             )}
+
+            <div className="flex justify-between items-center mb-2">
+                <h3 className="text-sm font-medium text-muted-foreground">Últimos Pagos</h3>
+                <Button variant="outline" size="sm" onClick={handleExportAll} disabled={isExporting}>
+                    {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileDown className="mr-2 h-4 w-4" />}
+                    Exportar Historial
+                </Button>
+            </div>
 
             <div className="border rounded-md">
                 <Table>

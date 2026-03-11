@@ -36,7 +36,11 @@ export function useOwners() {
             property:properties(
               id,
               name,
-              address
+              address,
+              units(
+                id,
+                status
+              )
             )
           )
         `)
