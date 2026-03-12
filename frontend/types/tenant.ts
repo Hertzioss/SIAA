@@ -11,6 +11,7 @@ export interface Tenant {
     birth_date?: string | null;
     status: TenantStatus;
     created_at?: string;
+    user_id?: string | null;
     contacts?: TenantContact[];
     contracts?: {
         status: string;

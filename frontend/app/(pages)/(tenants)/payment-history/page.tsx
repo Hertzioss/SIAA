@@ -24,7 +24,7 @@ import { parseLocalDate } from "@/lib/utils"
  */
 export default function PaymentHistoryPage() {
     const { history, isLoading, fetchPaymentHistory, getMonthlyBalance, getNextPaymentDate } = useTenantPayments()
-    const { contracts, isLoading: isLoadingContracts } = useContracts()
+    const { contracts, isLoading: isLoadingContracts } = useContracts({ autoFetch: false })
     const { currentTenant, loading: loadingTenant } = useCurrentTenant()
     const [balanceData, setBalanceData] = useState<MonthlyBalance | null>(null)
     const [nextPaymentDate, setNextPaymentDate] = useState<Date | null>(null)

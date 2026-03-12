@@ -68,6 +68,7 @@ export function TenantDialog({ open, onOpenChange, mode, tenant, properties, onS
     // Access Tab State
     const [showManualPassword, setShowManualPassword] = useState(false)
     const [manualPassword, setManualPassword] = useState("")
+    const [sendAccessEmail, setSendAccessEmail] = useState(true)
 
     // Hooks
     const { contacts, createContact, deleteContact, fetchContacts, isLoading: loadingContacts } = useTenantContacts(tenant?.id)
@@ -248,6 +249,30 @@ export function TenantDialog({ open, onOpenChange, mode, tenant, properties, onS
             setManualPassword("")
         } catch (err: any) {
             toast.error(err.message)
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    const handleCreateAccess = async () => {
+        if (!email || !tenant) return
+        try {
+            setLoading(true)
+            const res = await fetch('/api/tenants/create-user', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, name: tenant.name, tenantId: tenant.id, sendEmail: sendAccessEmail })
+            })
+            const data = await res.json()
+            if (!res.ok) throw new Error(data.details || data.error)
+            toast.success('Acceso creado exitosamente', {
+                description: sendAccessEmail
+                    ? 'Se han enviado las credenciales al correo del inquilino.'
+                    : 'El acceso fue creado. No se envió correo al inquilino.',
+                duration: 6000
+            })
+        } catch (err: any) {
+            toast.error('No se pudo crear el acceso', { description: err.message })
         } finally {
             setLoading(false)
         }
@@ -682,8 +707,8 @@ export function TenantDialog({ open, onOpenChange, mode, tenant, properties, onS
                                     <div>
                                         <Label className="text-xs text-muted-foreground">Estado</Label>
                                         <div className="flex items-center gap-2">
-                                            <span className={`h-2 w-2 rounded-full ${email ? 'bg-green-500' : 'bg-yellow-500'}`} />
-                                            <span className="text-sm">{email ? 'Vinculado' : 'Sin Email'}</span>
+                                            <span className={`h-2 w-2 rounded-full ${tenant?.user_id ? 'bg-green-500' : 'bg-yellow-500'}`} />
+                                            <span className="text-sm">{tenant?.user_id ? 'Con acceso al portal' : 'Sin acceso al portal'}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -708,6 +733,29 @@ export function TenantDialog({ open, onOpenChange, mode, tenant, properties, onS
                                         </Button>
                                         <Button variant="secondary" className="text-destructive" onClick={handleResetPassword} disabled={!email || isView}>
                                             Resetear Contraseña (Email)
+                                        </Button>
+                                    </div>
+                                )}
+
+                                {/* Show Create Access button when tenant has email but no active portal access */}
+                                {!tenant?.user_id && email && !isView && (
+                                    <div className="border border-dashed rounded-md p-4 space-y-3">
+                                        <p className="text-sm text-muted-foreground">Este inquilino no tiene acceso activo al portal. Puede crearlo ahora.</p>
+                                        <div className="flex items-center gap-2">
+                                            <input
+                                                type="checkbox"
+                                                id="sendAccessEmail"
+                                                checked={sendAccessEmail}
+                                                onChange={e => setSendAccessEmail(e.target.checked)}
+                                                className="h-4 w-4 rounded border-input"
+                                            />
+                                            <label htmlFor="sendAccessEmail" className="text-sm cursor-pointer">
+                                                Enviar credenciales por correo al inquilino
+                                            </label>
+                                        </div>
+                                        <Button onClick={handleCreateAccess} disabled={loading}>
+                                            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                            Crear Acceso al Portal
                                         </Button>
                                     </div>
                                 )}

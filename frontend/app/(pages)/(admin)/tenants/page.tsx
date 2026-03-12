@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Plus, Search, Mail, Phone, User, Home, FileText, Building, ChevronLeft, ChevronRight, Edit, Trash, Loader2, DollarSign, ArrowUpDown } from "lucide-react"
+import { Plus, Search, Mail, Phone, User, Home, FileText, Building, ChevronLeft, ChevronRight, Edit, Trash, Loader2, DollarSign, ArrowUpDown, RefreshCw } from "lucide-react"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -43,6 +43,25 @@ export default function TenantsPage() {
     const [isDialogOpen, setIsDialogOpen] = useState(false)
     const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false)
     const [dialogMode, setDialogMode] = useState<"create" | "view" | "edit">("create")
+    const [isSyncing, setIsSyncing] = useState(false)
+
+    const handleSyncUsers = async () => {
+        setIsSyncing(true)
+        try {
+            const res = await fetch('/api/tenants/sync-users', { method: 'POST' })
+            const data = await res.json()
+            if (!res.ok) throw new Error(data.details || data.error)
+            const { fixed, alreadyOk, skipped, errors } = data.summary
+            toast.success(`Sincronización completada`, {
+                description: `Corregidos: ${fixed} | Ya vinculados: ${alreadyOk} | Sin coincidencia: ${skipped} | Errores: ${errors}`,
+                duration: 8000
+            })
+        } catch (err: any) {
+            toast.error('Error al sincronizar usuarios', { description: err.message })
+        } finally {
+            setIsSyncing(false)
+        }
+    }
     const [selectedTenant, setSelectedTenant] = useState<Tenant | undefined>(undefined)
 
     const [searchTerm, setSearchTerm] = useState("")
@@ -229,6 +248,10 @@ export default function TenantsPage() {
                         ]}
                         title="Reporte de Inquilinos"
                     />
+                    <Button variant="outline" onClick={handleSyncUsers} disabled={isSyncing} title="Sincronizar vínculos de acceso de todos los inquilinos">
+                        {isSyncing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+                        Sincronizar Accesos
+                    </Button>
                     <Button onClick={handleCreate}>
                         <Plus className="mr-2 h-4 w-4" /> Registrar Inquilino
                     </Button>

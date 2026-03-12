@@ -31,9 +31,9 @@ export type Contract = {
 export type ContractInsert = Omit<Contract, 'id' | 'units' | 'tenants'>
 export type ContractUpdate = Partial<ContractInsert>
 
-export function useContracts() {
+export function useContracts({ autoFetch = true }: { autoFetch?: boolean } = {}) {
     const [contracts, setContracts] = useState<Contract[]>([])
-    const [isLoading, setIsLoading] = useState(true)
+    const [isLoading, setIsLoading] = useState(autoFetch)
     const [error, setError] = useState<string | null>(null)
 
     const fetchContracts = useCallback(async () => {
@@ -259,8 +259,10 @@ export function useContracts() {
     }
 
     useEffect(() => {
-        fetchContracts()
-    }, [fetchContracts])
+        if (autoFetch) {
+            fetchContracts()
+        }
+    }, [fetchContracts, autoFetch])
 
     return {
         contracts,

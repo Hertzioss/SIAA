@@ -26,7 +26,7 @@ import { PendingBalanceCard } from "@/components/payments/pending-balance-card"
  */
 export default function PaymentForm() {
     const { registerPayment, isLoading: isSubmitting, getMonthlyBalance, getNextPaymentDate, getPaidMonths } = useTenantPayments()
-    const { contracts, isLoading: isLoadingContracts, fetchTenantContracts } = useContracts()
+    const { contracts, isLoading: isLoadingContracts, fetchTenantContracts } = useContracts({ autoFetch: false })
     const { currentTenant, loading: loadingTenant } = useCurrentTenant()
     const [activeContract, setActiveContract] = useState<any>(null)
     const [selectedFile, setSelectedFile] = useState<File | null>(null)
