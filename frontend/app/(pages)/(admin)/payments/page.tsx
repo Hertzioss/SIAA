@@ -13,7 +13,7 @@ import { PaymentDialog } from "@/components/tenants/payment-dialog"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import { PrintableReceiptHandler } from "@/components/printable-receipt-handler"
-import { Check, X, Search, FileText, Loader2, Edit2, ChevronLeft, ChevronRight, ArrowUpDown, Printer as PrinterIcon, Pencil, ArrowLeftRight, Trash2, MoreVertical, Eye } from "lucide-react"
+import { Check, X, Search, FileText, Loader2, Edit2, ChevronLeft, ChevronRight, ArrowUpDown, Printer as PrinterIcon, Pencil, ArrowLeftRight, Trash2, MoreVertical, Eye, Send } from "lucide-react"
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -49,7 +49,7 @@ export default function PaymentsPage() {
         searchTerm, setSearchTerm,
         sortColumn, setSortColumn,
         sortDirection, setSortDirection,
-        updatePaymentStatus, updatePayment, fetchFullPayment, deletePayment
+        updatePaymentStatus, updatePayment, fetchFullPayment, deletePayment, resendReceipt
     } = usePayments()
 
     const handleSort = (column: string) => {
@@ -88,6 +88,9 @@ export default function PaymentsPage() {
 
     // Delete Confirmation State
     const [paymentToDelete, setPaymentToDelete] = useState<string | null>(null)
+
+    // Resend Receipt State
+    const [paymentToResend, setPaymentToResend] = useState<Payment | null>(null)
 
     return (
         <div className="space-y-6 p-6">
@@ -307,15 +310,24 @@ export default function PaymentsPage() {
                                                                     </DropdownMenuItem>
 
                                                                     {(payment.status === 'approved' || payment.status === 'paid') && (
-                                                                        <DropdownMenuItem 
-                                                                            onClick={async () => {
-                                                                                const fullPayment = await fetchFullPayment(payment.id);
-                                                                                if (fullPayment) setSelectedPaymentForReceipt(fullPayment)
-                                                                            }}
-                                                                        >
-                                                                            <PrinterIcon className="mr-2 h-4 w-4 text-blue-600" />
-                                                                            Imprimir Recibo
-                                                                        </DropdownMenuItem>
+                                                                        <>
+                                                                            <DropdownMenuItem 
+                                                                                onClick={async () => {
+                                                                                    const fullPayment = await fetchFullPayment(payment.id);
+                                                                                    if (fullPayment) setSelectedPaymentForReceipt(fullPayment)
+                                                                                }}
+                                                                            >
+                                                                                <PrinterIcon className="mr-2 h-4 w-4 text-blue-600" />
+                                                                                Imprimir Recibo
+                                                                            </DropdownMenuItem>
+                                                                            <DropdownMenuItem 
+                                                                                onClick={() => setPaymentToResend(payment)}
+                                                                                disabled={!payment.tenant?.email}
+                                                                            >
+                                                                                <Send className={`mr-2 h-4 w-4 ${payment.tenant?.email ? 'text-emerald-600' : 'text-gray-400'}`} />
+                                                                                Reenviar Recibo
+                                                                            </DropdownMenuItem>
+                                                                        </>
                                                                     )}
 
                                                                     {payment.proof_url && (
@@ -460,6 +472,31 @@ export default function PaymentsPage() {
                             className="bg-red-600 hover:bg-red-700"
                         >
                             Eliminar Pago
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            <AlertDialog open={!!paymentToResend} onOpenChange={(open) => !open && setPaymentToResend(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Reenviar Recibo</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            ¿Desea reenviar el recibo de pago al correo <strong>{paymentToResend?.tenant?.email || 'desconocido'}</strong>?
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar envío</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={async () => {
+                                if (paymentToResend) {
+                                    await resendReceipt(paymentToResend.id)
+                                    setPaymentToResend(null)
+                                }
+                            }}
+                            className="bg-emerald-600 hover:bg-emerald-700"
+                        >
+                            Aceptar
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

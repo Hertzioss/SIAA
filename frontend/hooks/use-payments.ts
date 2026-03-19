@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { Payment as BasePayment, PaymentStatus } from '@/types/payment';
+import { useSystemConfig } from '@/hooks/use-system-config';
 
 export type PaymentStatusFilter = 'all' | PaymentStatus;
 
@@ -218,7 +219,6 @@ export function usePayments() {
         }
     }, [page, pageSize, statusFilter, searchTerm, sortColumn, sortDirection]);
 
-    // Fetch single payment with full details (for receipt)
     const fetchFullPayment = async (id: string): Promise<Payment | null> => {
         try {
             const { data, error } = await supabase
@@ -278,6 +278,80 @@ export function usePayments() {
             return null;
         }
     }
+
+    const { config } = useSystemConfig()
+
+    const resendReceipt = async (id: string) => {
+        try {
+            // 1. Fetch full payment to generate the PDF
+            const fullPayment = await fetchFullPayment(id);
+            if (!fullPayment) throw new Error("No se pudo cargar la información completa del pago.");
+
+            // 2. Format PDF Data
+            const contractData = Array.isArray(fullPayment.contracts) ? fullPayment.contracts[0] : fullPayment.contracts;
+            const unitData = Array.isArray(contractData?.units) ? contractData?.units[0] : contractData?.units;
+            const propertyData = Array.isArray(unitData?.properties) ? unitData?.properties[0] : unitData?.properties;
+            
+            // Map owners properly
+            let ownersList: any[] = [];
+            const propertyOwners = propertyData?.property_owners;
+            if (Array.isArray(propertyOwners)) {
+                ownersList = propertyOwners.map((po: any) => ({
+                    name: po.owners?.name,
+                    docId: po.owners?.doc_id
+                })).filter((o: any) => o.name);
+            }
+
+            const pdfData = {
+                payment: {
+                    date: fullPayment.date,
+                    amount: fullPayment.amount,
+                    id: fullPayment.id,
+                    concept: fullPayment.concept || 'PAGO',
+                    status: fullPayment.status,
+                    reference: fullPayment.reference,
+                    rate: fullPayment.exchange_rate,
+                    currency: fullPayment.currency
+                },
+                tenant: {
+                    name: fullPayment.tenant?.name || 'Inquilino',
+                    docId: fullPayment.tenant?.doc_id || '',
+                    property: fullPayment.unit?.property_name || '',
+                    propertyType: unitData?.type
+                },
+                company: {
+                    name: config?.name || 'Escritorio Legal',
+                    rif: config?.rif,
+                    phone: config?.phone,
+                    email: config?.email
+                },
+                owners: ownersList.length > 0 ? ownersList : undefined
+            };
+
+            // 3. Generate PDF Base64
+            const { generatePaymentReceiptPDF } = await import('@/lib/payment-pdf-generator');
+            const pdfBase64 = generatePaymentReceiptPDF(pdfData);
+
+            // 4. Send to API
+            const res = await fetch('/api/payments/resend-receipt', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id, pdfBase64 })
+            });
+
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.details || data.error);
+
+            toast.success('Comprobante reenviado', {
+                description: 'Se ha reenviado el comprobante por correo electrónico con el PDF adjunto.'
+            });
+        } catch (err: unknown) {
+            const error = err as Error;
+            console.error('Error resending receipt:', error);
+            const errorMessage = error.message || 'Error desconocido al reenviar el comprobante';
+            toast.error('No se pudo reenviar el comprobante', { description: errorMessage });
+        }
+    };
 
     const updatePaymentStatus = async (id: string, status: 'approved' | 'rejected', notes?: string, sendEmail: boolean = false) => {
         try {
@@ -361,6 +435,7 @@ export function usePayments() {
         setSortDirection,
         fetchPayments,
         fetchFullPayment,
+        resendReceipt,
         updatePaymentStatus,
         updatePayment,
         deletePayment,

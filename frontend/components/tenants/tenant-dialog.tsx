@@ -171,11 +171,15 @@ export function TenantDialog({ open, onOpenChange, mode, tenant, properties, onS
             onOpenChange(false)
         } catch (error: any) {
             // Checks if it's a handled duplicate error to avoid noise
-            const isDuplicate = error.code === '23505' || error.message?.includes('Uniqueness violation');
+            const isDuplicate = error.code === '23505' || error.message?.includes('Uniqueness violation') || error.message?.includes('duplicate key');
             
             if (isDuplicate) {
-                 console.warn("Submission stopped (Duplicate detected)");
+                toast.error("Este inquilino ya está registrado.", {
+                    description: "Si desea asignarle otro inmueble, búsquelo en la lista e ingrese a su perfil para añadir un nuevo contrato.",
+                    duration: 6000
+                })
             } else {
+                 toast.error('Ocurrió un error al guardar', { description: error.message })
                  console.warn("Error submitting tenant:", error.message || JSON.stringify(error));
             }
         } finally {
