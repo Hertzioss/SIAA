@@ -2,9 +2,15 @@ export interface SendEmailData {
     to: string | string[]
     subject: string
     html: string
+    attachments?: Array<{
+        filename: string
+        content: string | Buffer
+        encoding?: string
+        contentType?: string
+    }>
 }
 
-export const sendEmail = async ({ to, subject, html }: SendEmailData) => {
+export const sendEmail = async ({ to, subject, html, attachments }: SendEmailData) => {
     const apiKey = process.env.RESEND_APIKEY
     const from = process.env.FROM_EMAIL || 'onboarding@resend.dev'
 
@@ -25,6 +31,7 @@ export const sendEmail = async ({ to, subject, html }: SendEmailData) => {
             to: recipients,
             subject,
             html,
+            attachments,
         }),
     })
 

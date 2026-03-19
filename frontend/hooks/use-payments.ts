@@ -309,9 +309,9 @@ export function usePayments() {
                     id: fullPayment.id,
                     concept: fullPayment.concept || 'PAGO',
                     status: fullPayment.status,
-                    reference: fullPayment.reference,
-                    rate: fullPayment.exchange_rate,
-                    currency: fullPayment.currency
+                    reference: fullPayment.reference || undefined,
+                    rate: fullPayment.exchange_rate || undefined,
+                    currency: fullPayment.currency || undefined
                 },
                 tenant: {
                     name: fullPayment.tenant?.name || 'Inquilino',
