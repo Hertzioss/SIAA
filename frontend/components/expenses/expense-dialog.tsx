@@ -182,25 +182,23 @@ export function ExpenseDialog({ open, onOpenChange, mode, expense, properties, o
                             </SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="USD">USD ($)</SelectItem>
-                                <SelectItem value="Bs">Bolívares (Bs)</SelectItem>
-                                <SelectItem value="VES">Bolívares (VES)</SelectItem>
+                                <SelectItem value="VES">Bs. (VES)</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
-                    {currency === 'USD' && (
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="exchangeRate" className="text-right">Tasa (Bs/USD)</Label>
-                            <Input
-                                id="exchangeRate"
-                                type="number"
-                                step="0.01"
-                                value={exchangeRate}
-                                onChange={e => setExchangeRate(e.target.value)}
-                                placeholder="Ej: 36.50"
-                                className="col-span-3"
-                            />
-                        </div>
-                    )}
+
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="exchangeRate" className="text-right">Tasa (Bs/USD)</Label>
+                        <Input
+                            id="exchangeRate"
+                            type="number"
+                            step="0.01"
+                            value={exchangeRate}
+                            onChange={e => setExchangeRate(e.target.value)}
+                            placeholder="Ej: 36.50"
+                            className="col-span-3"
+                        />
+                    </div>
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="category" className="text-right">Categoría</Label>
                         <Select value={category} onValueChange={(val: any) => setCategory(val)}>
