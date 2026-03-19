@@ -56,11 +56,25 @@ export function PaymentHistoryList({ tenantId }: PaymentHistoryListProps) {
         setIsExporting(true)
         toast.info("Generando reporte de pagos, por favor espere...")
         try {
-            const { data, error } = await supabase
+            // First get contract IDs for this tenant
+            let contractIds: string[] = []
+            if (tenantId) {
+                const { data: contracts } = await supabase.from('contracts').select('id').eq('tenant_id', tenantId)
+                if (contracts) contractIds = contracts.map(c => c.id)
+            }
+
+            let query = supabase
                 .from('payments')
                 .select('*')
-                .eq('tenant_id', tenantId)
                 .order('date', { ascending: false })
+
+            if (contractIds.length > 0) {
+                query = query.or(`tenant_id.eq.${tenantId},contract_id.in.(${contractIds.join(',')})`)
+            } else {
+                query = query.eq('tenant_id', tenantId)
+            }
+
+            const { data, error } = await query
             
             if (error) throw error;
             

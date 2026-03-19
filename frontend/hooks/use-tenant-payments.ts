@@ -116,6 +116,12 @@ export function useTenantPayments() {
     const fetchPaymentHistory = useCallback(async (tenantId?: string, page: number = 1, pageSize: number = 50) => {
         setIsLoading(true)
         try {
+            let contractIds: string[] = []
+            if (tenantId) {
+                const { data: contracts } = await supabase.from('contracts').select('id').eq('tenant_id', tenantId)
+                if (contracts) contractIds = contracts.map(c => c.id)
+            }
+
             let query = supabase
                 .from('payments')
                 .select('*, tenants(name, doc_id), contracts(units(name, properties(name, property_owners(owners(name, doc_id, logo_url)))))', { count: 'exact' })
@@ -123,7 +129,11 @@ export function useTenantPayments() {
                 .order('created_at', { ascending: false })
 
             if (tenantId) {
-                query = query.eq('tenant_id', tenantId)
+                if (contractIds.length > 0) {
+                    query = query.or(`tenant_id.eq.${tenantId},contract_id.in.(${contractIds.join(',')})`)
+                } else {
+                    query = query.eq('tenant_id', tenantId)
+                }
             }
 
             // Pagination
