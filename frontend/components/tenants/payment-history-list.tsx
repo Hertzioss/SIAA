@@ -56,29 +56,45 @@ export function PaymentHistoryList({ tenantId }: PaymentHistoryListProps) {
         setIsExporting(true)
         toast.info("Generando reporte de pagos, por favor espere...")
         try {
-            // First get contract IDs for this tenant
             let contractIds: string[] = []
             if (tenantId) {
                 const { data: contracts } = await supabase.from('contracts').select('id').eq('tenant_id', tenantId)
                 if (contracts) contractIds = contracts.map(c => c.id)
             }
 
-            let query = supabase
-                .from('payments')
-                .select('*')
-                .order('date', { ascending: false })
+            let allPayments: any[] = []
 
-            if (contractIds.length > 0) {
-                query = query.or(`tenant_id.eq.${tenantId},contract_id.in.(${contractIds.join(',')})`)
-            } else {
-                query = query.eq('tenant_id', tenantId)
+            if (tenantId) {
+                const { data: tenantPayments, error: err1 } = await supabase
+                    .from('payments')
+                    .select('*')
+                    .eq('tenant_id', tenantId)
+                    .order('date', { ascending: false })
+                
+                if (err1) throw err1;
+                if (tenantPayments) allPayments = [...tenantPayments]
             }
 
-            const { data, error } = await query
+            if (contractIds.length > 0) {
+                const { data: contractPayments, error: err2 } = await supabase
+                    .from('payments')
+                    .select('*')
+                    .in('contract_id', contractIds)
+                    .order('date', { ascending: false })
+                
+                if (err2) throw err2;
+
+                if (contractPayments) {
+                    const existingIds = new Set(allPayments.map(p => p.id))
+                    const newPayments = contractPayments.filter(p => !existingIds.has(p.id))
+                    allPayments = [...allPayments, ...newPayments]
+                }
+            }
             
-            if (error) throw error;
-            
-            const exportData = data.map((p: any) => ({
+            // Sort
+            allPayments.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+
+            const exportData = allPayments.map((p: any) => ({
                 "Fecha": p.date ? format(parseLocalDate(p.date), 'dd-MM-yyyy') : '-',
                 "Concepto": p.concept,
                 "Referencia / Banco": p.reference_number || '-',

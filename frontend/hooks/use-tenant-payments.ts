@@ -122,32 +122,58 @@ export function useTenantPayments() {
                 if (contracts) contractIds = contracts.map(c => c.id)
             }
 
-            let query = supabase
-                .from('payments')
-                .select('*, tenants(name, doc_id), contracts(units(name, properties(name, property_owners(owners(name, doc_id, logo_url)))))', { count: 'exact' })
-                .order('date', { ascending: false })
-                .order('created_at', { ascending: false })
+            // We will fetch payments in two safe queries to avoid any PostgREST OR/IN syntax bugs
+            let allPayments: any[] = []
 
+            // Query 1: Payments explicitly linked to the tenant
             if (tenantId) {
-                if (contractIds.length > 0) {
-                    query = query.or(`tenant_id.eq.${tenantId},contract_id.in.(${contractIds.join(',')})`)
-                } else {
-                    query = query.eq('tenant_id', tenantId)
+                const { data: tenantPayments, error: err1 } = await supabase
+                    .from('payments')
+                    .select('*, tenants(name, doc_id), contracts(id)')
+                    .eq('tenant_id', tenantId)
+                    .order('date', { ascending: false })
+                    .order('created_at', { ascending: false })
+                
+                if (err1) throw err1
+                if (tenantPayments) allPayments = [...tenantPayments]
+            }
+
+            // Query 2: Payments linked to their contracts (where tenant_id might be missing or different)
+            if (contractIds.length > 0) {
+                // Fetch in smaller chunks if there are many contracts, but usually it's 1-3
+                const { data: contractPayments, error: err2 } = await supabase
+                    .from('payments')
+                    .select('*, tenants(name, doc_id), contracts(id)')
+                    .in('contract_id', contractIds)
+                    .order('date', { ascending: false })
+                    .order('created_at', { ascending: false })
+                
+                if (err2) throw err2
+
+                // Add only if they aren't already in the list
+                if (contractPayments) {
+                    const existingIds = new Set(allPayments.map(p => p.id))
+                    const newPayments = contractPayments.filter(p => !existingIds.has(p.id))
+                    allPayments = [...allPayments, ...newPayments]
                 }
             }
 
-            // Pagination
+            // Sort merged array
+            allPayments.sort((a, b) => {
+                const dateA = new Date(a.date).getTime()
+                const dateB = new Date(b.date).getTime()
+                if (dateA !== dateB) return dateB - dateA
+                return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+            })
+
+            const count = allPayments.length
+
+            // Pagination in memory
             const from = (page - 1) * pageSize
-            const to = from + pageSize - 1
-            query = query.range(from, to)
+            const to = from + pageSize
+            const paginatedData = allPayments.slice(from, to)
 
-            const { data, count, error } = await query
-
-            if (error) {
-                throw error
-            }
-
-            const formattedData = (data as any[])?.map(p => {
+            const formattedData = paginatedData.map(p => {
                 const metadata = p.metadata as Record<string, any> | null;
                 const tenantFromMetadata = metadata?.tenant_name ? {
                     name: metadata.tenant_name as string,
@@ -169,8 +195,8 @@ export function useTenantPayments() {
                 count: count || 0,
                 totalPages: Math.ceil((count || 0) / pageSize)
             }
-        } catch (err) {
-            console.error('Error fetching history:', err)
+        } catch (err: any) {
+            console.error('Error fetching history detailed:', err.message || err.details || err, JSON.stringify(err))
             return { data: [], count: 0, totalPages: 0 }
         } finally {
             setIsLoading(false)
