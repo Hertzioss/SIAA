@@ -24,7 +24,7 @@ export const TenantListReport = React.forwardRef<HTMLDivElement, TenantListRepor
                             <h1 className="text-2xl font-black uppercase tracking-widest text-gray-900">REPORTE DE INQUILINOS</h1>
                             <div className="mt-2 space-y-1">
                                 <p className="text-sm font-semibold text-gray-600 uppercase tracking-wider">
-                                    {filters?.propertyName ? `INMUEBLE: ${filters.propertyName}` : 'Listado General de Inquilinato'}
+                                    {filters?.propertyName ? `INMUEBLE: ${filters.propertyName}` : 'Listado General'}
                                 </p>
                                 {filters?.ownerName && (
                                     <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">
