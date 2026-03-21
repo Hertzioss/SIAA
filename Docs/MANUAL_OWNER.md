@@ -1,4 +1,4 @@
-# SIAA - Guía para Propietarios
+# Guía para Propietarios
 
 Este documento explica cómo interpretar los informes y la gestión de sus Inmuebles a través de este software.
 

@@ -42,7 +42,7 @@ export const generateContractPDF = (contract: any) => {
     const finalY = (doc as any).lastAutoTable.finalY || 150
     doc.setFontSize(10)
     doc.text('Este documento es un comprobante generado por el sistema.', 14, finalY + 20)
-    doc.text('SIAA - Sistema Integral de Administración de Arrendamientos', 14, finalY + 25)
+    doc.text('Sistema Integral de Administración de Arrendamientos', 14, finalY + 25)
 
     // Save
     doc.save(`Contrato_${contract.tenants?.name || 'Inquilino'}_${startDate}.pdf`)

@@ -14,7 +14,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useProperties } from "@/hooks/use-properties"
 import { useTenants } from "@/hooks/use-tenants"
 import { useContracts, Contract, ContractInsert, ContractUpdate } from "@/hooks/use-contracts"
-import { generateContractPDF } from "@/components/contracts/contract-pdf-generator"
+import { useReactToPrint } from "react-to-print"
+import { ContractDetailReport } from "@/components/reports/contract-detail-report"
+import { useRef } from "react"
 
 import { useSearchParams } from "next/navigation"
 import {
@@ -59,6 +61,15 @@ function ContractsContent() {
     const [statusFilter, setStatusFilter] = useState("all")
     const [currentPage, setCurrentPage] = useState(1)
     const [itemsPerPage, setItemsPerPage] = useState(5)
+
+    const [contractToPrint, setContractToPrint] = useState<ContractRow | null>(null)
+    const printRef = useRef<HTMLDivElement>(null)
+
+    const handlePrint = useReactToPrint({
+        contentRef: printRef,
+        documentTitle: `Contrato_${contractToPrint?.tenants?.name || contractToPrint?.tenant || 'Inquilino'}`,
+        onAfterPrint: () => setContractToPrint(null)
+    })
 
     // Delete Confirmation State
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
@@ -186,8 +197,11 @@ function ContractsContent() {
             window.open(contract.file_url, '_blank')
             toast.success("Abriendo archivo del contrato...")
         } else {
-            toast.info("Generando PDF del contrato...", { description: "Si el archivo original no existe, se generará una versión digital." })
-            generateContractPDF(contract)
+            toast.info("Preparando PDF del contrato...", { description: "Se enviará a imprimir/guardar la versión digital." })
+            setContractToPrint(contract)
+            setTimeout(() => {
+                handlePrint()
+            }, 100)
         }
     }
 
@@ -512,6 +526,11 @@ function ContractsContent() {
                     </div>
                 </CardContent>
             </Card>
+
+            {/* Componente Oculto para impresión de PDF individual */}
+            <div style={{ display: "none" }}>
+                <ContractDetailReport ref={printRef} contract={contractToPrint} />
+            </div>
 
             <ContractDialog
                 open={isDialogOpen}

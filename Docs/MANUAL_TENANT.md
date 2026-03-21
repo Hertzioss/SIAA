@@ -1,4 +1,4 @@
-# SIAA - Portal de Inquilinos: Guía de Uso
+# Portal de Inquilinos: Guía de Uso
 
 Bienvenido al portal de autogestión de SIAA. Aquí podrá consultar su estado de cuenta y reportar sus pagos de alquiler de manera rápida y segura.
 

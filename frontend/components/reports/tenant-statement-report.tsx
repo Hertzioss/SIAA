@@ -124,7 +124,7 @@ export const TenantStatementReport = React.forwardRef<HTMLDivElement, TenantStat
                 {/* Footer Signature Area */}
                 <div className="pt-20 pb-4 text-center text-xs text-gray-400">
                     <div className="w-64 border-t border-gray-300 mx-auto mb-3"></div>
-                    <p className="uppercase tracking-widest">Generado por SIAA</p>
+                    {/* <p className="uppercase tracking-widest">Generado por SIAA</p> */}
                     <p>Sistema Integral de Administración de Alquileres</p>
                 </div>
             </div>

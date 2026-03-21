@@ -2,7 +2,7 @@
 
 Manual de Usuario (Administrador)
 
-Bienvenido a **SIAA**, el Sistema Integral de Administración de Alquileres. Este manual le guiará paso a paso por todas las funcionalidades de la plataforma.
+Bienvenido a, el Sistema Integral de Administración de Alquileres. Este manual le guiará paso a paso por todas las funcionalidades de la plataforma.
 
 ---
 
