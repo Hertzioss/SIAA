@@ -19,10 +19,6 @@ export const OperationalReport = React.forwardRef<HTMLDivElement, OperationalRep
     const renderOccupancyReport = () => {
         const occupied = data.filter(d => d.status === 'Ocupado').length
         const vacant = data.filter(d => d.status === 'Vacante').length
-        const chartData = [
-            { name: 'Ocupado', value: occupied },
-            { name: 'Vacante', value: vacant },
-        ]
 
         // Group data by property
         const groupedData = data.reduce((acc: any, curr: any) => {
@@ -35,68 +31,90 @@ export const OperationalReport = React.forwardRef<HTMLDivElement, OperationalRep
 
         return (
             <div className="space-y-8">
-                <div className="text-center mb-6 border-b-2 border-gray-800 pb-4">
-                    <h1 className="text-xl font-bold uppercase tracking-wide">REPORTE DE OCUPACIÓN</h1>
-                    <p className="text-sm text-gray-500">Estado actual de inmuebles</p>
-                    {period && <p className="text-sm text-gray-500 font-medium mt-1 uppercase">{period}</p>}
-                </div>
-
-                <div className="grid grid-cols-3 gap-4 mb-6">
-                    <div className="bg-gray-100 p-4 rounded-lg text-center">
-                        <p className="text-sm font-bold text-gray-500">TOTAL UNIDADES</p>
-                        <p className="text-2xl font-bold">{data.length}</p>
-                    </div>
-                    <div className="bg-green-100 p-4 rounded-lg text-center">
-                        <p className="text-sm font-bold text-green-700">OCUPADAS</p>
-                        <p className="text-2xl font-bold text-green-700">
-                            {occupied} ({((occupied / data.length) * 100).toFixed(0)}%)
-                        </p>
-                    </div>
-                    <div className="bg-red-100 p-4 rounded-lg text-center">
-                        <p className="text-sm font-bold text-red-700">VACANTES</p>
-                        <p className="text-2xl font-bold text-red-700">
-                            {vacant} ({((vacant / data.length) * 100).toFixed(0)}%)
-                        </p>
+                {/* 1. Header */}
+                <div className="border-b-2 border-gray-800 pb-6">
+                    <div className="flex flex-col md:flex-row print:flex-row justify-between items-start mb-6">
+                        <div>
+                            <h1 className="text-3xl font-black uppercase tracking-widest text-gray-900">REPORTE OPERATIVO</h1>
+                            <p className="text-md font-medium text-gray-500 uppercase mt-1 tracking-wider">Estado de Ocupación</p>
+                        </div>
+                        <div className="text-right mt-2 md:mt-0 print:mt-0">
+                            <div className="bg-gray-100 px-4 py-2 rounded-md border border-gray-200">
+                                <p className="text-xs text-gray-500 font-bold uppercase mb-1">Período del Reporte</p>
+                                <p className="text-sm font-semibold text-gray-900 uppercase">{period || 'Actual'}</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                {Object.keys(groupedData).map((propertyName) => (
-                    <div key={propertyName} className="mb-8">
-                        <h2 className="text-lg font-bold mb-2 bg-gray-200 p-2 rounded">{propertyName}</h2>
-                        <Table className="border border-black text-xs">
-                            <TableHeader>
-                                <TableRow className="border-b border-black">
-                                    <TableHead className="text-black font-bold">INQUILINO</TableHead>
-                                    <TableHead className="text-black font-bold">CÉDULA / RIF</TableHead>
-                                    <TableHead className="text-black font-bold">UNIDAD</TableHead>
-                                    <TableHead className="text-black font-bold text-right">CANON ($)</TableHead>
-                                    <TableHead className="text-black font-bold">ESTADO</TableHead>
-                                    <TableHead className="text-black font-bold">TELÉFONO</TableHead>
-                                    <TableHead className="text-black font-bold">CORREO</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {groupedData[propertyName].map((row: any, index: number) => (
-                                    <TableRow key={index} className="border-b border-gray-300">
-                                        <TableCell className="font-medium">{row.tenant}</TableCell>
-                                        <TableCell>{row.docId}</TableCell>
-                                        <TableCell>{row.unit}</TableCell>
-                                        <TableCell className="text-right">{row.rent ? `$${row.rent.toFixed(2)}` : '-'}</TableCell>
-                                        <TableCell>
-                                            <span className={`px-2 py-1 rounded-full text-xs font-bold ${
-                                                row.status === 'Ocupado' ? 'bg-green-200 text-green-800' : 'bg-red-200 text-red-800'
-                                            }`}>
-                                                {row.status.toUpperCase()}
-                                            </span>
-                                        </TableCell>
-                                        <TableCell>{row.phone}</TableCell>
-                                        <TableCell>{row.email}</TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
+                {/* 2. Executive Summary - Occupancy */}
+                <div className="pt-2">
+                    <h3 className="text-sm font-bold text-gray-800 uppercase tracking-widest mb-4 border-b pb-2">Resumen General</h3>
+                    <div className="grid grid-cols-3 gap-6 mb-8">
+                        <div className="bg-white border-l-4 border-slate-500 shadow-sm p-4 rounded-r-lg border-y border-r border-gray-100">
+                            <p className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Total Unidades</p>
+                            <p className="text-2xl font-black text-gray-900">{data.length}</p>
+                        </div>
+                        <div className="bg-white border-l-4 border-emerald-500 shadow-sm p-4 rounded-r-lg border-y border-r border-gray-100">
+                            <p className="text-xs font-bold text-emerald-600 uppercase tracking-wider mb-2">Ocupadas</p>
+                            <p className="text-2xl font-black text-gray-900">{occupied} <span className="text-sm font-medium text-gray-400">({data.length > 0 ? ((occupied / data.length) * 100).toFixed(0) : 0}%)</span></p>
+                        </div>
+                        <div className="bg-white border-l-4 border-rose-500 shadow-sm p-4 rounded-r-lg border-y border-r border-gray-100">
+                            <p className="text-xs font-bold text-rose-600 uppercase tracking-wider mb-2">Vacantes</p>
+                            <p className="text-2xl font-black text-gray-900">{vacant} <span className="text-sm font-medium text-gray-400">({data.length > 0 ? ((vacant / data.length) * 100).toFixed(0) : 0}%)</span></p>
+                        </div>
                     </div>
-                ))}
+                </div>
+
+                {/* 3. Detail Tables by Property */}
+                <div className="space-y-6 pt-2">
+                    {Object.keys(groupedData).map((propertyName, idx) => (
+                        <div key={propertyName}>
+                            <h3 className="text-sm font-bold text-gray-800 uppercase tracking-widest mb-3 bg-gray-100 p-2 rounded">{idx + 1}. Inmueble: {propertyName}</h3>
+                            <div className="border border-gray-300 rounded overflow-hidden">
+                                <Table className="text-xs">
+                                    <TableHeader>
+                                        <TableRow className="border-b-2 border-gray-400 bg-gray-50 hover:bg-gray-50">
+                                            <TableHead className="text-gray-900 font-bold">INQUILINO</TableHead>
+                                            <TableHead className="text-gray-900 font-bold">CÉDULA / RIF</TableHead>
+                                            <TableHead className="text-gray-900 font-bold">UNIDAD</TableHead>
+                                            <TableHead className="text-gray-900 font-bold text-right">CANON ($)</TableHead>
+                                            <TableHead className="text-gray-900 font-bold">ESTADO</TableHead>
+                                            <TableHead className="text-gray-900 font-bold">TELÉFONO</TableHead>
+                                            <TableHead className="text-gray-900 font-bold">CORREO</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {groupedData[propertyName].map((row: any, index: number) => (
+                                            <TableRow key={index} className={`border-b border-gray-200 ${index % 2 === 0 ? "bg-white" : "bg-gray-50/50"}`}>
+                                                <TableCell className="font-medium text-gray-900">{row.tenant}</TableCell>
+                                                <TableCell className="text-gray-600">{row.docId}</TableCell>
+                                                <TableCell className="font-medium">{row.unit}</TableCell>
+                                                <TableCell className="text-right font-bold text-gray-900">{row.rent ? `$${row.rent.toFixed(2)}` : '-'}</TableCell>
+                                                <TableCell>
+                                                    <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                                                        row.status === 'Ocupado' ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' : 'bg-rose-100 text-rose-800 border border-rose-200'
+                                                    }`}>
+                                                        {row.status}
+                                                    </span>
+                                                </TableCell>
+                                                <TableCell className="text-gray-600">{row.phone}</TableCell>
+                                                <TableCell className="text-gray-600">{row.email}</TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+
+                {/* Footer Signature Area */}
+                <div className="pt-20 pb-4 text-center text-xs text-gray-400">
+                    <div className="w-64 border-t border-gray-300 mx-auto mb-3"></div>
+                    {/* <p className="uppercase tracking-widest">Generado por SIAA</p> */}
+                    <p>Sistema Integral de Administración de Alquileres</p>
+                </div>
             </div>
         )
     }
@@ -116,66 +134,90 @@ export const OperationalReport = React.forwardRef<HTMLDivElement, OperationalRep
 
         return (
             <div className="space-y-8">
-                <div className="text-center mb-6 border-b-2 border-gray-800 pb-4">
-                    <h1 className="text-xl font-bold uppercase tracking-wide">REPORTE DE MOROSIDAD</h1>
-                    <p className="text-sm text-gray-500">Análisis de deuda por inquilino</p>
-                    {period && <p className="text-sm text-gray-500 font-medium mt-1 uppercase">{period}</p>}
-                </div>
-
-                {/* Summary */}
-                <div className="grid grid-cols-3 gap-4 mb-6">
-                    <div className="bg-gray-100 p-4 rounded-lg text-center">
-                        <p className="text-sm font-bold text-gray-500">INQUILINOS MOROSOS</p>
-                        <p className="text-2xl font-bold">{totalTenants}</p>
-                    </div>
-                    <div className="bg-red-100 p-4 rounded-lg text-center">
-                        <p className="text-sm font-bold text-red-700">DEUDA TOTAL</p>
-                        <p className="text-2xl font-bold text-red-700">${totalDebt.toFixed(2)}</p>
-                    </div>
-                    <div className="bg-orange-100 p-4 rounded-lg text-center">
-                        <p className="text-sm font-bold text-orange-700">DEUDA PROMEDIO</p>
-                        <p className="text-2xl font-bold text-orange-700">${avgDebt.toFixed(2)}</p>
-                    </div>
-                </div>
-
-                {/* Tables grouped by property */}
-                {Object.keys(groupedData).map((propertyName) => {
-                    const propertyDebt = groupedData[propertyName].reduce((acc: number, curr: any) => acc + (curr.debt || 0), 0)
-                    return (
-                        <div key={propertyName} className="mb-8">
-                            <h2 className="text-lg font-bold mb-2 bg-gray-200 p-2 rounded flex justify-between">
-                                <span>{propertyName}</span>
-                                <span className="text-red-700">Deuda: ${propertyDebt.toFixed(2)}</span>
-                            </h2>
-                            <Table className="border border-black text-xs">
-                                <TableHeader>
-                                    <TableRow className="border-b border-black">
-                                        <TableHead className="text-black font-bold">INQUILINO</TableHead>
-                                        <TableHead className="text-black font-bold">UNIDAD</TableHead>
-                                        <TableHead className="text-black font-bold text-right">MESES</TableHead>
-                                        <TableHead className="text-black font-bold text-right">DEUDA TOTAL ($)</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {groupedData[propertyName].map((row: any, index: number) => (
-                                        <TableRow key={index} className="border-b border-gray-300">
-                                            <TableCell>{row.tenant}</TableCell>
-                                            <TableCell>{row.unit}</TableCell>
-                                            <TableCell className="text-right">{row.months}</TableCell>
-                                            <TableCell className="text-right text-red-700 font-bold">{row.debt.toFixed(2)}</TableCell>
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
+                {/* 1. Header */}
+                <div className="border-b-2 border-gray-800 pb-6">
+                    <div className="flex flex-col md:flex-row print:flex-row justify-between items-start mb-6">
+                        <div>
+                            <h1 className="text-3xl font-black uppercase tracking-widest text-gray-900">REPORTE OPERATIVO</h1>
+                            <p className="text-md font-medium text-gray-500 uppercase mt-1 tracking-wider">Análisis de Deuda (Morosidad)</p>
                         </div>
-                    )
-                })}
+                        <div className="text-right mt-2 md:mt-0 print:mt-0">
+                            <div className="bg-gray-100 px-4 py-2 rounded-md border border-gray-200">
+                                <p className="text-xs text-gray-500 font-bold uppercase mb-1">Período del Reporte</p>
+                                <p className="text-sm font-semibold text-gray-900 uppercase">{period || 'Actual'}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* 2. Executive Summary - Delinquency */}
+                <div className="pt-2">
+                    <h3 className="text-sm font-bold text-gray-800 uppercase tracking-widest mb-4 border-b pb-2">Resumen General</h3>
+                    <div className="grid grid-cols-3 gap-6 mb-8">
+                        <div className="bg-white border-l-4 border-slate-500 shadow-sm p-4 rounded-r-lg border-y border-r border-gray-100">
+                            <p className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Inquilinos Morosos</p>
+                            <p className="text-2xl font-black text-gray-900">{totalTenants}</p>
+                        </div>
+                        <div className="bg-white border-l-4 border-rose-500 shadow-sm p-4 rounded-r-lg border-y border-r border-gray-100">
+                            <p className="text-xs font-bold text-rose-600 uppercase tracking-wider mb-2">Deuda Total</p>
+                            <p className="text-2xl font-black text-gray-900">${totalDebt.toFixed(2)}</p>
+                        </div>
+                        <div className="bg-white border-l-4 border-amber-500 shadow-sm p-4 rounded-r-lg border-y border-r border-gray-100">
+                            <p className="text-xs font-bold text-amber-600 uppercase tracking-wider mb-2">Deuda Promedio</p>
+                            <p className="text-2xl font-black text-gray-900">${avgDebt.toFixed(2)}</p>
+                        </div>
+                    </div>
+                </div>
+
+                {/* 3. Detail Tables by Property */}
+                <div className="space-y-6 pt-2">
+                    {Object.keys(groupedData).map((propertyName, idx) => {
+                        const propertyDebt = groupedData[propertyName].reduce((acc: number, curr: any) => acc + (curr.debt || 0), 0)
+                        return (
+                            <div key={propertyName}>
+                                <h3 className="text-sm font-bold text-gray-800 flex justify-between uppercase tracking-widest mb-3 bg-gray-100 p-2 rounded">
+                                    <span>{idx + 1}. Inmueble: {propertyName}</span>
+                                    <span className="text-rose-700 font-black">Deuda: ${propertyDebt.toFixed(2)}</span>
+                                </h3>
+                                <div className="border border-gray-300 rounded overflow-hidden">
+                                    <Table className="text-xs">
+                                        <TableHeader>
+                                            <TableRow className="border-b-2 border-gray-400 bg-gray-50 hover:bg-gray-50">
+                                                <TableHead className="text-gray-900 font-bold">INQUILINO</TableHead>
+                                                <TableHead className="text-gray-900 font-bold">UNIDAD</TableHead>
+                                                <TableHead className="text-gray-900 font-bold text-right">MESES ATRASADOS</TableHead>
+                                                <TableHead className="text-gray-900 font-bold text-right">DEUDA TOTAL ($)</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {groupedData[propertyName].map((row: any, index: number) => (
+                                                <TableRow key={index} className={`border-b border-gray-200 ${index % 2 === 0 ? "bg-white" : "bg-gray-50/50"}`}>
+                                                    <TableCell className="font-medium text-gray-900">{row.tenant}</TableCell>
+                                                    <TableCell className="font-medium">{row.unit}</TableCell>
+                                                    <TableCell className="text-right text-gray-600 font-bold">{row.months}</TableCell>
+                                                    <TableCell className="text-right text-rose-600 font-bold">${row.debt.toFixed(2)}</TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                </div>
+                            </div>
+                        )
+                    })}
+                </div>
+
+                {/* Footer Signature Area */}
+                <div className="pt-20 pb-4 text-center text-xs text-gray-400">
+                    <div className="w-64 border-t border-gray-300 mx-auto mb-3"></div>
+                    {/* <p className="uppercase tracking-widest">Generado por SIAA</p> */}
+                    <p>Sistema Integral de Administración de Alquileres</p>
+                </div>
             </div>
         )
     }
 
     return (
-        <div ref={ref} className="p-8 bg-white text-black font-sans max-w-[1000px] mx-auto">
+        <div ref={ref} className="p-8 bg-white text-black font-sans max-w-[1000px] mx-auto shadow-sm border border-gray-100 rounded-sm">
             {type === 'occupancy' ? renderOccupancyReport() : renderDelinquencyReport()}
         </div>
     )

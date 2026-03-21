@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useMemo } from "react"
+import { useState, useRef, useMemo, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useOwnerReport } from "@/hooks/use-owner-report"
 import { OwnerFinancialReport } from "@/components/reports/owner-financial-report"
@@ -12,7 +12,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { ArrowLeft, FileBarChart, Download, Loader2, Check, ChevronsUpDown, Printer, Mail } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { format } from "date-fns"
-import { cn } from "@/lib/utils"
+import { cn, parseLocalDate } from "@/lib/utils"
 import * as XLSX from 'xlsx'
 import { toast } from "sonner"
 import { useReactToPrint } from "react-to-print"
@@ -31,6 +31,11 @@ export default function OwnerReportPage() {
     const componentRef = useRef<HTMLDivElement>(null)
     const [showEmailDialog, setShowEmailDialog] = useState(false)
     const [sendingEmail, setSendingEmail] = useState(false)
+    const [isMounted, setIsMounted] = useState(false)
+
+    useEffect(() => {
+        setIsMounted(true)
+    }, [])
 
     const handleGenerate = async () => {
         await generateReport()
@@ -56,25 +61,12 @@ export default function OwnerReportPage() {
     }, [filters.ownerIds, owners, properties])
 
     const toggleOwner = (value: string) => {
-        setFilters(prev => {
-            const current = prev.ownerIds
-            if (current.includes(value)) {
-                return { ...prev, ownerIds: current.filter(o => o !== value) }
-            } else {
-                return { ...prev, ownerIds: [...current, value] }
-            }
-        })
+        setFilters(prev => ({ ...prev, ownerIds: [value] }))
+        setOpenOwnerSelect(false)
     }
 
-    const toggleAllOwners = () => {
-        setFilters(prev => {
-            if (prev.ownerIds.length === owners.length) {
-                return { ...prev, ownerIds: [] }
-            } else {
-                return { ...prev, ownerIds: owners.map(o => o.id) }
-            }
-        })
-    }
+    // The toggleAllOwners function is no longer needed but kept empty to avoid breaking refs if any existed
+    const toggleAllOwners = () => {}
 
     const toggleProperty = (value: string) => {
         setFilters(prev => {
@@ -156,14 +148,15 @@ export default function OwnerReportPage() {
                 }))
             )
 
-            const combinedDetail = [...paymentsData, ...expensesData].sort((a, b) => new Date(b.Fecha).getTime() - new Date(a.Fecha).getTime())
+            const combinedDetail = [...paymentsData, ...expensesData].sort((a, b) => new Date(a.Fecha).getTime() - new Date(b.Fecha).getTime())
 
-            const wsSummary = XLSX.utils.json_to_sheet(exportData)
             const wsDetail = XLSX.utils.json_to_sheet(combinedDetail)
+            const wsSummary = XLSX.utils.json_to_sheet(exportData)
 
             const wb = XLSX.utils.book_new()
-            XLSX.utils.book_append_sheet(wb, wsSummary, "Resumen")
-            XLSX.utils.book_append_sheet(wb, wsDetail, "Detalle Completo")
+            // Append Detail first so it opens by default
+            XLSX.utils.book_append_sheet(wb, wsDetail, "Detalle de Transacciones")
+            XLSX.utils.book_append_sheet(wb, wsSummary, "Resumen General")
 
             const fileName = `Reporte_Propietarios_${format(filters.startDate, "yyyy-MM-dd")}_${format(filters.endDate, "yyyy-MM-dd")}.xlsx`
             XLSX.writeFile(wb, fileName)
@@ -172,6 +165,14 @@ export default function OwnerReportPage() {
             console.error("Export error:", error)
             toast.error("Error al exportar reporte")
         }
+    }
+
+    if (!isMounted) {
+        return (
+            <div className="flex items-center justify-center min-h-[400px]">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+        )
     }
 
     const periodLabel = `${format(filters.startDate, "dd/MM/yyyy")} - ${format(filters.endDate, "dd/MM/yyyy")}`
@@ -199,7 +200,7 @@ export default function OwnerReportPage() {
                                 <Input
                                     type="date"
                                     value={format(filters.startDate, "yyyy-MM-dd")}
-                                    onChange={(e) => e.target.value && setFilters(prev => ({ ...prev, startDate: new Date(e.target.value) }))}
+                                    onChange={(e) => e.target.value && setFilters(prev => ({ ...prev, startDate: parseLocalDate(e.target.value) }))}
                                 />
                             </div>
                             <div className="space-y-2">
@@ -207,7 +208,7 @@ export default function OwnerReportPage() {
                                 <Input
                                     type="date"
                                     value={format(filters.endDate, "yyyy-MM-dd")}
-                                    onChange={(e) => e.target.value && setFilters(prev => ({ ...prev, endDate: new Date(e.target.value) }))}
+                                    onChange={(e) => e.target.value && setFilters(prev => ({ ...prev, endDate: parseLocalDate(e.target.value) }))}
                                 />
                             </div>
                         </div>
@@ -220,10 +221,8 @@ export default function OwnerReportPage() {
                                     <PopoverTrigger asChild>
                                         <Button variant="outline" role="combobox" aria-expanded={openOwnerSelect} className="w-full justify-between">
                                             {filters.ownerIds.length === 0
-                                                ? "Todos"
-                                                : filters.ownerIds.length === owners.length
-                                                    ? "Todos"
-                                                    : `${filters.ownerIds.length} seleccionados`}
+                                                ? "Seleccione un propietario..."
+                                                : owners.find(o => o.id === filters.ownerIds[0])?.name || "Seleccionado"}
                                             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                         </Button>
                                     </PopoverTrigger>
@@ -233,10 +232,6 @@ export default function OwnerReportPage() {
                                             <CommandList>
                                                 <CommandEmpty>No encontrado.</CommandEmpty>
                                                 <CommandGroup>
-                                                    <CommandItem onSelect={toggleAllOwners} className="font-medium">
-                                                        <Check className={cn("mr-2 h-4 w-4", filters.ownerIds.length === owners.length ? "opacity-100" : "opacity-0")} />
-                                                        Todos
-                                                    </CommandItem>
                                                     {owners.map((owner) => (
                                                         <CommandItem key={owner.id} value={owner.id} onSelect={() => toggleOwner(owner.id)}>
                                                             <Check className={cn("mr-2 h-4 w-4", filters.ownerIds.includes(owner.id) ? "opacity-100" : "opacity-0")} />
@@ -290,7 +285,7 @@ export default function OwnerReportPage() {
                     </CardContent>
                     <CardFooter className="flex justify-between">
                         <Button variant="ghost" onClick={() => router.push('/reports')}>Cancelar</Button>
-                        <Button onClick={handleGenerate} className="w-1/3" disabled={loading}>
+                        <Button onClick={handleGenerate} className="w-1/3" disabled={loading || filters.ownerIds.length === 0}>
                             {loading ? "Generando..." : <><FileBarChart className="mr-2 h-4 w-4" /> Generar Reporte</>}
                         </Button>
                     </CardFooter>

@@ -16,6 +16,7 @@ interface ExportButtonsProps {
         transform?: (value: any) => any
     }[]
     title?: string
+    hidePdf?: boolean
 }
 
 // Helper to access nested keys
@@ -27,7 +28,7 @@ const getNestedValue = (obj: any, path: string) => {
  * Botones para exportar datos a Excel y PDF.
  * Recibe datos y configuración de columnas para generar reportes descargables.
  */
-export function ExportButtons({ data, filename = "export", columns, title = "Reporte" }: ExportButtonsProps) {
+export function ExportButtons({ data, filename = "export", columns, title = "Reporte", hidePdf = false }: ExportButtonsProps) {
 
     const handleExportExcel = () => {
         try {
@@ -88,18 +89,18 @@ export function ExportButtons({ data, filename = "export", columns, title = "Rep
         }
     }
 
-
-
     return (
         <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={handleExportExcel}>
+            <Button variant="outline" onClick={handleExportExcel} className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 border-emerald-200">
                 <FileSpreadsheet className="mr-2 h-4 w-4" />
                 Excel
             </Button>
-            <Button variant="outline" size="sm" onClick={handleExportPDF}>
-                <FileText className="mr-2 h-4 w-4" />
-                PDF
-            </Button>
+            {!hidePdf && (
+                <Button variant="outline" onClick={handleExportPDF} className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200">
+                    <FileText className="mr-2 h-4 w-4" />
+                    PDF
+                </Button>
+            )}
         </div>
     )
 }

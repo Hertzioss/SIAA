@@ -5,10 +5,9 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Plus, Search, Mail, Phone, User, Home, FileText, Building, ChevronLeft, ChevronRight, Edit, Trash, Loader2, DollarSign, ArrowUpDown, RefreshCw } from "lucide-react"
+import { Plus, Search, Mail, Phone, User, Home, FileText, Building, ChevronLeft, ChevronRight, Edit, Trash, Loader2, DollarSign, ArrowUpDown, RefreshCw, Printer } from "lucide-react"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -19,6 +18,9 @@ import { useProperties } from "@/hooks/use-properties"
 import { TenantDialog } from "@/components/tenants/tenant-dialog"
 import { PaymentDialog } from "@/components/tenants/payment-dialog"
 import { Tenant } from "@/types/tenant"
+import { useReactToPrint } from "react-to-print"
+import { TenantListReport } from "@/components/reports/tenant-list-report"
+import { useRef } from "react"
 import {
     AlertDialog,
     AlertDialogAction,
@@ -44,6 +46,12 @@ export default function TenantsPage() {
     const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false)
     const [dialogMode, setDialogMode] = useState<"create" | "view" | "edit">("create")
     const [isSyncing, setIsSyncing] = useState(false)
+    const reportRef = useRef<HTMLDivElement>(null)
+
+    const handlePrint = useReactToPrint({
+        contentRef: reportRef,
+        documentTitle: `Reporte_Inquilinos_${new Date().toLocaleDateString('es-VE').replace(/\//g, '-')}`
+    })
 
     const handleSyncUsers = async () => {
         setIsSyncing(true)
@@ -241,17 +249,20 @@ export default function TenantsPage() {
                             { header: "Documento", key: "doc_id" },
                             { header: "Teléfono", key: "phone" },
                             { header: "Email", key: "email" },
-                            { header: "Estado", key: "statusText" },
                             { header: "Propiedad", key: "propertyName" },
                             { header: "Unidad", key: "unitName" },
                             { header: "Propietario", key: "ownerName" },
                         ]}
                         title="Reporte de Inquilinos"
+                        hidePdf={true}
                     />
-                    <Button variant="outline" onClick={handleSyncUsers} disabled={isSyncing} title="Sincronizar vínculos de acceso de todos los inquilinos">
+                    <Button variant="outline" onClick={() => handlePrint()} className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200">
+                        <Printer className="mr-2 h-4 w-4" /> PDF
+                    </Button>
+                    {/* <Button variant="outline" onClick={handleSyncUsers} disabled={isSyncing} title="Sincronizar vínculos de acceso de todos los inquilinos">
                         {isSyncing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
                         Sincronizar Accesos
-                    </Button>
+                    </Button> */}
                     <Button onClick={handleCreate}>
                         <Plus className="mr-2 h-4 w-4" /> Registrar Inquilino
                     </Button>
@@ -515,6 +526,18 @@ export default function TenantsPage() {
                 onOpenChange={setIsPaymentDialogOpen}
                 tenant={selectedTenant}
             />
+
+            {/* Componente Oculto para exportación a PDF Stylized */}
+            <div style={{ display: 'none' }}>
+                <TenantListReport 
+                    ref={reportRef} 
+                    data={exportData} 
+                    filters={{
+                        ownerName: ownerFilter !== 'all' ? (uniqueOwners.find((o: any) => o.owner_id === ownerFilter) as any)?.name : undefined,
+                        propertyName: propertyFilter !== 'all' ? properties.find(p => p.id === propertyFilter)?.name : undefined
+                    }}
+                />
+            </div>
 
             <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
                 <AlertDialogContent>

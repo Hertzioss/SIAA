@@ -80,6 +80,11 @@ export function useOwnerReport() {
     }, []);
 
     const generateReport = useCallback(async () => {
+        if (filters.ownerIds.length === 0) {
+            setReportData([]);
+            return;
+        }
+
         setLoading(true);
         try {
             const startStr = format(filters.startDate, 'yyyy-MM-dd');
@@ -128,26 +133,41 @@ export function useOwnerReport() {
                 `)
                 .eq('status', 'approved')
                 .gte('date', startStr)
-                .lte('date', endStr);
+                .lte('date', endStr)
+                .order('date', { ascending: true })
 
             if (payError) throw payError;
 
             // 3. Fetch Owner Expenses (Directly linked to owner)
-            const { data: expenses, error: expError } = await supabase
+            const { data: ownerExpenses, error: expError } = await supabase
                 .from('owner_expenses')
                 .select('amount, owner_id, currency, date, category, description, exchange_rate')
                 .eq('status', 'paid')
                 .gte('date', startStr)
-                .lte('date', endStr);
+                .lte('date', endStr)
+                .order('date', { ascending: true })
 
             if (expError) throw expError;
 
+            // 3.5 Fetch Property Expenses (linked to properties and distributed to owners)
+            const propertyIdsKeys = Object.keys(propertyOwnership);
+            let propertyExpenses: any[] = [];
+            
+            if (propertyIdsKeys.length > 0) {
+                const { data: propExp, error: propExpError } = await supabase
+                    .from('expenses')
+                    .select('amount, property_id, currency, date, category, description, exchange_rate, properties(name)')
+                    .in('property_id', propertyIdsKeys)
+                    .gte('date', startStr)
+                    .lte('date', endStr);
+
+                if (!propExpError && propExp) {
+                    propertyExpenses = propExp;
+                }
+            }
+
             // --- Aggregation ---
             const ownerStats: Record<string, OwnerReportItem> = {};
-
-            // Initialize stats for known owners from property map (or all owners?)
-            // Let's initialize as we go or pre-fill from options.
-            // Better to see who actually has activity or ownership.
 
             // Helper to get stats object
             const getStats = (id: string, name: string, doc: string, email?: string | null) => {
@@ -226,8 +246,8 @@ export function useOwnerReport() {
                 });
             });
 
-            // Process Expenses
-            expenses?.forEach((e: any) => {
+            // Process Owner Expenses
+            ownerExpenses?.forEach((e: any) => {
                 const amount = Number(e.amount);
                 const ownerId = e.owner_id;
                 const currency = e.currency || 'USD';
@@ -265,6 +285,14 @@ export function useOwnerReport() {
                 stats.totalExpensesBs += amountBs;
                 stats.totalExpensesUsd += amountUsd;
 
+                const categoryMap: Record<string, string> = {
+                    withdrawal: 'Retiro / Adelanto',
+                    maintenance: 'Mantenimiento',
+                    tax: 'Impuestos',
+                    fee: 'Honorarios',
+                    other: 'Otros'
+                };
+
                 stats.expenses.push({
                     date: e.date,
                     amount: amountBs,
@@ -272,9 +300,70 @@ export function useOwnerReport() {
                     amountOriginal: amount,
                     currency: currency,
                     exchangeRate: exchangeRate,
-                    category: e.category,
+                    category: categoryMap[e.category] || e.category,
                     description: e.description
                 });
+            });
+
+            // Process Property Expenses
+            propertyExpenses?.forEach((e: any) => {
+                const amount = Number(e.amount);
+                const currency = e.currency || 'USD';
+                const exchangeRate = Number(e.exchange_rate) || 1;
+                const propertyId = e.property_id;
+
+                if (!propertyId) return;
+
+                // Apply Property Filter
+                if (filters.propertyIds.length > 0 && !filters.propertyIds.includes(propertyId)) return;
+
+                let amountBs = amount;
+                let amountUsd = amount;
+
+                if (currency === 'USD') {
+                    amountBs = amount * exchangeRate;
+                    amountUsd = amount;
+                } else {
+                    amountBs = amount;
+                    amountUsd = exchangeRate > 0 ? amount / exchangeRate : 0;
+                }
+
+                // Distribute to Owners based on property ownership percentage
+                const owners = propertyOwnership[propertyId] || [];
+                owners.forEach(owner => {
+                    const shareBs = amountBs * (owner.percentage / 100);
+                    const shareUsd = amountUsd * (owner.percentage / 100);
+
+                    const stats = getStats(owner.ownerId, owner.name, owner.doc_id, owner.email);
+                    stats.totalExpensesBs += shareBs;
+                    stats.totalExpensesUsd += shareUsd;
+
+                    const categoryMap: Record<string, string> = {
+                        withdrawal: 'Retiro / Adelanto',
+                        maintenance: 'Mantenimiento',
+                        tax: 'Impuestos',
+                        fee: 'Honorarios',
+                        other: 'Gastos de Inmueble'
+                    };
+
+                    const propNameStr = e.properties?.name ? ` (${e.properties.name})` : '';
+
+                    stats.expenses.push({
+                        date: e.date,
+                        amount: shareBs,
+                        amountUsd: shareUsd,
+                        amountOriginal: amount * (owner.percentage / 100),
+                        currency: currency,
+                        exchangeRate: exchangeRate,
+                        category: categoryMap[e.category] || e.category,
+                        description: `${e.description}${propNameStr}`
+                    });
+                });
+            });
+
+            // Sort Expenses by Date
+            Object.values(ownerStats).forEach(stat => {
+                stat.expenses.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
             });
 
             // Calculate Net & Property Count

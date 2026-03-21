@@ -138,6 +138,11 @@ export default function ReportsPage() {
     const [openPropertySelect, setOpenPropertySelect] = useState(false)
     const [openOwnerSelect, setOpenOwnerSelect] = useState(false)
     const [openMonthSelect, setOpenMonthSelect] = useState(false)
+    const [isMounted, setIsMounted] = useState(false)
+
+    useEffect(() => {
+        setIsMounted(true)
+    }, [])
 
     const componentRef = useRef<HTMLDivElement>(null)
 
@@ -318,6 +323,14 @@ export default function ReportsPage() {
     }
 
     const selectedReport = REPORT_TYPES.find(r => r.id === selectedReportId)
+
+    if (!isMounted) {
+        return (
+            <div className="flex items-center justify-center min-h-[400px]">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            </div>
+        )
+    }
 
     return (
         <div className="container mx-auto p-6 space-y-8">
