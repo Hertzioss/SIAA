@@ -132,7 +132,7 @@ export const OwnerFinancialReport = React.forwardRef<HTMLDivElement, OwnerFinanc
                                         <TableBody>
                                             {data[0].expenses.map((e, idx) => (
                                                 <TableRow key={`exp-${idx}`} className={cn("border-b border-gray-200", idx % 2 === 0 ? "bg-white" : "bg-gray-50/50")}>
-                                                    <TableCell className="font-medium text-gray-600">{e.date ? e.date.split('T')[0] : '-'}</TableCell>
+                                                    <TableCell className="font-medium text-gray-600">{e.date || '-'}</TableCell>
                                                     <TableCell className="w-[20%] whitespace-pre-wrap break-words ">{e.category}</TableCell>
                                                     <TableCell className="whitespace-pre-wrap break-words">{e.description}</TableCell>
                                                     <TableCell className="text-right font-medium">

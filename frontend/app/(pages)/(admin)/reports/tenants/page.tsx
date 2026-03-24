@@ -76,7 +76,7 @@ export default function TenantStatementPage() {
         const ws = XLSX.utils.json_to_sheet(exportData)
         const wb = XLSX.utils.book_new()
         XLSX.utils.book_append_sheet(wb, ws, "Estado de Cuenta")
-        XLSX.writeFile(wb, `Estado_Cuenta_${statementData.tenantName}_${format(filters.startDate, "yyyy-MM-dd")}_${format(filters.endDate, "yyyy-MM-dd")}.xlsx`)
+        XLSX.writeFile(wb, `Estado_Cuenta_${statementData.tenantName}_${format(filters.startDate, "dd-MM-yyyy")}_${format(filters.endDate, "dd-MM-yyyy")}.xlsx`)
         toast.success("Exportado con éxito")
     }
 

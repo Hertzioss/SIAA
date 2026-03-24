@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
-import { startOfMonth, endOfMonth, format } from 'date-fns';
+import { startOfMonth, endOfMonth, format, parseISO, isValid } from 'date-fns';
 
 export interface OwnerReportItem {
     ownerId: string;
@@ -217,7 +217,7 @@ export function useOwnerReport() {
 
                 // Create Detail Object
                 const detail: OwnerPaymentDetail = {
-                    date: p.date,
+                    date: p.date && isValid(parseISO(p.date)) ? format(parseISO(p.date), 'dd/MM/yyyy') : p.date,
                     amount: amountBs,
                     amountUsd: amountUsd,
                     amountOriginal: amount,
@@ -294,7 +294,7 @@ export function useOwnerReport() {
                 };
 
                 stats.expenses.push({
-                    date: e.date,
+                    date: e.date && isValid(parseISO(e.date)) ? format(parseISO(e.date), 'dd/MM/yyyy') : e.date,
                     amount: amountBs,
                     amountUsd: amountUsd,
                     amountOriginal: amount,
@@ -349,7 +349,7 @@ export function useOwnerReport() {
                     const propNameStr = e.properties?.name ? ` (${e.properties.name})` : '';
 
                     stats.expenses.push({
-                        date: e.date,
+                        date: e.date && isValid(parseISO(e.date)) ? format(parseISO(e.date), 'dd/MM/yyyy') : e.date,
                         amount: shareBs,
                         amountUsd: shareUsd,
                         amountOriginal: amount * (owner.percentage / 100),

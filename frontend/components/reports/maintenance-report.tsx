@@ -13,6 +13,7 @@ import {
     TableRow,
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
+import { format, parseISO, isValid } from 'date-fns'
 import { forwardRef } from "react"
 
 interface MaintenanceReportProps {
@@ -86,7 +87,9 @@ export const MaintenanceReport = forwardRef<HTMLDivElement, MaintenanceReportPro
                                 <TableBody>
                                     {data.map((item: any, idx: number) => (
                                         <TableRow key={item.id} className={`border-b border-gray-200 ${idx % 2 === 0 ? "bg-white" : "bg-gray-50/50"}`}>
-                                            <TableCell className="font-medium text-gray-900 whitespace-nowrap">{new Date(item.created_at).toLocaleDateString()}</TableCell>
+                                            <TableCell className="font-medium text-gray-900 whitespace-nowrap">
+                                                {item.created_at && isValid(parseISO(item.created_at)) ? format(parseISO(item.created_at), 'dd/MM/yyyy') : item.created_at}
+                                            </TableCell>
                                             <TableCell className="text-gray-900 font-medium">{item.properties?.name}</TableCell>
                                             <TableCell className="text-gray-600 whitespace-pre-wrap">{item.title}</TableCell>
                                             <TableCell className="text-center">

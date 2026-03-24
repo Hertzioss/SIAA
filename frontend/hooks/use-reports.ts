@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import { toast } from 'sonner'
+import { format, parseISO, isValid } from 'date-fns'
 
 // Types based on the components requirements
 export interface IncomeExpenseData {
@@ -149,7 +150,7 @@ export function useReports() {
             const dataUsd = filteredPayments
                 .filter((p: any) => p.currency === 'USD')
                 .map((p: any) => ({
-                    date: p.date,
+                    date: p.date && isValid(parseISO(p.date)) ? format(parseISO(p.date), 'dd/MM/yyyy') : p.date,
                     tenantName: p.contracts?.tenants?.name || 'Desconocido',
                     concept: p.concept,
                     credit: p.amount,
@@ -163,7 +164,7 @@ export function useReports() {
                     const rate = p.exchange_rate || 0
                     const incomeUsd = rate > 0 ? (p.amount / rate) : 0
                     return {
-                        date: p.date,
+                        date: p.date && isValid(parseISO(p.date)) ? format(parseISO(p.date), 'dd/MM/yyyy') : p.date,
                         tenantName: p.contracts?.tenants?.name || 'Desconocido',
                         concept: p.concept,
                         credit: p.amount, // This is in VES
@@ -176,7 +177,7 @@ export function useReports() {
                 })
 
             const dataExpenses = filteredExpenses.map((e: any) => ({
-                date: e.date,
+                date: e.date && isValid(parseISO(e.date)) ? format(parseISO(e.date), 'dd/MM/yyyy') : e.date,
                 category: e.category,
                 description: e.description,
                 amount: e.amount,

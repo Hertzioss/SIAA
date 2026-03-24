@@ -96,7 +96,7 @@ export default function OwnerReportPage() {
 
     const handlePrint = useReactToPrint({
         contentRef: componentRef,
-        documentTitle: `Reporte_Propietarios_${format(filters.startDate, "yyyy-MM-dd")}_${format(filters.endDate, "yyyy-MM-dd")}`
+        documentTitle: `Reporte_Propietarios_${format(filters.startDate, "dd-MM-yyyy")}_${format(filters.endDate, "dd-MM-yyyy")}`
     })
 
     const handleExport = () => {
@@ -158,7 +158,7 @@ export default function OwnerReportPage() {
             XLSX.utils.book_append_sheet(wb, wsDetail, "Detalle de Transacciones")
             XLSX.utils.book_append_sheet(wb, wsSummary, "Resumen General")
 
-            const fileName = `Reporte_Propietarios_${format(filters.startDate, "yyyy-MM-dd")}_${format(filters.endDate, "yyyy-MM-dd")}.xlsx`
+            const fileName = `Reporte_Propietarios_${format(filters.startDate, "dd-MM-yyyy")}_${format(filters.endDate, "dd-MM-yyyy")}.xlsx`
             XLSX.writeFile(wb, fileName)
             toast.success("Reporte exportado con éxito (Resumen y Detalles)")
         } catch (error) {

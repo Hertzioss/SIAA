@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
-import { format } from 'date-fns'
+import { format, parseISO, isValid } from 'date-fns'
 import { startOfMonth, endOfMonth } from 'date-fns'
 import { toast } from 'sonner'
 
@@ -95,7 +95,7 @@ export function useTenantStatement() {
 
             // 4. Build payment list
             const statementPayments: StatementPayment[] = (payments || []).map((p: any) => ({
-                date: p.date,
+                date: p.date && isValid(parseISO(p.date)) ? format(parseISO(p.date), 'dd/MM/yyyy') : p.date,
                 concept: p.concept || 'Pago de alquiler',
                 property: p.contracts?.units?.properties?.name || contractInfo?.propertyName || '',
                 unit: p.contracts?.units?.name || contractInfo?.unitName || '',
