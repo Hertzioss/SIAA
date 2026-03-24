@@ -448,6 +448,7 @@ export function PaymentForm({ defaultTenant, onSuccess, onCancel, className, isA
                         type="number"
                         value={year}
                         onChange={(e) => setYear(e.target.value)}
+                        onWheel={(e) => (e.target as HTMLInputElement).blur()}
                         placeholder="2025"
                         min="2000"
                         max="2100"
@@ -486,6 +487,7 @@ export function PaymentForm({ defaultTenant, onSuccess, onCancel, className, isA
                             step="0.01"
                             value={exchangeRate}
                             onChange={(e) => setExchangeRate(e.target.value)}
+                            onWheel={(e) => (e.target as HTMLInputElement).blur()}
                             placeholder="0.00"
                          />
                     </div>
@@ -524,6 +526,7 @@ export function PaymentForm({ defaultTenant, onSuccess, onCancel, className, isA
                                             type="number"
                                             value={part.amount}
                                             onChange={(e) => updatePaymentPart(index, 'amount', e.target.value)}
+                                            onWheel={(e) => (e.target as HTMLInputElement).blur()}
                                             placeholder="0.00"
                                             className={`w-[120px] ${errors[`amount-${index}`] ? "border-destructive ring-destructive" : ""}`}
                                         />
@@ -601,6 +604,7 @@ export function PaymentForm({ defaultTenant, onSuccess, onCancel, className, isA
                                                 className="h-8 text-sm"
                                                 value={referenceAmountUSD}
                                                 onChange={(e) => setReferenceAmountUSD(e.target.value)}
+                                                onWheel={(e) => (e.target as HTMLInputElement).blur()}
                                             />
                                         </div>
                                         <Button
