@@ -28,7 +28,7 @@ export function useDashboardData(propertyId: string, ownerId: string = 'all', fi
             // 1. Fetch Payments (Approved & Pending)
             let paymentsQuery = supabase
                 .from('payments')
-                .select('amount, date, billing_period, status, currency, contract_id, tenants(name)');
+                .select('amount, date, billing_period, status, currency, exchange_rate, contract_id, tenants(name)');
 
             // 2. Fetch Contracts (Active)
             let contractsQuery = supabase
@@ -55,7 +55,7 @@ export function useDashboardData(propertyId: string, ownerId: string = 'all', fi
             // 5. Fetch Owner Expenses (NEW)
             let expensesQuery = supabase
                 .from('owner_expenses')
-                .select('id, amount, date, property_id, owner_id'); // Note: Expenses schema might need currency too if multi-currency supported
+                .select('id, amount, date, property_id, owner_id, currency, exchange_rate'); // Note: Expenses schema might need currency too if multi-currency supported
 
             // Execute queries
             const [paymentsRes, contractsRes, unitsRes, maintenanceRes, expensesRes, allContractsRes] = await Promise.all([
@@ -139,17 +139,38 @@ export function useDashboardData(propertyId: string, ownerId: string = 'all', fi
             // Revenue (Approved Payments) - filtered by time
             const revenue = filteredPayments
                 .filter((p: any) => p.status === 'approved' && matchesDateFilter(p.billing_period || p.date))
-                .reduce((sum: number, p: any) => sum + Number(p.amount), 0);
+                .reduce((sum: number, p: any) => {
+                    const amount = Number(p.amount) || 0;
+                    if (p.currency === 'VES' || p.currency === 'Bs') {
+                        const rate = Number(p.exchange_rate) || 1;
+                        return sum + (amount / rate);
+                    }
+                    return sum + amount;
+                }, 0);
 
             // Arrears (Pending?) - filtered by time
             const pending = filteredPayments
                 .filter((p: any) => p.status === 'pending' && matchesDateFilter(p.billing_period || p.date))
-                .reduce((sum: number, p: any) => sum + Number(p.amount), 0);
+                .reduce((sum: number, p: any) => {
+                    const amount = Number(p.amount) || 0;
+                    if (p.currency === 'VES' || p.currency === 'Bs') {
+                        const rate = Number(p.exchange_rate) || 1;
+                        return sum + (amount / rate);
+                    }
+                    return sum + amount;
+                }, 0);
             
             // Total Expenses (NEW) - filtered by time
             const totalExpenses = filteredExpenses
                 .filter((e: any) => matchesDateFilter(e.date))
-                .reduce((sum: number, e: any) => sum + Number(e.amount), 0);
+                .reduce((sum: number, e: any) => {
+                    const amount = Number(e.amount) || 0;
+                    if (e.currency === 'VES' || e.currency === 'Bs') {
+                        const rate = Number(e.exchange_rate) || 1;
+                        return sum + (amount / rate);
+                    }
+                    return sum + amount;
+                }, 0);
 
 
             // Occupancy
@@ -176,11 +197,25 @@ export function useDashboardData(propertyId: string, ownerId: string = 'all', fi
             const revenueExpensesData = last6Months.map(date => {
                 const monthRevenue = filteredPayments
                     .filter((p: any) => p.status === 'approved' && isSameMonth(parseISO(p.date), date))
-                    .reduce((sum: number, p: any) => sum + Number(p.amount), 0);
+                    .reduce((sum: number, p: any) => {
+                        const amount = Number(p.amount) || 0;
+                        if (p.currency === 'VES' || p.currency === 'Bs') {
+                            const rate = Number(p.exchange_rate) || 1;
+                            return sum + (amount / rate);
+                        }
+                        return sum + amount;
+                    }, 0);
 
                 const monthExpenses = filteredExpenses
                     .filter((e: any) => isSameMonth(parseISO(e.date), date))
-                    .reduce((sum: number, e: any) => sum + Number(e.amount), 0);
+                    .reduce((sum: number, e: any) => {
+                        const amount = Number(e.amount) || 0;
+                        if (e.currency === 'VES' || e.currency === 'Bs') {
+                            const rate = Number(e.exchange_rate) || 1;
+                            return sum + (amount / rate);
+                        }
+                        return sum + amount;
+                    }, 0);
 
                 return {
                     name: format(date, 'MMM', { locale: es }), 

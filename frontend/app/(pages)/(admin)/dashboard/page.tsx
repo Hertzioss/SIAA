@@ -115,11 +115,7 @@ export default function Page() {
                     // For better UX, let's filter the list here too if owner is selected.
                     .filter(p => {
                         if (selectedOwner === 'all') return true;
-                        // We need to know which properties belong to owner to filter this list.
-                        // detailed logic would require checking p.owner_id if available or join.
-                        // The current useProperties hook returns minimal property data.
-                        // Let's skip list filtering for now and just rely on data filtering.
-                        return true; 
+                        return p.owners?.some((o: any) => o.owner_id === selectedOwner);
                     })
                     .map(p => (
                     <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
