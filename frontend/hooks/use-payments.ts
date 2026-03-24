@@ -92,7 +92,7 @@ export function usePayments() {
             let query = supabase
                 .from('payments')
                 .select(`
-                    id, amount, date, status, currency, method, payment_method, exchange_rate, reference_number, reference, billing_period, notes, contract_id, tenant_id, created_at, proof_url, concept, metadata,
+                    id, amount, date, status, currency, method, payment_method, exchange_rate, reference_number, reference, billing_period, notes, contract_id, tenant_id, created_at, proof_url, concept, metadata, registration_source,
                     tenants(name, doc_id, email)
                 `, { count: 'estimated' });
 

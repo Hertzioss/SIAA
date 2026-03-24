@@ -156,6 +156,7 @@ CREATE TABLE public.payments (
     proof_url TEXT,
     billing_period DATE,
     metadata JSONB DEFAULT '{}'::jsonb,
+    registration_source VARCHAR(20) DEFAULT 'tenant' CHECK (registration_source IN ('tenant', 'admin')),
     created_at TIMESTAMP DEFAULT NOW()
 );
 ALTER TABLE public.payments ENABLE ROW LEVEL SECURITY;

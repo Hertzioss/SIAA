@@ -62,7 +62,8 @@ export function useTenantPayments() {
                         status: p.status || 'pending',
                         owner_bank_account_id: p.owner_bank_account_id,
                         metadata: p.metadata,
-                        billing_period: p.billing_period // New Column
+                        billing_period: p.billing_period,
+                        registration_source: p.registration_source || 'tenant'
                     })
                     .select('id')
             )

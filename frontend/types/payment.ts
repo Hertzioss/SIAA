@@ -22,6 +22,7 @@ export interface Payment {
   metadata: Record<string, any> | null
   billing_period: string | null
   reference_number: string | null
+  registration_source: 'tenant' | 'admin' | null
 }
 
 export interface PaymentInsert {
@@ -42,6 +43,7 @@ export interface PaymentInsert {
   metadata?: Record<string, any> | null
   billing_period?: string | null
   reference_number?: string | null
+  registration_source?: 'tenant' | 'admin'
   
   // Frontend only
   proof_file?: File

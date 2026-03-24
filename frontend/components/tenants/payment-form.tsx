@@ -321,6 +321,7 @@ export function PaymentForm({ defaultTenant, onSuccess, onCancel, className, isA
                 status: (isAdmin && autoConciliate) ? 'approved' : 'pending',
                 billing_period: billingPeriod,
                 sendEmail: (isAdmin && autoConciliate && sendEmail),
+                registration_source: isAdmin ? 'admin' : 'tenant',
                 metadata: {
                     tenant_name: selectedTenant!.name,
                     tenant_doc_id: selectedTenant!.doc_id

@@ -111,6 +111,7 @@ export default function PaymentsPage() {
                             { header: "Moneda", key: "currency" },
                             { header: "Tasa", key: "exchange_rate" },
                             { header: "Referencia", key: "reference" },
+                            { header: "Origen", key: "registration_source", transform: (val: string) => val === 'admin' ? 'Administrador' : 'Inquilino' },
                             { header: "Estado", key: "status", transform: (val: string) => val === 'approved' ? 'Conciliado' : val === 'rejected' ? 'Rechazado' : 'Pendiente' }
                         ]}
                     />
@@ -252,9 +253,21 @@ export default function PaymentsPage() {
                                                         </span>
                                                     </TableCell>
                                                     <TableCell>
-                                                        <Badge variant="outline" className={payment.currency === 'USD' ? 'text-green-600 border-green-200' : 'text-blue-600 border-blue-200'}>
-                                                            {payment.currency === 'VES' ? 'Bs.' : (payment.currency || 'USD')}
-                                                        </Badge>
+                                                        <div className="flex items-center gap-1">
+                                                            <Badge variant="outline" className={payment.currency === 'USD' ? 'text-green-600 border-green-200' : 'text-blue-600 border-blue-200'}>
+                                                                {payment.currency === 'VES' ? 'Bs.' : (payment.currency || 'USD')}
+                                                            </Badge>
+                                                            <Badge 
+                                                                variant="outline" 
+                                                                className={`text-[10px] px-1 h-4 leading-none ${
+                                                                    payment.registration_source === 'admin' 
+                                                                        ? 'bg-purple-50 text-purple-700 border-purple-200' 
+                                                                        : 'bg-orange-50 text-orange-700 border-orange-200'
+                                                                }`}
+                                                            >
+                                                                {payment.registration_source === 'admin' ? 'Ad' : 'In'}
+                                                            </Badge>
+                                                        </div>
                                                     </TableCell>
                                                     <TableCell>
                                                         {payment.exchange_rate ? payment.exchange_rate.toFixed(2) : '-'}
