@@ -776,6 +776,11 @@ export function PaymentForm({ defaultTenant, onSuccess, onCancel, className, isA
                         <AlertDialogTitle>{isPreviewMode ? 'Previsualización de Distribución' : '¿Confirmar Registro de Pago?'}</AlertDialogTitle>
                         <AlertDialogDescription asChild>
                             <div>
+                                {selectedTenant && (
+                                    <div className="mb-2 text-sm text-foreground">
+                                        Inquilino: <span className="font-bold">{selectedTenant.name}</span>
+                                    </div>
+                                )}
                                 Se registrarán <strong>{distributionPreview.length}</strong> pago(s) individuales:
                                 <div className="max-h-[300px] overflow-y-auto mt-4 border rounded-md p-2 bg-muted/20">
                                     <ul className="space-y-2 text-sm">
