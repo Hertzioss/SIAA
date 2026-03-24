@@ -109,7 +109,7 @@ export default function TenantStatementPage() {
                                 <Input
                                     type="date"
                                     value={format(filters.startDate, "yyyy-MM-dd")}
-                                    onChange={(e) => e.target.value && setFilters(prev => ({ ...prev, startDate: new Date(e.target.value) }))}
+                                    onChange={(e) => e.target.value && setFilters(prev => ({ ...prev, startDate: parseLocalDate(e.target.value) }))}
                                 />
                             </div>
                             <div className="space-y-2">
@@ -117,7 +117,7 @@ export default function TenantStatementPage() {
                                 <Input
                                     type="date"
                                     value={format(filters.endDate, "yyyy-MM-dd")}
-                                    onChange={(e) => e.target.value && setFilters(prev => ({ ...prev, endDate: new Date(e.target.value) }))}
+                                    onChange={(e) => e.target.value && setFilters(prev => ({ ...prev, endDate: parseLocalDate(e.target.value) }))}
                                 />
                             </div>
                         </div>
