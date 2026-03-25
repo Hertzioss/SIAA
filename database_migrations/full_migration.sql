@@ -372,9 +372,9 @@ VALUES (
         'info'
     ),
     (
-        'Recordatorio de Pago de Renta',
+        'Recordatorio de Pago de Canon',
         'Aviso de Pago - Mes de {mes}',
-        'Hola {inquilino}, le recordamos que el pago de la renta correspondiente al mes de {mes} por un monto de {monto} vence el día {vencimiento}. Por favor realizar el pago a tiempo para evitar recargos.',
+        'Hola {inquilino}, le recordamos que el pago del canon correspondiente al mes de {mes} por un monto de {monto} vence el día {vencimiento}. Por favor realizar el pago a tiempo para evitar recargos.',
         'payment'
     ),
     (
@@ -392,7 +392,7 @@ VALUES (
     (
         'Aviso de Falta de Pago',
         'URGENTE: Pago Pendiente Detectado',
-        'Estimado {inquilino}, nuestros registros indican que no hemos recibido el pago de su renta del mes de {mes}. Le solicitamos regularizar su situación a la brevedad para evitar acciones adicionales.',
+        'Estimado {inquilino}, nuestros registros indican que no hemos recibido el pago de su canon del mes de {mes}. Le solicitamos regularizar su situación a la brevedad para evitar acciones adicionales.',
         'alert'
     ),
     (

@@ -214,7 +214,7 @@ export default function PaymentForm() {
                 amount: parseFloat(part.amount),
                 currency: part.currency,
                 exchange_rate: part.currency === 'VES' ? parseFloat(exchangeRate) : undefined,
-                concept: `Renta ${part.month}/${part.year}` + (paymentParts.length > 1 ? ` (Parte)` : ''),
+                concept: `Canon ${part.month}/${part.year}` + (paymentParts.length > 1 ? ` (Parte)` : ''),
                 payment_method: 'Transferencia',
                 reference_number: part.reference,
                 notes: notes,
