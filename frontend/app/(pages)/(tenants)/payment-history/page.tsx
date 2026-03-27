@@ -1,5 +1,8 @@
 'use client'
 
+import { supabase } from "@/lib/supabase"
+import { toast } from "sonner"
+
 import { useEffect, useState, useRef } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -69,8 +72,45 @@ export default function PaymentHistoryPage() {
     // Receipt Printing
     const [selectedPayment, setSelectedPayment] = useState<PaymentWithDetails | null>(null)
 
-    const generateReceipt = (payment: PaymentWithDetails) => {
-        setSelectedPayment(payment)
+    const generateReceipt = async (payment: PaymentWithDetails) => {
+        try {
+            const { data: fullPayment, error } = await supabase
+                .from('payments')
+                .select(`
+                    *,
+                    tenants(name, doc_id, email),
+                    contracts(
+                        id,
+                        units(
+                            name, type,
+                            properties(
+                                name,
+                                property_owners(
+                                    owners(name, doc_id, logo_url)
+                                )
+                            )
+                        )
+                    )
+                `)
+                .eq('id', payment.id)
+                .single()
+
+            if (error) throw error
+            if (fullPayment) {
+                // Determine tenants shape manually to avoid complex casting error
+                const processedPayment = { ...fullPayment } as any
+                if (Array.isArray(processedPayment.tenants)) {
+                    processedPayment.tenants = processedPayment.tenants[0]
+                }
+                setSelectedPayment(processedPayment)
+            } else {
+                setSelectedPayment(payment)
+            }
+        } catch (error) {
+            console.error('Error fetching full payment details:', error)
+            toast.error('Error al cargar detalles del recibo')
+            setSelectedPayment(payment) // Fallback
+        }
     }
 
     return (
