@@ -6,7 +6,7 @@ import { generateEmailHtml } from '@/lib/email-templates'
 export async function POST(request: Request) {
     try {
         const body = await request.json()
-        const { id, status, notes, sendEmail: shouldSendEmail } = body
+        const { id, status, notes, sendEmail: shouldSendEmail, pdfBase64 } = body
 
         if (!id || !status) {
             return NextResponse.json(
@@ -83,12 +83,25 @@ Por favor ingrese al portal para corregir o reenviar su comprobante.
                 // Use simple text-to-html for now or keep utilizing generateEmailHtml but with pre-formatted text
                 const html = generateEmailHtml(subject, message.replace(/\n/g, '<br/>'), tenant.name)
 
+                // Prepare Attachment if base64 provided
+                const attachments = []
+                if (pdfBase64) {
+                    const base64Data = pdfBase64.replace(/^data:application\/pdf;filename=generated\.pdf;base64,/, '')
+                    attachments.push({
+                        filename: `Recibo_${payment.reference_number || payment.id?.substring(0,8)}.pdf`,
+                        content: base64Data,
+                        encoding: 'base64',
+                        contentType: 'application/pdf'
+                    })
+                }
+
                 try {
                     // console.log(`Attempting to send email to ${tenant.email} via nodemailer...`)
                     await sendEmail({
                         to: tenant.email,
                         subject,
-                        html
+                        html,
+                        attachments
                     })
                     // console.log(`Email sent successfully to ${tenant.email}`)
                 } catch (emailError: any) {

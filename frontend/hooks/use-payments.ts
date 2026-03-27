@@ -294,13 +294,20 @@ export function usePayments() {
             
             // Map owners properly
             let ownersList: any[] = [];
+            let ownerLogo: string | null = null;
             const propertyOwners = propertyData?.property_owners;
             if (Array.isArray(propertyOwners)) {
-                ownersList = propertyOwners.map((po: any) => ({
-                    name: po.owners?.name,
-                    docId: po.owners?.doc_id
-                })).filter((o: any) => o.name);
+                ownersList = propertyOwners.map((po: any) => {
+                    const logo = po.owners?.logo_url;
+                    if (logo && !ownerLogo) ownerLogo = logo;
+                    return {
+                        name: po.owners?.name,
+                        docId: po.owners?.doc_id
+                    };
+                }).filter((o: any) => o.name);
             }
+
+            const finalLogo = ownerLogo || config?.logo_url || null;
 
             const pdfData = {
                 payment: {
@@ -325,7 +332,9 @@ export function usePayments() {
                     phone: config?.phone,
                     email: config?.email
                 },
-                owners: ownersList.length > 0 ? ownersList : undefined
+                owners: ownersList.length > 0 ? ownersList : undefined,
+                logoSrc: finalLogo,
+                timezone: config?.timezone
             };
 
             // 3. Generate PDF Base64
@@ -355,10 +364,73 @@ export function usePayments() {
 
     const updatePaymentStatus = async (id: string, status: 'approved' | 'rejected', notes?: string, sendEmail: boolean = false) => {
         try {
+            let pdfBase64 = undefined;
+
+            // Generate PDF if approving and sending email
+            if (status === 'approved' && sendEmail) {
+                try {
+                    const fullPayment = await fetchFullPayment(id);
+                    if (fullPayment) {
+                        const contractData = Array.isArray(fullPayment.contracts) ? fullPayment.contracts[0] : fullPayment.contracts;
+                        const unitData = Array.isArray(contractData?.units) ? contractData?.units[0] : contractData?.units;
+                        const propertyData = Array.isArray(unitData?.properties) ? unitData?.properties[0] : unitData?.properties;
+                        
+                        let ownersList: any[] = [];
+                        let ownerLogo: string | null = null;
+                        const propertyOwners = propertyData?.property_owners;
+                        if (Array.isArray(propertyOwners)) {
+                            ownersList = propertyOwners.map((po: any) => {
+                                const logo = po.owners?.logo_url;
+                                if (logo && !ownerLogo) ownerLogo = logo;
+                                return {
+                                    name: po.owners?.name,
+                                    docId: po.owners?.doc_id
+                                };
+                            }).filter((o: any) => o.name);
+                        }
+
+                        const finalLogo = ownerLogo || config?.logo_url || null;
+
+                        const pdfData = {
+                            payment: {
+                                date: fullPayment.date,
+                                amount: fullPayment.amount,
+                                id: fullPayment.id,
+                                concept: (fullPayment.concept || 'PAGO').replace(/Renta/gi, 'Canon'),
+                                status: 'approved',
+                                reference: fullPayment.reference || undefined,
+                                rate: fullPayment.exchange_rate || undefined,
+                                currency: fullPayment.currency || undefined
+                            },
+                            tenant: {
+                                name: fullPayment.tenant?.name || 'Inquilino',
+                                docId: fullPayment.tenant?.doc_id || '',
+                                property: fullPayment.unit?.property_name || '',
+                                propertyType: unitData?.type
+                            },
+                            company: {
+                                name: config?.name || 'Escritorio Legal',
+                                rif: config?.rif,
+                                phone: config?.phone,
+                                email: config?.email
+                            },
+                            owners: ownersList.length > 0 ? ownersList : undefined,
+                            logoSrc: finalLogo,
+                            timezone: config?.timezone
+                        };
+
+                        const { generatePaymentReceiptPDF } = await import('@/lib/payment-pdf-generator');
+                        pdfBase64 = generatePaymentReceiptPDF(pdfData);
+                    }
+                } catch (pdfErr) {
+                    console.error("Error generating PDF for approval email:", pdfErr);
+                }
+            }
+
             const res = await fetch('/api/payments/update-status', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id, status, notes, sendEmail })
+                body: JSON.stringify({ id, status, notes, sendEmail, pdfBase64 })
             });
 
             const data = await res.json();
@@ -366,7 +438,7 @@ export function usePayments() {
 
             toast.success(`Pago ${status === 'approved' ? 'conciliado' : 'rechazado'} correctamente`, {
                 description: sendEmail 
-                    ? 'Se ha notificado al inquilino por correo electrónico.'
+                    ? 'Se ha notificado al inquilino por correo electrónico con el recibo adjunto.'
                     : 'El estado del pago ha sido actualizado en el sistema.'
             });
             fetchPayments(); // Refresh list to update UI
