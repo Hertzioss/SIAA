@@ -120,8 +120,11 @@ export default function OwnerDashboard() {
                         <DollarSign className="h-4 w-4 text-emerald-500" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{formatCurrency(metrics.totalIncomeMonth)}</div>
-                        <p className="text-xs text-muted-foreground">
+                        <div className="text-2xl font-bold flex flex-col gap-1">
+                            <span className="text-green-600 dark:text-green-500">{formatCurrency(metrics.totalIncomeMonthUSD, 'USD')}</span>
+                            <span className="text-xl text-blue-600 dark:text-blue-500">{formatCurrency(metrics.totalIncomeMonthVES, 'VES')}</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-2">
                             Pagos recibidos este mes
                         </p>
                     </CardContent>

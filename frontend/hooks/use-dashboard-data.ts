@@ -137,40 +137,51 @@ export function useDashboardData(propertyId: string, ownerId: string = 'all', fi
 
             // Only apply month-year to the SUMMARY CARDS (stats)
             // Revenue (Approved Payments) - filtered by time
-            const revenue = filteredPayments
+            let revenueUSD = 0;
+            let revenueVES = 0;
+            let revenueConverted = 0; // for chart
+
+            filteredPayments
                 .filter((p: any) => p.status === 'approved' && matchesDateFilter(p.billing_period || p.date))
-                .reduce((sum: number, p: any) => {
+                .forEach((p: any) => {
                     const amount = Number(p.amount) || 0;
                     if (p.currency === 'VES' || p.currency === 'Bs') {
+                        revenueVES += amount;
                         const rate = Number(p.exchange_rate) || 1;
-                        return sum + (amount / rate);
+                        revenueConverted += (amount / rate);
+                    } else {
+                        revenueUSD += amount;
+                        revenueConverted += amount;
                     }
-                    return sum + amount;
-                }, 0);
+                });
 
             // Arrears (Pending?) - filtered by time
-            const pending = filteredPayments
+            let pendingConverted = 0;
+            filteredPayments
                 .filter((p: any) => p.status === 'pending' && matchesDateFilter(p.billing_period || p.date))
-                .reduce((sum: number, p: any) => {
+                .forEach((p: any) => {
                     const amount = Number(p.amount) || 0;
                     if (p.currency === 'VES' || p.currency === 'Bs') {
                         const rate = Number(p.exchange_rate) || 1;
-                        return sum + (amount / rate);
+                        pendingConverted += (amount / rate);
+                    } else {
+                        pendingConverted += amount;
                     }
-                    return sum + amount;
-                }, 0);
-            
+                });
+
             // Total Expenses (NEW) - filtered by time
-            const totalExpenses = filteredExpenses
+            let expensesUSD = 0;
+            let expensesVES = 0;
+            filteredExpenses
                 .filter((e: any) => matchesDateFilter(e.date))
-                .reduce((sum: number, e: any) => {
+                .forEach((e: any) => {
                     const amount = Number(e.amount) || 0;
                     if (e.currency === 'VES' || e.currency === 'Bs') {
-                        const rate = Number(e.exchange_rate) || 1;
-                        return sum + (amount / rate);
+                        expensesVES += amount;
+                    } else {
+                        expensesUSD += amount;
                     }
-                    return sum + amount;
-                }, 0);
+                });
 
 
             // Occupancy
@@ -187,8 +198,8 @@ export function useDashboardData(propertyId: string, ownerId: string = 'all', fi
 
              // Payment Status Pie Chart
             const paymentStatusData = [
-                { name: "Cobrado", value: revenue, color: "#22c55e" },
-                { name: "Por Cobrar", value: pending, color: "#eab308" },
+                { name: "Cobrado", value: revenueConverted, color: "#22c55e" },
+                { name: "Por Cobrar", value: pendingConverted, color: "#eab308" },
                 { name: "Atrasado", value: 0, color: "#ef4444" }, 
             ];
 
@@ -288,9 +299,11 @@ export function useDashboardData(propertyId: string, ownerId: string = 'all', fi
 
             setData({
                 stats: {
-                    revenue,
+                    revenueUSD,
+                    revenueVES,
                     revenueTrend: 0, // Need historical comparison
-                    expenses: totalExpenses, // REPLACED OCCUPANCY
+                    expensesUSD,
+                    expensesVES, // REPLACED OCCUPANCY
                     expensesTrend: 0,
                     properties: (propertyId === 'all' && ownerId === 'all') ? new Set(filteredUnits.map((u: any) => u.property_id)).size : 1,
                     propertiesTrend: 0,

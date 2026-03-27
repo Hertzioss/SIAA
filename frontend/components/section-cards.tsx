@@ -12,9 +12,11 @@ import {
 
 interface SectionCardsProps {
   stats: {
-    revenue: number
+    revenueUSD: number
+    revenueVES: number
     revenueTrend: number
-    expenses: number
+    expensesUSD: number
+    expensesVES: number
     expensesTrend: number
     properties: number
     propertiesTrend: number
@@ -33,8 +35,9 @@ export function SectionCards({ stats }: SectionCardsProps) {
       <Card className="@container/card">
         <CardHeader>
           <CardDescription>Ingresos Totales</CardDescription>
-          <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-            ${stats.revenue.toLocaleString()}
+          <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl flex flex-col gap-1">
+            <span className="text-green-600 dark:text-green-500">${stats.revenueUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+            <span className="text-xl text-blue-600 dark:text-blue-500">Bs. {stats.revenueVES.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
           </CardTitle>
           <CardAction>
             <Badge variant="outline">
@@ -55,8 +58,9 @@ export function SectionCards({ stats }: SectionCardsProps) {
       <Card className="@container/card">
         <CardHeader>
           <CardDescription>Egresos Totales</CardDescription>
-          <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-            ${stats.expenses.toLocaleString()}
+          <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl flex flex-col gap-1">
+            <span className="text-red-600 dark:text-red-500">${stats.expensesUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+            <span className="text-xl text-orange-600 dark:text-orange-500">Bs. {stats.expensesVES.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
           </CardTitle>
           <CardAction>
             <Badge variant="outline" className="text-red-600 border-red-600 bg-red-50 dark:bg-red-900/10">
