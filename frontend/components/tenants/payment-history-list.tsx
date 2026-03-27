@@ -96,7 +96,7 @@ export function PaymentHistoryList({ tenantId }: PaymentHistoryListProps) {
 
             const exportData = allPayments.map((p: any) => ({
                 "Fecha": p.date ? format(parseLocalDate(p.date), 'dd-MM-yyyy') : '-',
-                "Concepto": p.concept,
+                "Concepto": p.concept?.replace(/Renta/gi, 'Canon'),
                 "Referencia / Banco": p.reference_number || '-',
                 "Monto": p.amount,
                 "Moneda": p.currency,
@@ -187,8 +187,8 @@ export function PaymentHistoryList({ tenantId }: PaymentHistoryListProps) {
                         {history.map((payment) => (
                             <TableRow key={payment.id}>
                                 <TableCell>{payment.date && isValid(parseLocalDate(payment.date)) ? format(parseLocalDate(payment.date), 'dd-MM-yyyy') : payment.date || '-'}</TableCell>
-                                <TableCell className="max-w-[200px] truncate" title={payment.concept || undefined}>
-                                    {payment.concept}
+                                <TableCell className="max-w-[200px] truncate" title={payment.concept?.replace(/Renta/gi, 'Canon') || undefined}>
+                                    {payment.concept?.replace(/Renta/gi, 'Canon')}
                                 </TableCell>
                                 <TableCell>{payment.reference_number || '-'}</TableCell>
                                 <TableCell className="text-right font-medium">

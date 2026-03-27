@@ -6,6 +6,9 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export const formatCurrency = (amount: number, currency: 'USD' | 'VES' = 'USD') => {
+  if (currency === 'VES') {
+    return `Bs. ${amount.toLocaleString('es-VE', { minimumFractionDigits: 2 })}`;
+  }
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: currency,

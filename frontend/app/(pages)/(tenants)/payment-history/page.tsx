@@ -54,6 +54,9 @@ export default function PaymentHistoryPage() {
     }
 
     const formatCurrency = (amount: number, currency: string | null | undefined) => {
+        if (currency === 'VES') {
+            return `Bs. ${amount.toLocaleString('es-VE', { minimumFractionDigits: 2 })}`;
+        }
         return new Intl.NumberFormat('en-US', {
             style: 'currency',
             currency: currency || 'USD',
@@ -139,7 +142,7 @@ export default function PaymentHistoryPage() {
                                     {history.map((payment) => (
                                         <TableRow key={payment.id}>
                                             <TableCell>{payment.date && isValid(parseLocalDate(payment.date)) ? format(parseLocalDate(payment.date), 'dd-MM-yyyy') : payment.date || '-'}</TableCell>
-                                            <TableCell>{payment.concept}</TableCell>
+                                            <TableCell>{payment.concept?.replace(/Renta/gi, 'Canon')}</TableCell>
                                             <TableCell>{payment.payment_method}</TableCell>
                                             <TableCell>{payment.reference_number || '-'}</TableCell>
                                             <TableCell className="text-right font-medium">
