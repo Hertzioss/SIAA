@@ -35,6 +35,7 @@ export interface TenantStatementData {
     } | null
     payments: StatementPayment[]
     totalPaid: number
+    totalPaidBs: number
     period: string
 }
 
@@ -110,6 +111,7 @@ export function useTenantStatement() {
             }))
 
             const totalPaid = statementPayments.reduce((acc, p) => acc + p.amount, 0)
+            const totalPaidBs = statementPayments.reduce((acc, p) => acc + (p.amount * (p.exchangeRate || 0)), 0)
             const periodStr = `${format(filters.startDate, 'dd/MM/yyyy')} - ${format(filters.endDate, 'dd/MM/yyyy')}`
 
             const result: TenantStatementData = {
@@ -121,6 +123,7 @@ export function useTenantStatement() {
                 contractInfo,
                 payments: statementPayments,
                 totalPaid: parseFloat(totalPaid.toFixed(2)),
+                totalPaidBs: parseFloat(totalPaidBs.toFixed(2)),
                 period: periodStr
             }
 
@@ -145,11 +148,15 @@ export function useTenantStatement() {
             const rowsHtml = data.payments.map(p => `
                 <tr style="border-bottom: 1px solid #e5e7eb;">
                     <td style="padding: 8px; font-size: 13px;">${p.date}</td>
-                    <td style="padding: 8px; font-size: 13px;">${p.concept}</td>
+                    <td style="padding: 8px; font-size: 13px; max-width: 200px; word-break: break-word; line-height: 1.2;">${p.concept}</td>
                     <td style="padding: 8px; font-size: 13px;">${p.method}</td>
                     <td style="padding: 8px; font-size: 13px;">${p.reference}</td>
-                    <td style="padding: 8px; font-size: 13px; text-align: right;">$${p.amount.toFixed(2)}</td>
-                    ${p.currency === 'VES' ? `<td style="padding: 8px; font-size: 13px; text-align: right;">Bs ${p.amountOriginal.toLocaleString('es-VE', { minimumFractionDigits: 2 })}</td>` : `<td style="padding: 8px; font-size: 13px; text-align: right;">-</td>`}
+                    <td style="padding: 8px; font-size: 13px; text-align: right; font-weight: bold;">
+                        ${p.currency === 'VES' ? 'Bs' : '$'} 
+                        ${Number(p.amountOriginal || p.amount).toLocaleString('es-VE', { minimumFractionDigits: 2 })}
+                    </td>
+                    <td style="padding: 8px; font-size: 13px; text-align: right; color: #6b7280; font-style: italic;">${p.exchangeRate ? p.exchangeRate.toFixed(2) : '-'}</td>
+                    <td style="padding: 8px; font-size: 13px; text-align: right;">${p.exchangeRate && p.exchangeRate > 0 ? `Bs. ${(p.amount * p.exchangeRate).toLocaleString('es-VE', { minimumFractionDigits: 2 })}` : '-'}</td>
                 </tr>
             `).join('')
 
@@ -172,21 +179,21 @@ export function useTenantStatement() {
                         <thead>
                             <tr style="background: #1f2937; color: white;">
                                 <th style="padding: 8px; text-align: left; font-size: 12px;">FECHA</th>
-                                <th style="padding: 8px; text-align: left; font-size: 12px;">CONCEPTO</th>
+                                <th style="padding: 8px; text-align: left; font-size: 12px; width: 200px;">CONCEPTO</th>
                                 <th style="padding: 8px; text-align: left; font-size: 12px;">MÉTODO</th>
                                 <th style="padding: 8px; text-align: left; font-size: 12px;">REFERENCIA</th>
-                                <th style="padding: 8px; text-align: right; font-size: 12px;">MONTO ($)</th>
+                                <th style="padding: 8px; text-align: right; font-size: 12px;">MONTO ORIG.</th>
+                                <th style="padding: 8px; text-align: right; font-size: 12px; color: #9ca3af;">TASA</th>
                                 <th style="padding: 8px; text-align: right; font-size: 12px;">MONTO (Bs)</th>
                             </tr>
                         </thead>
                         <tbody>
                             ${rowsHtml}
                         </tbody>
-                        <tfoot>
-                            <tr style="background: #f9fafb; font-weight: bold;">
-                                <td colspan="4" style="padding: 8px; font-size: 13px;">TOTAL PAGADO</td>
-                                <td style="padding: 8px; text-align: right; font-size: 13px;">$${data.totalPaid.toFixed(2)}</td>
-                                <td style="padding: 8px;"></td>
+                        <tfoot style="background: #f9fafb; font-weight: bold;">
+                            <tr>
+                                <td colspan="6" style="padding: 8px; font-size: 13px;">TOTAL PAGADO</td>
+                                <td style="padding: 8px; text-align: right; font-size: 13px;">$${data.totalPaid.toFixed(2)} / Bs. ${data.totalPaidBs.toLocaleString('es-VE', { minimumFractionDigits: 2 })}</td>
                             </tr>
                         </tfoot>
                     </table>

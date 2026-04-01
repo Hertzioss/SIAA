@@ -6,13 +6,20 @@ interface TenantStatementReportProps {
     data: TenantStatementData
 }
 
+const formatMoney = (amount: number, currency: 'USD' | 'Bs' = 'USD') => {
+    if (currency === 'Bs') {
+        return `Bs. ${amount.toLocaleString('es-VE', { minimumFractionDigits: 2 })}`
+    }
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', currencyDisplay: 'symbol' }).format(amount)
+}
+
 /**
  * Preview / printable component for the tenant account statement.
  * Follows the same pattern as OperationalReport (forwardRef, inline render).
  */
 export const TenantStatementReport = React.forwardRef<HTMLDivElement, TenantStatementReportProps>(({ data }, ref) => {
     return (
-        <div ref={ref} className="p-8 bg-white text-black font-sans max-w-[1000px] mx-auto shadow-sm border border-gray-100 rounded-sm">
+        <div ref={ref} className="p-8 bg-white text-black font-sans w-full max-w-[1000px] mx-auto shadow-sm border border-gray-100 rounded-sm [print-color-adjust:exact]">
             <div className="space-y-8">
                 {/* 1. Header & Tenant Info */}
                 <div className="border-b-2 border-gray-800 pb-6">
@@ -42,13 +49,13 @@ export const TenantStatementReport = React.forwardRef<HTMLDivElement, TenantStat
                                 </div>
                             </div>
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                        <div className="grid grid-cols-1 md:grid-cols-2 print:grid-cols-2 gap-4 mt-2">
                             <div>
                                 {data.tenantPhone && <p className="text-sm text-gray-600"><span className="font-bold">Teléfono:</span> {data.tenantPhone}</p>}
                                 {data.tenantEmail && <p className="text-sm text-gray-600"><span className="font-bold">Correo:</span> {data.tenantEmail}</p>}
                             </div>
                             {data.contractInfo && (
-                                <div className="md:text-right">
+                                <div className="md:text-right print:text-right">
                                     <p className="text-sm text-gray-600"><span className="font-bold">Inmueble:</span> {data.contractInfo.propertyName}</p>
                                     <p className="text-sm text-gray-600"><span className="font-bold">Unidad:</span> {data.contractInfo.unitName}</p>
                                     <p className="text-sm text-gray-600"><span className="font-bold">Canon Mensual:</span> ${data.contractInfo.rentAmount.toFixed(2)}</p>
@@ -68,14 +75,15 @@ export const TenantStatementReport = React.forwardRef<HTMLDivElement, TenantStat
                             </div>
                         ) : (
                             <div className="border border-gray-300 rounded overflow-hidden">
-                                <Table className="text-xs">
+                                <Table className="text-[10px]">
                                     <TableHeader>
                                         <TableRow className="border-b-2 border-gray-400 bg-gray-50 hover:bg-gray-50">
                                             <TableHead className="text-gray-900 font-bold w-[100px]">FECHA</TableHead>
-                                            <TableHead className="text-gray-900 font-bold">CONCEPTO</TableHead>
+                                            <TableHead className="text-gray-900 font-bold w-[200px] min-w-[200px] max-w-[200px] whitespace-normal break-words">CONCEPTO</TableHead>
                                             <TableHead className="text-gray-900 font-bold">MÉTODO</TableHead>
                                             <TableHead className="text-gray-900 font-bold">REFERENCIA</TableHead>
-                                            <TableHead className="text-gray-900 font-bold text-right">MONTO ($)</TableHead>
+                                            <TableHead className="text-gray-900 font-bold text-right">MONTO ORIG.</TableHead>
+                                            <TableHead className="text-gray-900 font-bold text-right text-gray-500">TASA</TableHead>
                                             <TableHead className="text-gray-900 font-bold text-right">MONTO (Bs)</TableHead>
                                         </TableRow>
                                     </TableHeader>
@@ -83,13 +91,19 @@ export const TenantStatementReport = React.forwardRef<HTMLDivElement, TenantStat
                                         {data.payments.map((p, idx) => (
                                             <TableRow key={idx} className={`border-b border-gray-200 ${idx % 2 === 0 ? "bg-white" : "bg-gray-50/50"}`}>
                                                 <TableCell className="font-medium text-gray-600">{p.date}</TableCell>
-                                                <TableCell className="font-medium whitespace-pre-wrap break-words">{p.concept}</TableCell>
+                                                <TableCell className="font-medium w-[200px] min-w-[200px] max-w-[200px] whitespace-normal break-words leading-tight">{p.concept}</TableCell>
                                                 <TableCell>{p.method}</TableCell>
                                                 <TableCell>{p.reference || '-'}</TableCell>
-                                                <TableCell className="text-right font-medium">${p.amount.toFixed(2)}</TableCell>
+                                                <TableCell className="text-right font-bold text-gray-900">
+                                                    {p.currency === 'VES' ? 'Bs. ' : '$ '}
+                                                    {Number(p.amountOriginal || p.amount).toLocaleString('es-VE', { minimumFractionDigits: 2 })}
+                                                </TableCell>
+                                                <TableCell className="text-right text-gray-400 italic">
+                                                    {p.exchangeRate ? p.exchangeRate.toFixed(2) : '-'}
+                                                </TableCell>
                                                 <TableCell className="text-right text-gray-500">
-                                                    {p.currency === 'VES' && p.amountOriginal
-                                                        ? `Bs. ${p.amountOriginal.toLocaleString('es-VE', { minimumFractionDigits: 2 })}`
+                                                    {p.exchangeRate && p.exchangeRate > 0
+                                                        ? formatMoney(p.amount * p.exchangeRate, 'Bs')
                                                         : '-'
                                                     }
                                                 </TableCell>
@@ -108,7 +122,8 @@ export const TenantStatementReport = React.forwardRef<HTMLDivElement, TenantStat
                     <div className="grid grid-cols-3 gap-6">
                         <div className="bg-white border-l-4 border-emerald-500 shadow-sm p-4 rounded-r-lg border-y border-r border-gray-100">
                             <p className="text-xs font-bold text-emerald-600 uppercase tracking-wider mb-2">Total Pagado</p>
-                            <p className="text-2xl font-black text-gray-900">${data.totalPaid.toFixed(2)}</p>
+                            <p className="text-2xl font-black text-gray-900">{formatMoney(data.totalPaidBs, 'Bs')}</p>
+                            <p className="text-sm text-gray-500 mt-1 font-medium">{formatMoney(data.totalPaid)}</p>
                         </div>
                         <div className="bg-white border-l-4 border-blue-500 shadow-sm p-4 rounded-r-lg border-y border-r border-gray-100">
                             <p className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-2">Pagos Registrados</p>
@@ -116,7 +131,7 @@ export const TenantStatementReport = React.forwardRef<HTMLDivElement, TenantStat
                         </div>
                         <div className="bg-white border-l-4 border-slate-500 shadow-sm p-4 rounded-r-lg border-y border-r border-gray-100">
                             <p className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Canon Mensual</p>
-                            <p className="text-2xl font-black text-gray-900">${data.contractInfo?.rentAmount.toFixed(2) || '0.00'}</p>
+                            <p className="text-2xl font-black text-gray-900">{formatMoney(data.contractInfo?.rentAmount || 0)}</p>
                         </div>
                     </div>
                 </div>
