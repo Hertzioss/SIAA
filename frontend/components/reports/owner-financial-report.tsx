@@ -27,8 +27,23 @@ export const OwnerFinancialReport = React.forwardRef<HTMLDivElement, OwnerFinanc
     const netTotalUsd = totalIncomeUsd - totalExpensesUsd
     const netTotalBs = totalIncomeBs - totalExpensesBs
 
+    // Sort movements by date
+    const sortedPayments = React.useMemo(() => {
+        if (!data[0]?.payments) return []
+        return [...data[0].payments].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+    }, [data])
+
+    const sortedExpenses = React.useMemo(() => {
+        if (!data[0]?.expenses) return []
+        return [...data[0].expenses].sort((a, b) => {
+            const dateA = a.date ? new Date(a.date).getTime() : 0
+            const dateB = b.date ? new Date(b.date).getTime() : 0
+            return dateA - dateB
+        })
+    }, [data])
+
     return (
-        <div ref={ref} className="p-8 bg-white text-black font-sans max-w-[1000px] mx-auto shadow-sm border border-gray-100 rounded-sm">
+        <div ref={ref} className="p-8 bg-white text-black font-sans w-full max-w-[1000px] mx-auto shadow-sm border border-gray-100 rounded-sm [print-color-adjust:exact]">
             {data.length === 0 ? (
                 <div className="space-y-6">
                     <div className="flex flex-col md:flex-row print:flex-row justify-between items-start border-b-2 border-gray-800 pb-6 mb-6">
@@ -83,23 +98,23 @@ export const OwnerFinancialReport = React.forwardRef<HTMLDivElement, OwnerFinanc
                             <div>
                                 <h3 className="text-sm font-bold text-gray-800 uppercase tracking-widest mb-3 bg-gray-100 p-2 rounded">1. Detalle de Ingresos</h3>
                                 <div className="border border-gray-300 rounded overflow-hidden">
-                                    <Table className="text-xs">
+                                    <Table className="text-[10px]">
                                         <TableHeader>
                                             <TableRow className="border-b-2 border-gray-400 bg-gray-50 hover:bg-gray-50">
                                                 <TableHead className="text-gray-900 font-bold w-[100px]">FECHA</TableHead>
-                                                <TableHead className="text-gray-900 font-bold">INQUILINO</TableHead>
-                                                <TableHead className="text-gray-900 font-bold">EDIF / UNIDAD</TableHead>
+                                                <TableHead className="text-gray-900 font-bold w-[150px] min-w-[150px] max-w-[150px] whitespace-normal break-words">INQUILINO</TableHead>
+                                                <TableHead className="text-gray-900 font-bold w-[150px] min-w-[150px] max-w-[150px] whitespace-normal break-words">EDIF / UNIDAD</TableHead>
                                                 <TableHead className="text-gray-900 font-bold text-right">MONTO ORIG.</TableHead>
                                                 <TableHead className="text-gray-900 font-bold text-right">TASA (Bs/USD)</TableHead>
                                                 <TableHead className="text-gray-900 font-bold text-right">MONTO (Bs)</TableHead>
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
-                                            {data[0].payments.map((p, idx) => (
+                                            {sortedPayments.map((p, idx) => (
                                                 <TableRow key={`pay-${idx}`} className={cn("border-b border-gray-200", idx % 2 === 0 ? "bg-white" : "bg-gray-50/50")}>
                                                     <TableCell className="font-medium text-gray-600">{p.date}</TableCell>
-                                                    <TableCell>{p.tenantName}</TableCell>
-                                                    <TableCell>{p.propertyName} / {p.unitName}</TableCell>
+                                                    <TableCell className="w-[150px] min-w-[150px] max-w-[150px] whitespace-normal break-words leading-tight">{p.tenantName}</TableCell>
+                                                    <TableCell className="w-[150px] min-w-[150px] max-w-[150px] whitespace-normal break-words leading-tight">{p.propertyName} / {p.unitName}</TableCell>
                                                     <TableCell className="text-right font-medium">
                                                         {p.currency === 'VES' ? 'Bs.' : '$'} {Number(p.amountOriginal || p.amount).toLocaleString('es-VE', { minimumFractionDigits: 2 })}
                                                     </TableCell>
@@ -118,7 +133,7 @@ export const OwnerFinancialReport = React.forwardRef<HTMLDivElement, OwnerFinanc
                             <div className="pt-2">
                                 <h3 className="text-sm font-bold text-gray-800 uppercase tracking-widest mb-3 bg-gray-100 p-2 rounded">2. Detalle de Egresos</h3>
                                 <div className="border border-gray-300 rounded overflow-hidden">
-                                    <Table className="text-xs">
+                                    <Table className="text-[10px]">
                                         <TableHeader>
                                             <TableRow className="border-b-2 border-gray-400 bg-gray-50 hover:bg-gray-50">
                                                 <TableHead className="text-gray-900 font-bold w-[100px]">FECHA</TableHead>
@@ -130,7 +145,7 @@ export const OwnerFinancialReport = React.forwardRef<HTMLDivElement, OwnerFinanc
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
-                                            {data[0].expenses.map((e, idx) => (
+                                            {sortedExpenses.map((e, idx) => (
                                                 <TableRow key={`exp-${idx}`} className={cn("border-b border-gray-200", idx % 2 === 0 ? "bg-white" : "bg-gray-50/50")}>
                                                     <TableCell className="font-medium text-gray-600">{e.date || '-'}</TableCell>
                                                     <TableCell className="w-[20%] whitespace-pre-wrap break-words ">{e.category}</TableCell>
@@ -152,23 +167,23 @@ export const OwnerFinancialReport = React.forwardRef<HTMLDivElement, OwnerFinanc
                     </div>
 
                     {/* 3. Executive Summary (Moved to Bottom) */}
-                    <div className="pt-6">
+                    <div className="pt-6 break-inside-avoid">
                         <h3 className="text-sm font-bold text-gray-800 uppercase tracking-widest mb-4 border-b pb-2">Resumen de Movimientos</h3>
                         <div className="grid grid-cols-3 gap-6">
                             <div className="bg-white border-l-4 border-emerald-500 shadow-sm p-4 rounded-r-lg border-y border-r border-gray-100">
                                 <p className="text-xs font-bold text-emerald-600 uppercase tracking-wider mb-2">Ingresos Totales</p>
-                                <p className="text-2xl font-black text-gray-900">{formatMoney(totalIncomeUsd)}</p>
-                                <p className="text-sm text-gray-500 mt-1 font-medium">{formatMoney(totalIncomeBs, 'Bs')}</p>
+                                <p className="text-2xl font-black text-gray-900">{formatMoney(totalIncomeBs, 'Bs')}</p>
+                                <p className="text-sm text-gray-500 mt-1 font-medium">{formatMoney(totalIncomeUsd)}</p>
                             </div>
                             <div className="bg-white border-l-4 border-rose-500 shadow-sm p-4 rounded-r-lg border-y border-r border-gray-100">
                                 <p className="text-xs font-bold text-rose-600 uppercase tracking-wider mb-2">Egresos Totales</p>
-                                <p className="text-2xl font-black text-gray-900">{formatMoney(totalExpensesUsd)}</p>
-                                <p className="text-sm text-gray-500 mt-1 font-medium">{formatMoney(totalExpensesBs, 'Bs')}</p>
+                                <p className="text-2xl font-black text-gray-900">{formatMoney(totalExpensesBs, 'Bs')}</p>
+                                <p className="text-sm text-gray-500 mt-1 font-medium">{formatMoney(totalExpensesUsd)}</p>
                             </div>
                             <div className={cn("bg-white border-l-4 shadow-sm p-4 rounded-r-lg border-y border-r border-gray-100", netTotalUsd >= 0 ? "border-blue-500" : "border-amber-500")}>
                                 <p className={cn("text-xs font-bold uppercase tracking-wider mb-2", netTotalUsd >= 0 ? "text-blue-600" : "text-amber-600")}>Balance Neto</p>
-                                <p className="text-2xl font-black text-gray-900">{formatMoney(netTotalUsd)}</p>
-                                <p className="text-sm text-gray-500 mt-1 font-medium">{formatMoney(netTotalBs, 'Bs')}</p>
+                                <p className="text-2xl font-black text-gray-900">{formatMoney(netTotalBs, 'Bs')}</p>
+                                <p className="text-sm text-gray-500 mt-1 font-medium">{formatMoney(netTotalUsd)}</p>
                             </div>
                         </div>
                     </div>

@@ -103,7 +103,7 @@ export const IncomeExpenseReport = React.forwardRef<HTMLDivElement, IncomeExpens
     }, [dataUsd, dataBs, dataExpenses])
 
     return (
-        <div ref={ref} className="p-8 bg-white text-black font-sans max-w-[1000px] mx-auto shadow-sm border border-gray-100 rounded-sm">
+        <div ref={ref} className="p-8 bg-white text-black font-sans max-w-[850px] mx-auto shadow-sm border border-gray-100 rounded-sm [print-color-adjust:exact]">
             <div className="space-y-8">
                 {/* 1. Header */}
                 <div className="border-b-2 border-gray-800 pb-6">
@@ -125,11 +125,11 @@ export const IncomeExpenseReport = React.forwardRef<HTMLDivElement, IncomeExpens
                 <div className="pt-2">
                     <h3 className="text-sm font-bold text-gray-800 uppercase tracking-widest mb-3 bg-gray-100 p-2 rounded">1. Movimientos del Período (USD)</h3>
                     <div className="border border-gray-300 rounded overflow-hidden">
-                        <Table className="text-xs">
+                                    <Table className="text-[10px]">
                             <TableHeader>
                                 <TableRow className="border-b-2 border-gray-400 bg-gray-50 hover:bg-gray-50">
                                     <TableHead className="text-gray-900 font-bold w-[100px]">FECHA</TableHead>
-                                    <TableHead className="text-gray-900 font-bold">INQUILINO / ENTIDAD</TableHead>
+                                    <TableHead className="text-gray-900 font-bold w-[150px] min-w-[150px] max-w-[150px] whitespace-normal break-words">INQUILINO / ENTIDAD</TableHead>
                                     <TableHead className="text-gray-900 font-bold w-[35%]">CONCEPTO / DESCRIPCIÓN</TableHead>
                                     <TableHead className="text-gray-900 font-bold text-right text-rose-700">DEBE (EGRESOS)</TableHead>
                                     <TableHead className="text-gray-900 font-bold text-right text-emerald-700">HABER (INGRESOS)</TableHead>
@@ -141,7 +141,7 @@ export const IncomeExpenseReport = React.forwardRef<HTMLDivElement, IncomeExpens
                                     movements.map((row, index) => (
                                         <TableRow key={index} className={`border-b border-gray-200 ${index % 2 === 0 ? "bg-white" : "bg-gray-50/50"}`}>
                                             <TableCell className="font-medium text-gray-600">{row.date}</TableCell>
-                                            <TableCell className="font-medium">
+                                            <TableCell className="font-medium w-[150px] min-w-[150px] max-w-[150px] whitespace-normal break-words leading-tight">
                                                 {row.tenantName ? row.tenantName : '-'}
                                             </TableCell>
                                             <TableCell className="whitespace-pre-wrap break-words">
@@ -180,7 +180,7 @@ export const IncomeExpenseReport = React.forwardRef<HTMLDivElement, IncomeExpens
                     <div className="pt-2">
                         <h3 className="text-sm font-bold text-gray-800 uppercase tracking-widest mb-3 bg-gray-100 p-2 rounded">2. Distribución de Utilidades</h3>
                         <div className="border border-gray-300 rounded overflow-hidden">
-                            <Table className="text-xs">
+                                        <Table className="text-[10px]">
                                 <TableHeader>
                                     <TableRow className="border-b-2 border-gray-400 bg-gray-50 hover:bg-gray-50">
                                         <TableHead className="text-gray-900 font-bold">PROPIETARIO</TableHead>
@@ -205,7 +205,7 @@ export const IncomeExpenseReport = React.forwardRef<HTMLDivElement, IncomeExpens
                 )}
 
                 {/* 4. Executive Summary */}
-                <div className="pt-6">
+                <div className="pt-6 break-inside-avoid">
                     <h3 className="text-sm font-bold text-gray-800 uppercase tracking-widest mb-4 border-b pb-2">Resumen Operativo</h3>
                     <div className="grid grid-cols-3 gap-6">
                         <div className="bg-white border-l-4 border-emerald-500 shadow-sm p-4 rounded-r-lg border-y border-r border-gray-100">

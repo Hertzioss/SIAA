@@ -121,3 +121,44 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Optimización para Impresión (Tamaño Oficio / Legal) */
+@media print {
+  @page {
+    size: legal;
+    margin: 1cm;
+  }
+  
+  /* Evitar saltos de página en filas individuales para integridad */
+  tr {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  /* Permitir que las tablas se dividan entre páginas */
+  table {
+    break-inside: auto !important;
+  }
+
+  /* Asegurar repetición de encabezados */
+  thead {
+    display: table-header-group !important;
+  }
+
+  /* Forzar colores de fondo para impresoras */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
+  /* Ajustar márgenes internos del contenedor */
+  .p-8 {
+    padding: 0 !important;
+  }
+  
+  /* Quitar sombras ya que no se imprimen bien */
+  .shadow-sm, .shadow-md, .shadow-lg {
+    box-shadow: none !important;
+  }
+}

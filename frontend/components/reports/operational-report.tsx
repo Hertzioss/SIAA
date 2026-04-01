@@ -50,7 +50,7 @@ export const OperationalReport = React.forwardRef<HTMLDivElement, OperationalRep
                 {/* 2. Executive Summary - Occupancy */}
                 <div className="pt-2">
                     <h3 className="text-sm font-bold text-gray-800 uppercase tracking-widest mb-4 border-b pb-2">Resumen General</h3>
-                    <div className="grid grid-cols-3 gap-6 mb-8">
+                    <div className="grid grid-cols-3 gap-6 mb-8 break-inside-avoid">
                         <div className="bg-white border-l-4 border-slate-500 shadow-sm p-4 rounded-r-lg border-y border-r border-gray-100">
                             <p className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Total Unidades</p>
                             <p className="text-2xl font-black text-gray-900">{data.length}</p>
@@ -71,11 +71,11 @@ export const OperationalReport = React.forwardRef<HTMLDivElement, OperationalRep
                     {Object.keys(groupedData).map((propertyName, idx) => (
                         <div key={propertyName}>
                             <h3 className="text-sm font-bold text-gray-800 uppercase tracking-widest mb-3 bg-gray-100 p-2 rounded">{idx + 1}. Inmueble: {propertyName}</h3>
-                            <div className="border border-gray-300 rounded overflow-hidden">
-                                <Table className="text-xs">
+                                <div className="border border-gray-300 rounded overflow-hidden">
+                                <Table className="text-[10px]">
                                     <TableHeader>
                                         <TableRow className="border-b-2 border-gray-400 bg-gray-50 hover:bg-gray-50">
-                                            <TableHead className="text-gray-900 font-bold">INQUILINO</TableHead>
+                                            <TableHead className="text-gray-900 font-bold w-[150px] min-w-[150px] max-w-[150px] whitespace-normal break-words">INQUILINO</TableHead>
                                             <TableHead className="text-gray-900 font-bold">CÉDULA / RIF</TableHead>
                                             <TableHead className="text-gray-900 font-bold">UNIDAD</TableHead>
                                             <TableHead className="text-gray-900 font-bold text-right">CANON ($)</TableHead>
@@ -87,7 +87,7 @@ export const OperationalReport = React.forwardRef<HTMLDivElement, OperationalRep
                                     <TableBody>
                                         {groupedData[propertyName].map((row: any, index: number) => (
                                             <TableRow key={index} className={`border-b border-gray-200 ${index % 2 === 0 ? "bg-white" : "bg-gray-50/50"}`}>
-                                                <TableCell className="font-medium text-gray-900">{row.tenant}</TableCell>
+                                                <TableCell className="font-medium text-gray-900 w-[150px] min-w-[150px] max-w-[150px] whitespace-normal break-words leading-tight">{row.tenant}</TableCell>
                                                 <TableCell className="text-gray-600">{row.docId}</TableCell>
                                                 <TableCell className="font-medium">{row.unit}</TableCell>
                                                 <TableCell className="text-right font-bold text-gray-900">{row.rent ? `$${row.rent.toFixed(2)}` : '-'}</TableCell>
@@ -150,10 +150,46 @@ export const OperationalReport = React.forwardRef<HTMLDivElement, OperationalRep
                     </div>
                 </div>
 
+                {/* 3. Detail Tables by Property */}
+                <div className="space-y-6 pt-2">
+                    {Object.keys(groupedData).map((propertyName, idx) => {
+                        const propertyDebt = groupedData[propertyName].reduce((acc: number, curr: any) => acc + (curr.debt || 0), 0)
+                        return (
+                            <div key={propertyName}>
+                                <h3 className="text-sm font-bold text-gray-800 flex justify-between uppercase tracking-widest mb-3 bg-gray-100 p-2 rounded">
+                                    <span>{idx + 1}. Inmueble: {propertyName}</span>
+                                    <span className="text-rose-700 font-black">Deuda: ${propertyDebt.toFixed(2)}</span>
+                                </h3>
+                                <div className="border border-gray-300 rounded overflow-hidden">
+                                    <Table className="text-[10px]">
+                                        <TableHeader>
+                                            <TableRow className="border-b-2 border-gray-400 bg-gray-50 hover:bg-gray-50">
+                                                <TableHead className="text-gray-900 font-bold w-[150px] min-w-[150px] max-w-[150px] whitespace-normal break-words">INQUILINO</TableHead>
+                                                <TableHead className="text-gray-900 font-bold">UNIDAD</TableHead>
+                                                <TableHead className="text-gray-900 font-bold text-right">MESES ATRASADOS</TableHead>
+                                                <TableHead className="text-gray-900 font-bold text-right">DEUDA TOTAL ($)</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {groupedData[propertyName].map((row: any, index: number) => (
+                                                <TableRow key={index} className={`border-b border-gray-200 ${index % 2 === 0 ? "bg-white" : "bg-gray-50/50"}`}>
+                                                    <TableCell className="font-medium text-gray-900 w-[150px] min-w-[150px] max-w-[150px] whitespace-normal break-words leading-tight">{row.tenant}</TableCell>
+                                                    <TableCell className="font-medium">{row.unit}</TableCell>
+                                                    <TableCell className="text-right text-gray-600 font-bold">{row.months}</TableCell>
+                                                    <TableCell className="text-right text-rose-600 font-bold">${row.debt.toFixed(2)}</TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                </div>
+                            </div>
+                        )
+                    })}
+                </div>
                 {/* 2. Executive Summary - Delinquency */}
                 <div className="pt-2">
                     <h3 className="text-sm font-bold text-gray-800 uppercase tracking-widest mb-4 border-b pb-2">Resumen General</h3>
-                    <div className="grid grid-cols-3 gap-6 mb-8">
+                    <div className="grid grid-cols-3 gap-6 mb-8 break-inside-avoid">
                         <div className="bg-white border-l-4 border-slate-500 shadow-sm p-4 rounded-r-lg border-y border-r border-gray-100">
                             <p className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Inquilinos Morosos</p>
                             <p className="text-2xl font-black text-gray-900">{totalTenants}</p>
@@ -169,43 +205,6 @@ export const OperationalReport = React.forwardRef<HTMLDivElement, OperationalRep
                     </div>
                 </div>
 
-                {/* 3. Detail Tables by Property */}
-                <div className="space-y-6 pt-2">
-                    {Object.keys(groupedData).map((propertyName, idx) => {
-                        const propertyDebt = groupedData[propertyName].reduce((acc: number, curr: any) => acc + (curr.debt || 0), 0)
-                        return (
-                            <div key={propertyName}>
-                                <h3 className="text-sm font-bold text-gray-800 flex justify-between uppercase tracking-widest mb-3 bg-gray-100 p-2 rounded">
-                                    <span>{idx + 1}. Inmueble: {propertyName}</span>
-                                    <span className="text-rose-700 font-black">Deuda: ${propertyDebt.toFixed(2)}</span>
-                                </h3>
-                                <div className="border border-gray-300 rounded overflow-hidden">
-                                    <Table className="text-xs">
-                                        <TableHeader>
-                                            <TableRow className="border-b-2 border-gray-400 bg-gray-50 hover:bg-gray-50">
-                                                <TableHead className="text-gray-900 font-bold">INQUILINO</TableHead>
-                                                <TableHead className="text-gray-900 font-bold">UNIDAD</TableHead>
-                                                <TableHead className="text-gray-900 font-bold text-right">MESES ATRASADOS</TableHead>
-                                                <TableHead className="text-gray-900 font-bold text-right">DEUDA TOTAL ($)</TableHead>
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            {groupedData[propertyName].map((row: any, index: number) => (
-                                                <TableRow key={index} className={`border-b border-gray-200 ${index % 2 === 0 ? "bg-white" : "bg-gray-50/50"}`}>
-                                                    <TableCell className="font-medium text-gray-900">{row.tenant}</TableCell>
-                                                    <TableCell className="font-medium">{row.unit}</TableCell>
-                                                    <TableCell className="text-right text-gray-600 font-bold">{row.months}</TableCell>
-                                                    <TableCell className="text-right text-rose-600 font-bold">${row.debt.toFixed(2)}</TableCell>
-                                                </TableRow>
-                                            ))}
-                                        </TableBody>
-                                    </Table>
-                                </div>
-                            </div>
-                        )
-                    })}
-                </div>
-
                 {/* Footer Signature Area */}
                 <div className="pt-20 pb-4 text-center text-xs text-gray-400">
                     <div className="w-64 border-t border-gray-300 mx-auto mb-3"></div>
@@ -217,7 +216,7 @@ export const OperationalReport = React.forwardRef<HTMLDivElement, OperationalRep
     }
 
     return (
-        <div ref={ref} className="p-8 bg-white text-black font-sans max-w-[1000px] mx-auto shadow-sm border border-gray-100 rounded-sm">
+        <div ref={ref} className="p-8 bg-white text-black font-sans w-full max-w-[1000px] mx-auto shadow-sm border border-gray-100 rounded-sm [print-color-adjust:exact]">
             {type === 'occupancy' ? renderOccupancyReport() : renderDelinquencyReport()}
         </div>
     )

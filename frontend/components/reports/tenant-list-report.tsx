@@ -15,7 +15,7 @@ interface TenantListReportProps {
  */
 export const TenantListReport = React.forwardRef<HTMLDivElement, TenantListReportProps>(({ data, filters }, ref) => {
     return (
-        <div ref={ref} className="p-8 bg-white text-black font-sans max-w-[1000px] mx-auto shadow-sm border border-gray-100 rounded-sm">
+        <div ref={ref} className="p-8 bg-white text-black font-sans w-full max-w-[1000px] mx-auto shadow-sm border border-gray-100 rounded-sm [print-color-adjust:exact]">
             <div className="space-y-8">
                 {/* Header */}
                 <div className="border-b-2 border-gray-800 pb-6">
@@ -45,10 +45,10 @@ export const TenantListReport = React.forwardRef<HTMLDivElement, TenantListRepor
                 {/* Details Table */}
                 <div className="space-y-6 pt-2">
                     <div className="border border-gray-300 rounded overflow-hidden">
-                        <Table className="text-[11px]">
+                        <Table className="text-[10px]">
                             <TableHeader>
                                 <TableRow className="border-b-2 border-gray-400 bg-gray-50 hover:bg-gray-50">
-                                    <TableHead className="text-gray-900 font-bold w-[160px]">NOMBRE</TableHead>
+                                    <TableHead className="text-gray-900 font-bold w-[140px]">NOMBRE</TableHead>
                                     <TableHead className="text-gray-900 font-bold">DOCUMENTO</TableHead>
                                     <TableHead className="text-gray-900 font-bold w-[140px]">CONTACTO</TableHead>
                                     <TableHead className="text-gray-900 font-bold">PROPIEDAD / UNIDAD</TableHead>

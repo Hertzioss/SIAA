@@ -31,13 +31,22 @@ const REPORT_TYPES = [
         bgColor: 'bg-blue-100'
     },
     {
-        id: 'occupancy',
-        title: 'Reporte de Ocupación',
-        description: 'Estado actual de inmuebles (Ocupados vs Vacantes).',
-        icon: PieChart,
-        color: 'text-green-600',
-        bgColor: 'bg-green-100'
+        id: 'owners',
+        title: 'Estado de Cuenta Propietarios',
+        description: 'Ingresos, egresos y balance neto por propietario.',
+        icon: Users,
+        color: 'text-indigo-600',
+        bgColor: 'bg-indigo-100'
     },
+    {
+        id: 'tenant-statement',
+        title: 'Estado de Cuenta Inquilinos',
+        description: 'Estado de cuenta individual con cargos, pagos y saldo por inquilino.',
+        icon: UserCheck,
+        color: 'text-teal-600',
+        bgColor: 'bg-teal-100'
+    },
+    
     {
         id: 'delinquency',
         title: 'Reporte de Morosidad',
@@ -45,6 +54,14 @@ const REPORT_TYPES = [
         icon: BarChart3,
         color: 'text-red-600',
         bgColor: 'bg-red-100'
+    },
+    {
+        id: 'occupancy',
+        title: 'Reporte de Ocupación',
+        description: 'Estado actual de inmuebles (Ocupados vs Vacantes).',
+        icon: PieChart,
+        color: 'text-green-600',
+        bgColor: 'bg-green-100'
     },
     {
         id: 'maintenance',
@@ -62,22 +79,8 @@ const REPORT_TYPES = [
         color: 'text-purple-600',
         bgColor: 'bg-purple-100'
     },
-    {
-        id: 'owners',
-        title: 'Estado de Cuenta Propietarios',
-        description: 'Ingresos, egresos y balance neto por propietario.',
-        icon: Users,
-        color: 'text-indigo-600',
-        bgColor: 'bg-indigo-100'
-    },
-    {
-        id: 'tenant-statement',
-        title: 'Estado de Cuenta Inquilinos',
-        description: 'Estado de cuenta individual con cargos, pagos y saldo por inquilino.',
-        icon: UserCheck,
-        color: 'text-teal-600',
-        bgColor: 'bg-teal-100'
-    }
+    
+    
 ]
 
 const ALL_MONTHS = [
