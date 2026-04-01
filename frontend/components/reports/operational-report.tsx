@@ -47,6 +47,49 @@ export const OperationalReport = React.forwardRef<HTMLDivElement, OperationalRep
                     </div>
                 </div>
 
+                {/* 3. Detail Tables by Property */}
+                <div className="space-y-6 pt-2">
+                    {Object.keys(groupedData).map((propertyName, idx) => (
+                        <div key={propertyName}>
+                            <h3 className="text-sm font-bold text-gray-800 uppercase tracking-widest mb-3 bg-gray-100 p-2 rounded">{idx + 1}. Inmueble: {propertyName}</h3>
+                                <div className="border border-gray-300 rounded overflow-hidden">
+                                <Table className="text-[10px]">
+                                    <TableHeader>
+                                        <TableRow className="border-b-2 border-gray-400 bg-gray-50 hover:bg-gray-50">
+                                            <TableHead className="text-gray-900 font-bold w-[150px] min-w-[150px] max-w-[150px] whitespace-normal break-words">INQUILINO</TableHead>
+                                            <TableHead className="text-gray-900 font-bold w-[100px] min-w-[100px] max-w-[100px]">CÉDULA / RIF</TableHead>
+                                            <TableHead className="text-gray-900 font-bold w-[100px] min-w-[100px] max-w-[100px] whitespace-normal break-words">UNIDAD</TableHead>
+                                            <TableHead className="text-gray-900 font-bold w-[80px] text-right">CANON ($)</TableHead>
+                                            <TableHead className="text-gray-900 font-bold w-[60px] text-center">ESTADO</TableHead>
+                                            <TableHead className="text-gray-900 font-bold w-[100px]">TELÉFONO</TableHead>
+                                            <TableHead className="text-gray-900 font-bold w-[180px] min-w-[180px] max-w-[180px] whitespace-normal break-words">CORREO</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {groupedData[propertyName].map((row: any, index: number) => (
+                                            <TableRow key={index} className={`border-b border-gray-200 ${index % 2 === 0 ? "bg-white" : "bg-gray-50/50"}`}>
+                                                <TableCell className="font-medium text-gray-900 w-[150px] min-w-[150px] max-w-[150px] whitespace-normal break-words leading-tight">{row.tenant}</TableCell>
+                                                <TableCell className="text-gray-600 w-[100px]">{row.docId}</TableCell>
+                                                <TableCell className="font-medium w-[100px] min-w-[100px] max-w-[100px] whitespace-normal break-words leading-tight">{row.unit}</TableCell>
+                                                <TableCell className="text-right font-bold text-gray-900 w-[80px]">{row.rent ? `$${row.rent.toFixed(2)}` : '-'}</TableCell>
+                                                <TableCell className="text-center w-[60px]">
+                                                    <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                                                        row.status === 'Ocupado' ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' : 'bg-rose-100 text-rose-800 border border-rose-200'
+                                                    }`}>
+                                                        {row.status === 'Ocupado' ? 'Oc' : 'Va'}
+                                                    </span>
+                                                </TableCell>
+                                                <TableCell className="text-gray-600 w-[100px]">{row.phone}</TableCell>
+                                                <TableCell className="text-gray-600 w-[180px] min-w-[180px] max-w-[180px] whitespace-normal break-all leading-tight">{row.email}</TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+
                 {/* 2. Executive Summary - Occupancy */}
                 <div className="pt-2">
                     <h3 className="text-sm font-bold text-gray-800 uppercase tracking-widest mb-4 border-b pb-2">Resumen General</h3>
@@ -66,49 +109,7 @@ export const OperationalReport = React.forwardRef<HTMLDivElement, OperationalRep
                     </div>
                 </div>
 
-                {/* 3. Detail Tables by Property */}
-                <div className="space-y-6 pt-2">
-                    {Object.keys(groupedData).map((propertyName, idx) => (
-                        <div key={propertyName}>
-                            <h3 className="text-sm font-bold text-gray-800 uppercase tracking-widest mb-3 bg-gray-100 p-2 rounded">{idx + 1}. Inmueble: {propertyName}</h3>
-                                <div className="border border-gray-300 rounded overflow-hidden">
-                                <Table className="text-[10px]">
-                                    <TableHeader>
-                                        <TableRow className="border-b-2 border-gray-400 bg-gray-50 hover:bg-gray-50">
-                                            <TableHead className="text-gray-900 font-bold w-[150px] min-w-[150px] max-w-[150px] whitespace-normal break-words">INQUILINO</TableHead>
-                                            <TableHead className="text-gray-900 font-bold">CÉDULA / RIF</TableHead>
-                                            <TableHead className="text-gray-900 font-bold">UNIDAD</TableHead>
-                                            <TableHead className="text-gray-900 font-bold text-right">CANON ($)</TableHead>
-                                            <TableHead className="text-gray-900 font-bold">ESTADO</TableHead>
-                                            <TableHead className="text-gray-900 font-bold">TELÉFONO</TableHead>
-                                            <TableHead className="text-gray-900 font-bold">CORREO</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {groupedData[propertyName].map((row: any, index: number) => (
-                                            <TableRow key={index} className={`border-b border-gray-200 ${index % 2 === 0 ? "bg-white" : "bg-gray-50/50"}`}>
-                                                <TableCell className="font-medium text-gray-900 w-[150px] min-w-[150px] max-w-[150px] whitespace-normal break-words leading-tight">{row.tenant}</TableCell>
-                                                <TableCell className="text-gray-600">{row.docId}</TableCell>
-                                                <TableCell className="font-medium">{row.unit}</TableCell>
-                                                <TableCell className="text-right font-bold text-gray-900">{row.rent ? `$${row.rent.toFixed(2)}` : '-'}</TableCell>
-                                                <TableCell>
-                                                    <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                                                        row.status === 'Ocupado' ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' : 'bg-rose-100 text-rose-800 border border-rose-200'
-                                                    }`}>
-                                                        {row.status}
-                                                    </span>
-                                                </TableCell>
-                                                <TableCell className="text-gray-600">{row.phone}</TableCell>
-                                                <TableCell className="text-gray-600">{row.email}</TableCell>
-                                            </TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-
+                
                 {/* Footer Signature Area */}
                 <div className="pt-20 pb-4 text-center text-xs text-gray-400">
                     <div className="w-64 border-t border-gray-300 mx-auto mb-3"></div>
@@ -165,18 +166,18 @@ export const OperationalReport = React.forwardRef<HTMLDivElement, OperationalRep
                                         <TableHeader>
                                             <TableRow className="border-b-2 border-gray-400 bg-gray-50 hover:bg-gray-50">
                                                 <TableHead className="text-gray-900 font-bold w-[150px] min-w-[150px] max-w-[150px] whitespace-normal break-words">INQUILINO</TableHead>
-                                                <TableHead className="text-gray-900 font-bold">UNIDAD</TableHead>
-                                                <TableHead className="text-gray-900 font-bold text-right">MESES ATRASADOS</TableHead>
-                                                <TableHead className="text-gray-900 font-bold text-right">DEUDA TOTAL ($)</TableHead>
+                                                <TableHead className="text-gray-900 font-bold w-[100px] min-w-[100px] max-w-[100px] whitespace-normal break-words">UNIDAD</TableHead>
+                                                <TableHead className="text-gray-900 font-bold text-right w-[120px]">MESES ATRASADOS</TableHead>
+                                                <TableHead className="text-gray-900 font-bold text-right w-[120px]">DEUDA TOTAL ($)</TableHead>
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
                                             {groupedData[propertyName].map((row: any, index: number) => (
                                                 <TableRow key={index} className={`border-b border-gray-200 ${index % 2 === 0 ? "bg-white" : "bg-gray-50/50"}`}>
                                                     <TableCell className="font-medium text-gray-900 w-[150px] min-w-[150px] max-w-[150px] whitespace-normal break-words leading-tight">{row.tenant}</TableCell>
-                                                    <TableCell className="font-medium">{row.unit}</TableCell>
-                                                    <TableCell className="text-right text-gray-600 font-bold">{row.months}</TableCell>
-                                                    <TableCell className="text-right text-rose-600 font-bold">${row.debt.toFixed(2)}</TableCell>
+                                                    <TableCell className="font-medium w-[100px] min-w-[100px] max-w-[100px] whitespace-normal break-words leading-tight">{row.unit}</TableCell>
+                                                    <TableCell className="text-right text-gray-600 font-bold w-[120px]">{row.months}</TableCell>
+                                                    <TableCell className="text-right text-rose-600 font-bold w-[120px]">${row.debt.toFixed(2)}</TableCell>
                                                 </TableRow>
                                             ))}
                                         </TableBody>
