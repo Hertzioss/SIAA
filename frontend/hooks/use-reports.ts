@@ -345,62 +345,95 @@ export function useReports() {
     const fetchDelinquency = useCallback(async (properties: string[]) => {
         setIsLoading(true)
         try {
-            // 1. Fetch delinquent tenants
-            const { data: tenants, error } = await supabase
-                .from('tenants')
-                .select(`*`)
-                .eq('status', 'delinquent')
-
-            if (error) throw error
-            if (!tenants || tenants.length === 0) return []
-
-            // 2. Fetch active contracts for these tenants
-            const tenantIds = tenants.map((t: any) => t.id)
+            // 1. Fetch all tenants with active contracts
             const { data: contractsData, error: contractsError } = await supabase
                 .from('contracts')
                 .select(`
-                    id, tenant_id, rent_amount,
+                    id, tenant_id, rent_amount, start_date, end_date,
+                    tenants (id, name, status, doc_id),
                     units (
                         name, property_id,
                         properties(id, name)
                     )
                 `)
-                .in('tenant_id', tenantIds)
                 .eq('status', 'active')
 
             if (contractsError) throw contractsError
+            if (!contractsData || contractsData.length === 0) return []
 
-            // 3. Map contracts by tenant_id
-            const contractsMap: Record<string, any> = {}
-            contractsData?.forEach((c: any) => {
-                // For delinquency, we take the first active contract found for the tenant
-                if (!contractsMap[c.tenant_id]) {
-                    contractsMap[c.tenant_id] = c
-                }
+            // 2. Fetch all approved/paid payments for these contracts
+            const contractIds = contractsData.map((c: any) => c.id)
+            const { data: paymentsData, error: paymentsError } = await supabase
+                .from('payments')
+                .select('contract_id, amount, status')
+                .in('contract_id', contractIds)
+                .in('status', ['approved', 'paid'])
+
+            if (paymentsError) throw paymentsError
+
+            // Group payments by contract
+            const paymentsMap: Record<string, number> = {}
+            paymentsData?.forEach((p: any) => {
+                if (!paymentsMap[p.contract_id]) paymentsMap[p.contract_id] = 0
+                paymentsMap[p.contract_id]++
             })
 
-            const filtered = properties.length > 0
-                ? tenants.filter((t: any) => {
-                    const c = contractsMap[t.id]
-                    return c && properties.includes(c.units?.property_id)
-                })
-                : tenants
-
-            return filtered.map((t: any) => {
-                const c = contractsMap[t.id]
-                const unit = Array.isArray(c?.units) ? c.units[0] : c?.units
+            const now = new Date()
+            const reportData = contractsData.map((c: any) => {
+                const tenant = Array.isArray(c.tenants) ? c.tenants[0] : c.tenants
+                const unit = Array.isArray(c.units) ? c.units[0] : c.units
                 const property = Array.isArray(unit?.properties) ? unit.properties[0] : unit?.properties
+                
+                // Calculate months since start
+                if (!c.start_date) return null
+                const startDate = new Date(c.start_date)
+                
+                // Validate date is realistic (not in the distant past/future due to typos)
+                if (isNaN(startDate.getTime()) || startDate.getFullYear() < 1900) return null
+
+                const monthDiff = (now.getFullYear() - startDate.getFullYear()) * 12 + (now.getMonth() - startDate.getMonth())
+                
+                // +1 because if started this month, it's already due 1 month
+                const expectedMonths = Math.max(0, monthDiff + 1)
+                
+                const paidMonths = paymentsMap[c.id] || 0
+                const debtMonths = Math.max(0, expectedMonths - paidMonths)
+                const totalDebt = debtMonths * (c.rent_amount || 0)
+
+                // Skip if no debt unless manually marked as delinquent
+                if (debtMonths <= 0 && tenant?.status !== 'delinquent') return null
+
+                // SAFETY: If debt is astronomical (e.g. 24,000 months), something is wrong with the date
+                const isExtremeDebt = debtMonths > 120 // More than 10 years
+                
+                // Calculate which months are pending (most recent ones back to PaidMonths count)
+                // If it's extreme, log it and don't show the huge number
+                if (isExtremeDebt) {
+                    console.error('Astronomic debt detected. Contract:', c.id, 'Tenant:', tenant?.name, 'Start Date:', c.start_date)
+                }
 
                 return {
-                    tenant: t.name,
+                    tenant: tenant?.name || 'Desconocido',
                     property: property?.name || 'Sin Propiedad',
                     unit: unit?.name || 'N/A',
-                    months: 2, // Dummy - Ideally calculated from payment history
-                    debt: (c?.rent_amount || 0) * 2 // Dummy
+                    startDate: c.start_date ? new Date(c.start_date).toLocaleDateString('es-VE') : '-',
+                    endDate: c.end_date ? new Date(c.end_date).toLocaleDateString('es-VE') : 'Indefinido',
+                    months: isExtremeDebt ? "Revisar Fecha" : debtMonths,
+                    debt: isExtremeDebt ? 0 : totalDebt,
+                    property_id: unit?.property_id
                 }
-            })
+            }).filter(Boolean)
+
+            // Filter by selected properties
+            // Note: properties filter is applied here instead of the query for complexity of nested filter
+            const finalData = properties.length > 0
+                ? reportData.filter((r: any) => properties.includes(r.property_id))
+                : reportData
+
+            return finalData
         } catch (err: any) {
             console.error('Error fetching delinquency:', err)
+            toast.error('Error al generar reporte de morosidad')
             return []
         } finally {
             setIsLoading(false)

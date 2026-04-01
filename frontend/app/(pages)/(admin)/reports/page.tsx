@@ -167,7 +167,7 @@ export default function ReportsPage() {
 
         return properties.filter(p => ownerPropertyIds.has(p.id))
     }, [filters.owners, owners, properties])
-
+    
     const router = useRouter()
 
     const handleSelectReport = (id: string) => {
@@ -284,22 +284,41 @@ export default function ReportsPage() {
 
     const toggleOwner = (value: string) => {
         setFilters(prev => {
-            const current = prev.owners
-            if (current.includes(value)) {
-                return { ...prev, owners: current.filter(o => o !== value) }
-            } else {
-                return { ...prev, owners: [...current, value] }
+            const isRemoving = prev.owners.includes(value)
+            const newOwners = isRemoving 
+                ? prev.owners.filter(o => o !== value) 
+                : [...prev.owners, value]
+            
+            // Calculate new selectable properties to sync selection
+            let newProperties = prev.properties
+            if (newOwners.length > 0) {
+                const selectedOwnersData = owners.filter(o => newOwners.includes(o.id))
+                const validPropertyIds = new Set<string>()
+                selectedOwnersData.forEach(o => o.properties?.forEach(p => validPropertyIds.add(p.id)))
+                newProperties = prev.properties.filter(id => validPropertyIds.has(id))
             }
+
+            return { ...prev, owners: newOwners, properties: newProperties }
         })
     }
 
     const toggleAllOwners = () => {
         setFilters(prev => {
-            if (prev.owners.length === owners.length) {
-                return { ...prev, owners: [] }
+            const areAllSelected = prev.owners.length === owners.length
+            const newOwners = areAllSelected ? [] : owners.map(o => o.id)
+            
+            // Calculate new selectable properties to sync selection
+            let newProperties = prev.properties
+            if (newOwners.length > 0) {
+                const validPropertyIds = new Set<string>()
+                owners.forEach(o => o.properties?.forEach(p => validPropertyIds.add(p.id)))
+                newProperties = prev.properties.filter(id => validPropertyIds.has(id))
             } else {
-                return { ...prev, owners: owners.map(o => o.id) }
+                // If no owners selected, all properties are selectable anyway
+                // so we don't need to filter prev.properties (they are all valid)
             }
+
+            return { ...prev, owners: newOwners, properties: newProperties }
         })
     }
 
@@ -553,7 +572,7 @@ export default function ReportsPage() {
                                         </Button>
                                     </PopoverTrigger>
                                     <PopoverContent className="w-full p-0">
-                                        <Command>
+                                        <Command key={filters.owners.join(',')}>
                                             <CommandInput placeholder="Buscar inmueble..." />
                                             <CommandList>
                                                 <CommandEmpty>No se encontraron inmuebles.</CommandEmpty>

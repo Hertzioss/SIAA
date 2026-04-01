@@ -153,39 +153,56 @@ export const OperationalReport = React.forwardRef<HTMLDivElement, OperationalRep
 
                 {/* 3. Detail Tables by Property */}
                 <div className="space-y-6 pt-2">
-                    {Object.keys(groupedData).map((propertyName, idx) => {
-                        const propertyDebt = groupedData[propertyName].reduce((acc: number, curr: any) => acc + (curr.debt || 0), 0)
-                        return (
-                            <div key={propertyName}>
-                                <h3 className="text-sm font-bold text-gray-800 flex justify-between uppercase tracking-widest mb-3 bg-gray-100 p-2 rounded">
-                                    <span>{idx + 1}. Inmueble: {propertyName}</span>
-                                    <span className="text-rose-700 font-black">Deuda: ${propertyDebt.toFixed(2)}</span>
-                                </h3>
-                                <div className="border border-gray-300 rounded overflow-hidden">
-                                    <Table className="text-[10px]">
-                                        <TableHeader>
-                                            <TableRow className="border-b-2 border-gray-400 bg-gray-50 hover:bg-gray-50">
-                                                <TableHead className="text-gray-900 font-bold w-[150px] min-w-[150px] max-w-[150px] whitespace-normal break-words">INQUILINO</TableHead>
-                                                <TableHead className="text-gray-900 font-bold w-[100px] min-w-[100px] max-w-[100px] whitespace-normal break-words">UNIDAD</TableHead>
-                                                <TableHead className="text-gray-900 font-bold text-right w-[120px]">MESES ATRASADOS</TableHead>
-                                                <TableHead className="text-gray-900 font-bold text-right w-[120px]">DEUDA TOTAL ($)</TableHead>
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            {groupedData[propertyName].map((row: any, index: number) => (
-                                                <TableRow key={index} className={`border-b border-gray-200 ${index % 2 === 0 ? "bg-white" : "bg-gray-50/50"}`}>
-                                                    <TableCell className="font-medium text-gray-900 w-[150px] min-w-[150px] max-w-[150px] whitespace-normal break-words leading-tight">{row.tenant}</TableCell>
-                                                    <TableCell className="font-medium w-[100px] min-w-[100px] max-w-[100px] whitespace-normal break-words leading-tight">{row.unit}</TableCell>
-                                                    <TableCell className="text-right text-gray-600 font-bold w-[120px]">{row.months}</TableCell>
-                                                    <TableCell className="text-right text-rose-600 font-bold w-[120px]">${row.debt.toFixed(2)}</TableCell>
+                    {Object.keys(groupedData).length > 0 ? (
+                        Object.keys(groupedData).map((propertyName, idx) => {
+                            const propertyDebt = groupedData[propertyName].reduce((acc: number, curr: any) => acc + (curr.debt || 0), 0)
+                            return (
+                                <div key={propertyName}>
+                                    <h3 className="text-sm font-bold text-gray-800 flex justify-between uppercase tracking-widest mb-3 bg-gray-100 p-2 rounded">
+                                        <span>{idx + 1}. Inmueble: {propertyName}</span>
+                                        <span className="text-rose-700 font-black">Deuda: ${propertyDebt.toFixed(2)}</span>
+                                    </h3>
+                                    <div className="border border-gray-300 rounded overflow-hidden">
+                                        <Table className="text-[10px]">
+                                            <TableHeader>
+                                                <TableRow className="border-b-2 border-gray-400 bg-gray-50 hover:bg-gray-50">
+                                                    <TableHead className="text-gray-900 font-bold w-[150px] min-w-[150px] max-w-[150px] whitespace-normal break-words">INQUILINO</TableHead>
+                                                    <TableHead className="text-gray-900 font-bold w-[100px] min-w-[100px] max-w-[100px] whitespace-normal break-words">UNIDAD</TableHead>
+                                                    <TableHead className="text-gray-900 font-bold w-[120px]">CONTRATO (Ini / Fin)</TableHead>
+                                                    <TableHead className="text-gray-900 font-bold text-right w-[120px]">MESES ATRASADOS</TableHead>
+                                                    <TableHead className="text-gray-900 font-bold text-right w-[120px]">DEUDA TOTAL ($)</TableHead>
                                                 </TableRow>
-                                            ))}
-                                        </TableBody>
-                                    </Table>
+                                            </TableHeader>
+                                            <TableBody>
+                                                {groupedData[propertyName].map((row: any, index: number) => (
+                                                    <TableRow key={index} className={`border-b border-gray-200 ${index % 2 === 0 ? "bg-white" : "bg-gray-50/50"}`}>
+                                                        <TableCell className="font-medium text-gray-900 w-[150px] min-w-[150px] max-w-[150px] whitespace-normal break-words leading-tight">
+                                                            {row.tenant}
+                                                        </TableCell>
+                                                        <TableCell className="font-medium w-[100px] min-w-[100px] max-w-[100px] whitespace-normal break-words leading-tight">{row.unit}</TableCell>
+                                                        <TableCell className="font-medium text-gray-600 w-[120px] whitespace-nowrap">
+                                                            <div className="flex flex-col gap-0.5">
+                                                                <span className="text-[9px]">Ini: {row.startDate}</span>
+                                                                <span className={`text-[8px] italic ${row.endDate === 'Indefinido' ? 'text-amber-600' : 'opacity-60'}`}>Fin: {row.endDate}</span>
+                                                            </div>
+                                                        </TableCell>
+                                                        <TableCell className={`text-right font-bold w-[120px] ${row.months === "Revisar Fecha" ? "text-rose-600" : "text-gray-600"}`}>
+                                                            {row.months}
+                                                        </TableCell>
+                                                        <TableCell className="text-right text-rose-600 font-bold w-[120px]">${(row.debt || 0).toFixed(2)}</TableCell>
+                                                    </TableRow>
+                                                ))}
+                                            </TableBody>
+                                        </Table>
+                                    </div>
                                 </div>
-                            </div>
-                        )
-                    })}
+                            )
+                        })
+                    ) : (
+                        <div className="py-12 flex flex-col items-center justify-center border-2 border-dashed border-gray-200 rounded-lg bg-gray-50">
+                            <p className="text-gray-500 font-medium italic">No se encontraron inquilinos con deuda pendiente para los criterios seleccionados.</p>
+                        </div>
+                    )}
                 </div>
                 {/* 2. Executive Summary - Delinquency */}
                 <div className="pt-2">
