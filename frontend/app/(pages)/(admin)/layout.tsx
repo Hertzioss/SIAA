@@ -54,7 +54,7 @@ export default function AdminLayout({
     }, [router])
 
     return (
-        <div className="flex flex-col h-screen">
+        <div className="flex flex-col min-h-screen">
             <TopBanner />
             <SidebarProvider
                 style={

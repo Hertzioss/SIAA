@@ -226,18 +226,26 @@ export function DashboardCharts({
                                                 try {
                                                     const parsedDate = parseLocalDate(item.date)
                                                     if (isNaN(parsedDate.getTime())) return "Fecha inválida"
-                                                    return format(parsedDate, "dd MMM yyyy", { locale: es })
+                                                    const dateStr = format(parsedDate, "dd MMM yyyy", { locale: es })
+                                                    return item.rate ? `${dateStr} • Tasa: ${item.rate}` : dateStr
                                                 } catch (e) {
                                                     return "N/A"
                                                 }
                                             })()}
                                         </p>
                                     </div>
-                                    <div className={`ml-auto font-medium ${item.status === 'success' ? 'text-green-600' :
-                                        item.status === 'destructive' ? 'text-red-600' :
-                                            item.status === 'warning' ? 'text-yellow-600' : 'text-blue-600'
-                                        }`}>
-                                        {item.amount}
+                                    <div className="ml-auto flex flex-col items-end">
+                                        <div className={`font-bold text-sm ${item.status === 'success' ? 'text-green-600' :
+                                            item.status === 'destructive' ? 'text-red-600' :
+                                                item.status === 'warning' ? 'text-yellow-600' : 'text-blue-600'
+                                            }`}>
+                                            {item.amount}
+                                        </div>
+                                        {item.amountUSD && (
+                                            <div className="text-[12px] text-slate-400 font-medium">
+                                                {item.amountUSD}
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             ))
