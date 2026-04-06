@@ -281,20 +281,37 @@ export default function OwnersPage() {
                                                             <TableRow>
                                                                 <TableHead>Nombre</TableHead>
                                                                 <TableHead>Dirección</TableHead>
+                                                                <TableHead className="text-center">Ocupadas</TableHead>
+                                                                <TableHead className="text-center">Vacantes</TableHead>
                                                             </TableRow>
                                                         </TableHeader>
                                                         <TableBody>
-                                                            {owner.properties.map((property) => (
-                                                                <TableRow key={property.id}>
-                                                                    <TableCell className="font-medium">{property.name}</TableCell>
-                                                                    <TableCell>
-                                                                        <span className="flex items-center gap-1 text-sm text-muted-foreground">
-                                                                            <MapPin className="h-3 w-3" />
-                                                                            {property.address}
-                                                                        </span>
-                                                                    </TableCell>
-                                                                </TableRow>
-                                                            ))}
+                                                            {owner.properties.map((property) => {
+                                                                const occupied = property.units?.filter(u => u.status === 'occupied').length || 0;
+                                                                const vacant = property.units?.filter(u => u.status === 'vacant').length || 0;
+                                                                
+                                                                return (
+                                                                    <TableRow key={property.id}>
+                                                                        <TableCell className="font-medium">{property.name}</TableCell>
+                                                                        <TableCell>
+                                                                            <span className="flex items-center gap-1 text-sm text-muted-foreground">
+                                                                                <MapPin className="h-3 w-3" />
+                                                                                {property.address}
+                                                                            </span>
+                                                                        </TableCell>
+                                                                        <TableCell className="text-center">
+                                                                            <span className="font-semibold text-blue-600 dark:text-blue-400">
+                                                                                {occupied}
+                                                                            </span>
+                                                                        </TableCell>
+                                                                        <TableCell className="text-center">
+                                                                            <span className="font-semibold text-rose-600 dark:text-rose-400">
+                                                                                {vacant}
+                                                                            </span>
+                                                                        </TableCell>
+                                                                    </TableRow>
+                                                                );
+                                                            })}
                                                         </TableBody>
                                                     </Table>
                                                 </div>

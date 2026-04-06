@@ -388,21 +388,22 @@ export default function PropertiesPage() {
 
                                                 {/* Stats & Actions: Col span 4 */}
                                                 <div className="col-span-4 flex items-center justify-end gap-6 text-sm">
-                                                    <div className="flex flex-col items-end min-w-[100px]">
-                                                        <span className="text-muted-foreground text-xs">Unidades</span>
-                                                        <div className="flex flex-col items-end">
+                                                    <div className="flex gap-4 min-w-[180px]">
+                                                        <div className="flex flex-col items-center">
+                                                            <span className="text-muted-foreground text-xs text-center">Unidades</span>
                                                             <span className="font-medium text-base">{property.units?.length || 0}</span>
-                                                            {property.units && property.units.length > 0 && (
-                                                                <div className="flex gap-2 text-[14px] text-muted-foreground">
-                                                                    <span className="text-primary font-medium">
-                                                                        {property.units.filter((u) => u.status === 'occupied').length} Oc
-                                                                    </span>
-                                                                    <span className="text-muted-foreground">/</span>
-                                                                    <span>
-                                                                        {property.units.filter((u) => u.status === 'vacant').length} Vac
-                                                                    </span>
-                                                                </div>
-                                                            )}
+                                                        </div>
+                                                        <div className="flex flex-col items-center">
+                                                            <span className="text-muted-foreground text-xs text-center">Ocupadas</span>
+                                                            <span className="font-medium text-base text-blue-600 dark:text-blue-400">
+                                                                {property.units?.filter((u) => u.status === 'occupied').length || 0}
+                                                            </span>
+                                                        </div>
+                                                        <div className="flex flex-col items-center">
+                                                            <span className="text-muted-foreground text-xs text-center">Vacantes</span>
+                                                            <span className="font-medium text-base text-rose-600 dark:text-rose-400">
+                                                                {property.units?.filter((u) => u.status === 'vacant').length || 0}
+                                                            </span>
                                                         </div>
                                                     </div>
                                                     <div className="flex flex-col items-end">
