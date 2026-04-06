@@ -244,40 +244,6 @@ export default function PropertiesPage() {
                     </p>
                 </div>
                 <div className="flex gap-2">
-                    <ExportButtons
-                        data={properties}
-                        filename="Inmuebles"
-                        columns={[
-                            { header: "Nombre", key: "name" },
-                            { header: "Tipo", key: "property_type.label" },
-                            { header: "Dirección", key: "address" },
-                            { header: "Niveles", key: "floors" },
-                            { 
-                                header: "Resumen Unidades", 
-                                key: "units", 
-                                transform: (u: Unit[]) => {
-                                    if (!u) return "0";
-                                    const total = u.length;
-                                    const occ = u.filter((getItem) => getItem.status === 'occupied').length;
-                                    const vac = u.filter((getItem) => getItem.status === 'vacant').length;
-                                    return `${total} (${occ} Oc, ${vac} Vac)`;
-                                }
-                            },
-                            { 
-                                header: "Detalle Unidades", 
-                                key: "units", 
-                                transform: (u: Unit[]) => {
-                                    if (!u) return "-";
-                                    return u.map((unit) => {
-                                        const status = unit.status === 'occupied' ? 'Ocupada' : 'Vacante';
-                                        const tenant = unit.tenantName ? ` - ${unit.tenantName}` : '';
-                                        return `${unit.name} (${status})${tenant}`;
-                                    }).join('\n');
-                                }
-                            },
-                        ]}
-                        title="Reporte de Inmuebles"
-                    />
                     <Button onClick={handleCreate}>
                         <Plus className="mr-2 h-4 w-4" /> Agregar Propiedad
                     </Button>
