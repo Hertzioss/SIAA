@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils"
 import { forwardRef } from "react"
 
 interface PropertyPerformanceProps {
-    data: any[]
+    data: any
     period?: string
 }
 

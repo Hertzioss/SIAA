@@ -128,7 +128,7 @@ export default function ReportsPage() {
     const [incomeExpenseData, setIncomeExpenseData] = useState<IncomeExpenseData | null>(null)
     const [operationalData, setOperationalData] = useState<any[] | null>(null)
     const [maintenanceData, setMaintenanceData] = useState<any[] | null>(null)
-    const [performanceData, setPerformanceData] = useState<any[] | null>(null)
+    const [performanceData, setPerformanceData] = useState<any | null>(null)
 
     const [selectedReportId, setSelectedReportId] = useState<string | null>(null)
     const [isGenerated, setIsGenerated] = useState(false)
