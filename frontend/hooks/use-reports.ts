@@ -41,8 +41,9 @@ export function useReports() {
             const minIndex = selectedIndices[0]
             const maxIndex = selectedIndices[selectedIndices.length - 1]
 
-            const startDate = new Date(parseInt(year), minIndex, 1).toISOString().split('T')[0]
-            const endDate = new Date(parseInt(year), maxIndex + 1, 0).toISOString().split('T')[0]
+            const startDate = `${year}-${String(minIndex + 1).padStart(2, '0')}-01`
+            const lastDay = new Date(parseInt(year), maxIndex + 1, 0).getDate()
+            const endDate = `${year}-${String(maxIndex + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
 
             const isDateInSelectedMonths = (dateStr: string) => {
                 if (!dateStr) return false
@@ -618,70 +619,238 @@ export function useReports() {
         }
     }, [])
 
-    const fetchPropertyPerformance = useCallback(async (properties: string[]) => {
-        setIsLoading(true)
+    const fetchPropertyPerformance = useCallback(async (months: string[], year: string, properties: string[]) => {
+        setIsLoading(true);
         try {
-            // 1. Fetch all payments (Income) - Simplified
+            const monthMap: Record<string, number> = {
+                'ENERO': 0, 'FEBRERO': 1, 'MARZO': 2, 'ABRIL': 3, 'MAYO': 4, 'JUNIO': 5,
+                'JULIO': 6, 'AGOSTO': 7, 'SEPTIEMBRE': 8, 'OCTUBRE': 9, 'NOVIEMBRE': 10, 'DICIEMBRE': 11
+            };
+            const selectedIndices = months.map(m => monthMap[m.toUpperCase()]).filter(i => i !== undefined).sort((a, b) => a - b);
+            
+            if (months.length === 0) {
+                toast.warning('Debe seleccionar al menos un mes.');
+                setIsLoading(false);
+                return [];
+            }
+
+            const startMonth = String(selectedIndices[0] + 1).padStart(2, '0');
+            const endMonth = String(selectedIndices[selectedIndices.length - 1] + 1).padStart(2, '0');
+            const lastDay = new Date(parseInt(year), selectedIndices[selectedIndices.length - 1] + 1, 0).getDate();
+            
+            const startDate = `${year}-${startMonth}-01`;
+            const endDate = `${year}-${endMonth}-${String(lastDay).padStart(2, '0')}`;
+
+            // 1. Fetch Payments (Income)
             const { data: payments } = await supabase
                 .from('payments')
-                .select(`amount, contract_id`)
+                .select(`amount, contract_id, currency, exchange_rate, date`)
                 .in('status', ['paid', 'approved'])
-                .eq('currency', 'USD') 
+                .gte('date', startDate)
+                .lte('date', endDate);
 
-            // 2. Fetch all expenses
+            // 2. Fetch General Expenses - Remove status filter to match fetchIncomeExpense
             const { data: expenses } = await supabase
                 .from('expenses')
-                .select(`amount, property_id`)
+                .select(`amount, property_id, currency, exchange_rate, date, status`)
+                .gte('date', startDate)
+                .lte('date', endDate);
 
-            // 3. We need property names and contract associations
-            const { data: props } = await supabase.from('properties').select('id, name')
+            // 3. Fetch Owner Expenses (All, including unassigned)
+            const { data: ownerExpenses } = await supabase
+                .from('owner_expenses')
+                .select(`amount, property_id, owner_id, currency, exchange_rate, date, status`)
+                .gte('date', startDate)
+                .lte('date', endDate);
+
+            // 4. We need property names and contract associations
+            const { data: props } = await supabase.from('properties').select('id, name');
             
-            // 4. Batch fetch contract/property mapping for performance summary
-            const contractIds = Array.from(new Set(payments?.map((p: any) => p.contract_id).filter(Boolean)))
-            const contractsMap: Record<string, string> = {} // contract_id -> property_id
+            // Helpful for unassigned: find owners who have only 1 property
+            const { data: ownershipData } = await supabase.from('property_owners').select('owner_id, property_id');
+            const ownerToPropMap: Record<string, string[]> = {};
+            (ownershipData || []).forEach(o => {
+                if (!ownerToPropMap[o.owner_id]) ownerToPropMap[o.owner_id] = [];
+                ownerToPropMap[o.owner_id].push(o.property_id);
+            });
+            
+            const contractIds = Array.from(new Set(payments?.map((p: any) => p.contract_id).filter(Boolean)));
+            const contractsMap: Record<string, string> = {}; 
 
             if (contractIds.length > 0) {
                 const { data: contractsData } = await supabase
                     .from('contracts')
                     .select(`id, units(property_id)`)
-                    .in('id', contractIds)
+                    .in('id', contractIds);
                 
                 contractsData?.forEach((c: any) => {
-                    const unit = Array.isArray(c.units) ? c.units[0] : c.units
-                    contractsMap[c.id] = unit?.property_id
-                })
+                    const unit = Array.isArray(c.units) ? c.units[0] : c.units;
+                    contractsMap[c.id] = unit?.property_id;
+                });
             }
 
-            // Aggregate
-            const report = props?.map(p => {
-                if (properties.length > 0 && !properties.includes(p.id)) return null
-
-                const income = payments
-                    ?.filter((pay: any) => contractsMap[pay.contract_id] === p.id)
-                    .reduce((sum, curr) => sum + (curr.amount || 0), 0) || 0
-
-                const expense = expenses
-                    ?.filter((exp: any) => exp.property_id === p.id)
-                    .reduce((sum, curr) => sum + (curr.amount || 0), 0) || 0
-
-                return {
-                    property: p.name,
-                    income,
-                    expense,
-                    net: income - expense
+            // COLLECT ALL AVAILABLE RATES FOR THIS PERIOD
+            const ratesByDate: Record<string, number> = {};
+            const allRawItemsForRates = [...(payments || []), ...(expenses || []), ...(ownerExpenses || [])];
+            allRawItemsForRates.forEach((item: any) => {
+                if (item.exchange_rate && item.exchange_rate > 0) {
+                    const d = item.date && isValid(parseISO(item.date)) ? format(parseISO(item.date), 'dd/MM/yyyy') : item.date;
+                    if (d) ratesByDate[d] = item.exchange_rate;
                 }
-            }).filter(Boolean) || []
+            });
+            
+            const getRate = (itemDate: string) => {
+                const d = itemDate && isValid(parseISO(itemDate)) ? format(parseISO(itemDate), 'dd/MM/yyyy') : itemDate;
+                if (ratesByDate[d]) return ratesByDate[d];
+                // Fallback: monthly average or first available
+                const parts = d.split('-'); // ISO 2025-01-01
+                const month = parts[1];
+                const year = parts[0];
+                const monthlyRates = Object.entries(ratesByDate).filter(([dt]) => dt.includes(`${month}/${year}`));
+                if (monthlyRates.length > 0) return monthlyRates[0][1];
+                return 0; // Final fallback
+            };
 
-            return report
+            const getDualAmount = (item: any) => {
+                const amount = Number(item.amount || 0);
+                const currency = (item.currency || 'USD').toUpperCase().trim();
+                const isBs = currency === 'BS' || currency === 'VES' || currency === 'BS.';
+                let rate = Number(item.exchange_rate || 0);
+                if (rate === 0) rate = getRate(item.date);
+
+                if (isBs) {
+                    return { usd: rate > 0 ? amount / rate : 0, bs: amount };
+                } else {
+                    return { usd: amount, bs: amount * rate };
+                }
+            };
+
+            // Aggregate results by OWNER
+            // 1. Get all ownership info first
+            const { data: ownersData } = await supabase.from('property_owners').select(`percentage, property_id, owner_id, owner:owners (id, name)`);
+            const allOwners = (ownersData || []);
+            
+            const ownerPerformances: Record<string, { 
+                ownerName: string, 
+                properties: { name: string, income: number, expense: number, net: number, incomeBs: number, expenseBs: number, netBs: number, percentage: number }[],
+                unassigned: { income: number, expense: number, net: number, incomeBs: number, expenseBs: number, netBs: number },
+                total: { income: number, expense: number, net: number, incomeBs: number, expenseBs: number, netBs: number }
+            }> = {};
+
+            // 2. Map of property performance (full 100%)
+            const fullPropertyStats: Record<string, { income: number, expense: number, incomeBs: number, expenseBs: number, name: string }> = {};
+            (props || []).forEach(p => {
+                fullPropertyStats[p.id] = { income: 0, expense: 0, incomeBs: 0, expenseBs: 0, name: p.name };
+            });
+
+            // 3. Aggregate 100% data
+            (payments || []).forEach(pay => {
+                const pid = String(contractsMap[pay.contract_id] || '');
+                if (pid && fullPropertyStats[pid]) {
+                    const { usd, bs } = getDualAmount(pay);
+                    fullPropertyStats[pid].income += usd;
+                    fullPropertyStats[pid].incomeBs += bs;
+                }
+            });
+            (expenses || []).forEach(exp => {
+                const pid = String(exp.property_id || '');
+                if (pid && fullPropertyStats[pid]) {
+                    const { usd, bs } = getDualAmount(exp);
+                    fullPropertyStats[pid].expense += usd;
+                    fullPropertyStats[pid].expenseBs += bs;
+                }
+            });
+            (ownerExpenses || []).forEach(exp => {
+                const pid = String(exp.property_id || '');
+                if (pid && fullPropertyStats[pid]) {
+                    const { usd, bs } = getDualAmount(exp);
+                    fullPropertyStats[pid].expense += usd;
+                    fullPropertyStats[pid].expenseBs += bs;
+                }
+            });
+
+            // 4. Distribute to owners
+            allOwners.forEach(po => {
+                const ownerId = po.owner_id;
+                const owner = Array.isArray(po.owner) ? po.owner[0] : po.owner;
+                const ownerName = owner?.name || 'Desconocido';
+                const pid = po.property_id;
+                const percentage = Number(po.percentage || 0);
+
+                if (properties.length > 0 && !properties.includes(pid)) return;
+
+                if (!ownerPerformances[ownerId]) {
+                    ownerPerformances[ownerId] = {
+                        ownerName,
+                        properties: [],
+                        unassigned: { income: 0, expense: 0, net: 0, incomeBs: 0, expenseBs: 0, netBs: 0 },
+                        total: { income: 0, expense: 0, net: 0, incomeBs: 0, expenseBs: 0, netBs: 0 }
+                    };
+                }
+
+                const propStats = fullPropertyStats[pid];
+                if (propStats) {
+                    const share = {
+                        name: propStats.name,
+                        income: propStats.income * (percentage / 100),
+                        expense: propStats.expense * (percentage / 100),
+                        net: (propStats.income - propStats.expense) * (percentage / 100),
+                        incomeBs: propStats.incomeBs * (percentage / 100),
+                        expenseBs: propStats.expenseBs * (percentage / 100),
+                        netBs: (propStats.incomeBs - propStats.expenseBs) * (percentage / 100),
+                        percentage: percentage
+                    };
+                    ownerPerformances[ownerId].properties.push(share);
+                    ownerPerformances[ownerId].total.income += share.income;
+                    ownerPerformances[ownerId].total.expense += share.expense;
+                    ownerPerformances[ownerId].total.net += share.net;
+                    ownerPerformances[ownerId].total.incomeBs += share.incomeBs;
+                    ownerPerformances[ownerId].total.expenseBs += share.expenseBs;
+                    ownerPerformances[ownerId].total.netBs += share.netBs;
+                }
+            });
+
+            // 5. Add unassigned data for each owner
+            (ownerExpenses || []).forEach(exp => {
+                if (!exp.property_id && exp.owner_id && ownerPerformances[exp.owner_id]) {
+                    const { usd, bs } = getDualAmount(exp);
+                    ownerPerformances[exp.owner_id].unassigned.expense += usd;
+                    ownerPerformances[exp.owner_id].unassigned.expenseBs += bs;
+                    ownerPerformances[exp.owner_id].total.expense += usd;
+                    ownerPerformances[exp.owner_id].total.expenseBs += bs;
+                    ownerPerformances[exp.owner_id].total.net -= usd;
+                    ownerPerformances[exp.owner_id].total.netBs -= bs;
+                }
+            });
+
+            // Update unassigned net for safety
+            Object.values(ownerPerformances).forEach(g => {
+                g.unassigned.net = g.unassigned.income - g.unassigned.expense;
+                g.unassigned.netBs = g.unassigned.incomeBs - g.unassigned.expenseBs;
+            });
+
+            // If some owner expenses were truly un-owned (unlikely but possible), they stay in global
+            // For now, return the object with groups
+            return {
+                groups: Object.values(ownerPerformances),
+                grandTotal: Object.values(ownerPerformances).reduce((sum, g) => ({
+                    income: sum.income + g.total.income,
+                    expense: sum.expense + g.total.expense,
+                    net: sum.net + g.total.net,
+                    incomeBs: (sum.incomeBs || 0) + g.total.incomeBs,
+                    expenseBs: (sum.expenseBs || 0) + g.total.expenseBs,
+                    netBs: (sum.netBs || 0) + g.total.netBs
+                }), { income: 0, expense: 0, net: 0, incomeBs: 0, expenseBs: 0, netBs: 0 })
+            };
 
         } catch (err: any) {
-            console.error(err)
-            toast.error('Error al generar reporte de rendimiento')
-            return []
+            console.error(err);
+            toast.error('Error al generar reporte de rendimiento');
+            return [];
         } finally {
-            setIsLoading(false)
+            setIsLoading(false);
         }
-    }, [])
+    }, [supabase]);
 
     return {
         isLoading,

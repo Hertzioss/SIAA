@@ -226,7 +226,7 @@ export default function ReportsPage() {
             const data = await fetchMaintenance(propertiesToFetch)
             setMaintenanceData(data)
         } else if (selectedReportId === 'performance') {
-            const data = await fetchPropertyPerformance(propertiesToFetch)
+            const data = await fetchPropertyPerformance(filters.months, filters.year, propertiesToFetch)
             setPerformanceData(data)
         }
 
