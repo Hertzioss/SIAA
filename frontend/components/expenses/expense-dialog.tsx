@@ -246,7 +246,7 @@ export function ExpenseDialog({ open, onOpenChange, mode, expense, properties, o
                 </div>
                 <DialogFooter>
                     <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-                    <Button onClick={handleSubmit} disabled={loading || !ownerId || !amount || (currency === 'USD' && !exchangeRate)}>
+                    <Button onClick={handleSubmit} disabled={loading || !ownerId || !amount || !exchangeRate}>
                         {loading ? "Guardando..." : (mode === 'create' ? "Guardar" : "Actualizar")}
                     </Button>
                 </DialogFooter>

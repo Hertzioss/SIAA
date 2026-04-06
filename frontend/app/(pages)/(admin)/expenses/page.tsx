@@ -69,7 +69,7 @@ export default function ExpensesPage() {
     )
 
     const handleExport = () => {
-        const headers = ["Fecha", "Propietario", "Propiedad", "Categoría", "Descripción", "Estado", "Monto", "Moneda"]
+        const headers = ["Fecha", "Propietario", "Propiedad", "Categoría", "Descripción", "Estado", "Monto", "Moneda", "Tasa"]
         const csvContent = [
             headers.join(","),
             ...filteredExpenses.map(e => [
@@ -283,7 +283,7 @@ export default function ExpensesPage() {
                                                     {(expense.currency === 'USD' || !expense.currency) && '$'} {Number(expense.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}
                                                 </TableCell>
                                                 <TableCell className="text-right text-xs text-muted-foreground">
-                                                    {expense.currency === 'USD' ? (expense.exchange_rate || '-') : '-'}
+                                                    {expense.exchange_rate || '-'}
                                                 </TableCell>
                                                 <TableCell className="text-right">
                                                     <div className="flex justify-end gap-2">

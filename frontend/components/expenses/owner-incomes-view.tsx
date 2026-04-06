@@ -229,7 +229,7 @@ export function OwnerIncomesView() {
                                             {(income.currency === 'USD' || !income.currency) && '$'} {Number(income.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}
                                         </TableCell>
                                         <TableCell className="text-right text-xs text-muted-foreground">
-                                            {income.currency === 'USD' ? (income.exchange_rate || '-') : '-'}
+                                            {income.exchange_rate || '-'}
                                         </TableCell>
                                         <TableCell className="text-right">
                                             <div className="flex justify-end gap-2">
