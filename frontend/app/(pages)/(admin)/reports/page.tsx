@@ -214,7 +214,7 @@ export default function ReportsPage() {
         }
 
         if (selectedReportId === 'income-expense') {
-            const data = await fetchIncomeExpense(filters.months, filters.year, propertiesToFetch)
+            const data = await fetchIncomeExpense(filters.months, filters.year, propertiesToFetch, filters.owners)
             setIncomeExpenseData(data)
         } else if (selectedReportId === 'occupancy') {
             const data = await fetchOccupancy(propertiesToFetch)

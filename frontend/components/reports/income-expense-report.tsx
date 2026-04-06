@@ -15,7 +15,8 @@ interface Movement {
 
 interface Distribution {
     owner: string
-    percentage: number
+    property: string
+    percentage: number | null
     amount: number
 }
 
@@ -30,6 +31,8 @@ interface IncomeExpenseReportProps {
         description: string
         amount: number
         status: string
+        originalAmount?: number
+        rate?: number
     }[]
     dataDistribution?: Distribution[]
 }
@@ -44,7 +47,10 @@ export const IncomeExpenseReport = React.forwardRef<HTMLDivElement, IncomeExpens
     const totalIncomeBsConverted = dataBs.reduce((acc: number, curr: any) => acc + (curr.incomeUsd || 0), 0)
     const totalGrossIncome = totalIncomeUsd + totalIncomeBsConverted
 
-    const totalExpenses = dataExpenses.reduce((acc, curr) => acc + curr.amount, 0)
+    const totalIncomeBs = [...dataUsd, ...dataBs].reduce((acc: number, curr: any) => acc + (curr.originalAmount || 0), 0)
+    const totalExpenses = dataExpenses.reduce((acc: number, curr: any) => acc + (curr.amount || 0), 0)
+    const totalExpensesBs = React.useMemo(() => dataExpenses.reduce((acc, curr) => acc + (curr.originalAmount || 0), 0), [dataExpenses])
+    const totalNetBs = totalIncomeBs - totalExpensesBs
     const netIncome = totalGrossIncome - totalExpenses
 
     // Unify and sort movements
@@ -60,7 +66,9 @@ export const IncomeExpenseReport = React.forwardRef<HTMLDivElement, IncomeExpens
                 debit: 0,
                 credit: item.credit || 0,
                 balance: 0,
-                type: 'income_usd'
+                type: 'income_usd',
+                originalAmount: item.originalAmount,
+                rate: item.rate
             })
         })
 
@@ -74,7 +82,7 @@ export const IncomeExpenseReport = React.forwardRef<HTMLDivElement, IncomeExpens
                 credit: item.incomeUsd || 0,
                 balance: 0,
                 type: 'income_bs',
-                originalAmount: item.balance,
+                originalAmount: item.credit,
                 rate: item.rate
             })
         })
@@ -83,16 +91,23 @@ export const IncomeExpenseReport = React.forwardRef<HTMLDivElement, IncomeExpens
         dataExpenses.forEach(item => {
             unified.push({
                 date: item.date,
-                concept: `${item.category} - ${item.description}`,
+                tenantName: item.category || "EGRESO GENERAL",
+                concept: item.description,
                 debit: item.amount,
                 credit: 0,
                 balance: 0,
-                type: 'expense'
+                type: 'expense',
+                originalAmount: item.originalAmount,
+                rate: item.rate
             })
         })
 
         // Sort by date ascending
-        unified.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+        unified.sort((a, b) => {
+            const dateA = new Date(a.date.split('/').reverse().join('-')).getTime();
+            const dateB = new Date(b.date.split('/').reverse().join('-')).getTime();
+            return dateA - dateB;
+        })
 
         // Calculate running balance
         let runningBalance = 0
@@ -123,14 +138,15 @@ export const IncomeExpenseReport = React.forwardRef<HTMLDivElement, IncomeExpens
 
                 {/* 2. Unified Table */}
                 <div className="pt-2">
-                    <h3 className="text-sm font-bold text-gray-800 uppercase tracking-widest mb-3 bg-gray-100 p-2 rounded">1. Movimientos del Período (USD)</h3>
+                    <h3 className="text-sm font-bold text-gray-800 uppercase tracking-widest mb-3 bg-gray-100 p-2 rounded">1. Movimientos del Período</h3>
                     <div className="border border-gray-300 rounded overflow-hidden">
-                                    <Table className="text-[10px]">
+                                     <Table className="text-[10px]">
                             <TableHeader>
                                 <TableRow className="border-b-2 border-gray-400 bg-gray-50 hover:bg-gray-50">
-                                    <TableHead className="text-gray-900 font-bold w-[100px]">FECHA</TableHead>
-                                    <TableHead className="text-gray-900 font-bold w-[150px] min-w-[150px] max-w-[150px] whitespace-normal break-words">INQUILINO / ENTIDAD</TableHead>
-                                    <TableHead className="text-gray-900 font-bold w-[35%]">CONCEPTO / DESCRIPCIÓN</TableHead>
+                                    <TableHead className="text-gray-900 font-bold w-[90px]">FECHA</TableHead>
+                                    <TableHead className="text-gray-900 font-bold w-[120px] min-w-[120px] max-w-[120px] whitespace-normal break-words">INQUILINO / ENTIDAD</TableHead>
+                                    <TableHead className="text-gray-900 font-bold w-[30%]">CONCEPTO / DESCRIPCIÓN</TableHead>
+                                    <TableHead className="text-gray-900 font-bold text-center w-[60px]">TASA</TableHead>
                                     <TableHead className="text-gray-900 font-bold text-right text-rose-700">DEBE (EGRESOS)</TableHead>
                                     <TableHead className="text-gray-900 font-bold text-right text-emerald-700">HABER (INGRESOS)</TableHead>
                                     <TableHead className="text-gray-900 font-bold text-right">SALDO</TableHead>
@@ -141,25 +157,41 @@ export const IncomeExpenseReport = React.forwardRef<HTMLDivElement, IncomeExpens
                                     movements.map((row, index) => (
                                         <TableRow key={index} className={`border-b border-gray-200 ${index % 2 === 0 ? "bg-white" : "bg-gray-50/50"}`}>
                                             <TableCell className="font-medium text-gray-600">{row.date}</TableCell>
-                                            <TableCell className="font-medium w-[150px] min-w-[150px] max-w-[150px] whitespace-normal break-words leading-tight">
+                                            <TableCell className="font-medium w-[120px] min-w-[120px] max-w-[120px] whitespace-normal break-words leading-tight">
                                                 {row.tenantName ? row.tenantName : '-'}
                                             </TableCell>
                                             <TableCell className="whitespace-pre-wrap break-words">
                                                 {row.concept}
-                                                {row.type === 'income_bs' && (
-                                                    <span className="block text-[10px] text-gray-500 italic mt-1 font-medium">
-                                                        (Conv. Bs. {row.originalAmount?.toLocaleString('es-VE')} @ {row.rate})
-                                                    </span>
-                                                )}
+                                            </TableCell>
+                                            <TableCell className="text-center font-medium text-slate-500">
+                                                {(row.rate ?? 0) > 0 ? row.rate?.toFixed(2) : '-'}
                                             </TableCell>
                                             <TableCell className="text-right text-rose-600 font-bold py-1">
-                                                {row.debit > 0 ? row.debit.toFixed(2) : ''}
+                                                {row.debit > 0 ? (
+                                                    <>
+                                                        <span className="block">${row.debit.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                                        {row.originalAmount && row.originalAmount > 0 && (
+                                                            <span className="block text-[8px] text-slate-500 italic mt-0.5 font-bold">
+                                                                Bs. {row.originalAmount.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                            </span>
+                                                        )}
+                                                    </>
+                                                ) : ''}
                                             </TableCell>
                                             <TableCell className="text-right text-emerald-600 font-bold py-1">
-                                                {row.credit > 0 ? row.credit.toFixed(2) : ''}
+                                                {row.credit > 0 ? (
+                                                    <>
+                                                        <span className="block">${row.credit.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                                        {row.originalAmount && row.originalAmount > 0 && (
+                                                            <span className="block text-[8px] text-slate-500 italic mt-0.5 font-bold">
+                                                                Bs. {row.originalAmount.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                            </span>
+                                                        )}
+                                                    </>
+                                                ) : ''}
                                             </TableCell>
-                                            <TableCell className="text-right font-bold text-gray-900 py-1">
-                                                {row.balance.toFixed(2)}
+                                            <TableCell className="text-right font-bold py-1">
+                                                ${row.balance.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                             </TableCell>
                                         </TableRow>
                                     ))
@@ -180,21 +212,25 @@ export const IncomeExpenseReport = React.forwardRef<HTMLDivElement, IncomeExpens
                     <div className="pt-2">
                         <h3 className="text-sm font-bold text-gray-800 uppercase tracking-widest mb-3 bg-gray-100 p-2 rounded">2. Distribución de Utilidades</h3>
                         <div className="border border-gray-300 rounded overflow-hidden">
-                                        <Table className="text-[10px]">
+                            <Table className="text-[10px]">
                                 <TableHeader>
                                     <TableRow className="border-b-2 border-gray-400 bg-gray-50 hover:bg-gray-50">
                                         <TableHead className="text-gray-900 font-bold">PROPIETARIO</TableHead>
-                                        <TableHead className="text-gray-900 font-bold text-right">% PARTICIPACIÓN</TableHead>
+                                        <TableHead className="text-gray-900 font-bold">INMUEBLE</TableHead>
+                                        <TableHead className="text-gray-900 font-bold text-center">% PARTICIPACIÓN</TableHead>
                                         <TableHead className="text-gray-900 font-bold text-right">MONTO A PAGAR ($)</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {dataDistribution.map((row, index) => (
-                                        <TableRow key={index} className={`border-b border-gray-200 ${index % 2 === 0 ? "bg-white" : "bg-gray-50/50"}`}>
-                                            <TableCell className="font-medium text-gray-900 uppercase">{row.owner}</TableCell>
-                                            <TableCell className="text-right text-gray-600 font-bold">{row.percentage}%</TableCell>
-                                            <TableCell className="text-right font-bold text-gray-900">
-                                                {((netIncome * row.percentage) / 100).toFixed(2)}
+                                    {dataDistribution.map((item, index) => (
+                                        <TableRow key={index} className="border-b border-gray-200">
+                                            <TableCell className="font-bold py-1 uppercase">{item.owner}</TableCell>
+                                            <TableCell className="py-1 uppercase text-gray-600 italic text-[9px]">{item.property}</TableCell>
+                                            <TableCell className="text-center font-medium py-1">
+                                                {item.percentage !== null ? `${item.percentage.toFixed(2)}%` : '-'}
+                                            </TableCell>
+                                            <TableCell className="text-right font-bold py-1 text-emerald-800">
+                                                ${item.amount.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                             </TableCell>
                                         </TableRow>
                                     ))}
@@ -209,16 +245,31 @@ export const IncomeExpenseReport = React.forwardRef<HTMLDivElement, IncomeExpens
                     <h3 className="text-sm font-bold text-gray-800 uppercase tracking-widest mb-4 border-b pb-2">Resumen Operativo</h3>
                     <div className="grid grid-cols-3 gap-6">
                         <div className="bg-white border-l-4 border-emerald-500 shadow-sm p-4 rounded-r-lg border-y border-r border-gray-100">
-                            <p className="text-xs font-bold text-emerald-600 uppercase tracking-wider mb-2">Total Ingresos Brutos</p>
-                            <p className="text-2xl font-black text-gray-900">${totalGrossIncome.toFixed(2)}</p>
+                            <p className="text-xs font-bold text-emerald-600 uppercase tracking-wider mb-1">Total Ingresos Brutos</p>
+                            <p className="text-xl font-black text-gray-900">
+                                Bs. {totalIncomeBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </p>
+                            <p className="text-sm font-bold text-gray-500 mt-1">
+                                ${totalGrossIncome.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD
+                            </p>
                         </div>
                         <div className="bg-white border-l-4 border-rose-500 shadow-sm p-4 rounded-r-lg border-y border-r border-gray-100">
-                            <p className="text-xs font-bold text-rose-600 uppercase tracking-wider mb-2">Total Egresos</p>
-                            <p className="text-2xl font-black text-gray-900">-${totalExpenses.toFixed(2)}</p>
+                            <p className="text-xs font-bold text-rose-600 uppercase tracking-wider mb-1">Total Egresos</p>
+                            <p className="text-xl font-black text-gray-900">
+                                Bs. {totalExpensesBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </p>
+                            <p className="text-sm font-bold text-gray-500 mt-1">
+                                ${totalExpenses.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD
+                            </p>
                         </div>
                         <div className={`bg-white border-l-4 shadow-sm p-4 rounded-r-lg border-y border-r border-gray-100 ${netIncome >= 0 ? "border-blue-500" : "border-amber-500"}`}>
-                            <p className={`text-xs font-bold uppercase tracking-wider mb-2 ${netIncome >= 0 ? "text-blue-600" : "text-amber-600"}`}>Utilidad Neta</p>
-                            <p className="text-2xl font-black text-gray-900">${netIncome.toFixed(2)}</p>
+                            <p className={`text-xs font-bold uppercase tracking-wider mb-1 ${netIncome >= 0 ? "text-blue-600" : "text-amber-600"}`}>Utilidad Neta</p>
+                            <p className="text-xl font-black text-gray-900">
+                                Bs. {totalNetBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </p>
+                            <p className="text-sm font-bold text-gray-500 mt-1">
+                                ${netIncome.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD
+                            </p>
                         </div>
                     </div>
                 </div>

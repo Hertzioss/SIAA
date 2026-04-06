@@ -181,20 +181,18 @@ export function IncomeDialog({ open, onOpenChange, mode, income, properties, own
                             </SelectContent>
                         </Select>
                     </div>
-                    {currency === 'USD' && (
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="exchangeRate" className="text-right">Tasa (Bs/USD)</Label>
-                            <Input
-                                id="exchangeRate"
-                                type="number"
-                                step="0.01"
-                                value={exchangeRate}
-                                onChange={e => setExchangeRate(e.target.value)}
-                                placeholder="Ej: 36.50"
-                                className="col-span-3"
-                            />
-                        </div>
-                    )}
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="exchangeRate" className="text-right">Tasa (Bs/USD)</Label>
+                        <Input
+                            id="exchangeRate"
+                            type="number"
+                            step="0.01"
+                            value={exchangeRate}
+                            onChange={e => setExchangeRate(e.target.value)}
+                            placeholder="Ej: 36.50"
+                            className="col-span-3"
+                        />
+                    </div>
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="category" className="text-right">Categoría</Label>
                         <Label htmlFor="category" className="text-right">Categoría</Label>
@@ -239,7 +237,7 @@ export function IncomeDialog({ open, onOpenChange, mode, income, properties, own
                 </div>
                 <DialogFooter>
                     <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-                    <Button onClick={handleSubmit} disabled={loading || !ownerId || !amount || (currency === 'USD' && !exchangeRate)}>
+                    <Button onClick={handleSubmit} disabled={loading || !ownerId || !amount || !exchangeRate}>
                         {loading ? "Guardando..." : (mode === 'create' ? "Guardar" : "Actualizar")}
                     </Button>
                 </DialogFooter>

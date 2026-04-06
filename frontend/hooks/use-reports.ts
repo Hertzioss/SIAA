@@ -22,7 +22,7 @@ export function useReports() {
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
 
-    const fetchIncomeExpense = useCallback(async (months: string[], year: string, properties: string[]) => {
+    const fetchIncomeExpense = useCallback(async (months: string[], year: string, properties: string[], owners: string[] = []) => {
         setIsLoading(true)
         setError(null)
         try {
@@ -31,8 +31,6 @@ export function useReports() {
                 'JULIO': 6, 'AGOSTO': 7, 'SEPTIEMBRE': 8, 'OCTUBRE': 9, 'NOVIEMBRE': 10, 'DICIEMBRE': 11
             }
 
-            // Calculate Date Range based on selected months
-            // If no months selected, maybe default to whole year or error? Let's assume at least one.
             if (months.length === 0) {
                 toast.warning('Debe seleccionar al menos un mes.')
                 setIsLoading(false)
@@ -46,7 +44,17 @@ export function useReports() {
             const startDate = new Date(parseInt(year), minIndex, 1).toISOString().split('T')[0]
             const endDate = new Date(parseInt(year), maxIndex + 1, 0).toISOString().split('T')[0]
 
-            // 1. Fetch Payments (Simplified query to avoid deep joins)
+            const isDateInSelectedMonths = (dateStr: string) => {
+                if (!dateStr) return false
+                // Handle both - and / and full ISO strings
+                const cleanDate = dateStr.includes('T') ? dateStr.split('T')[0] : dateStr
+                const parts = cleanDate.includes('-') ? cleanDate.split('-') : cleanDate.split('/')
+                if (parts.length < 2) return false
+                const monthPart = parseInt(parts[1], 10) - 1 // 0-11
+                return selectedIndices.includes(monthPart)
+            }
+
+            // 1. Fetch Payments (Tenant Income)
             let paymentsQuery = supabase
                 .from('payments')
                 .select(`
@@ -60,12 +68,12 @@ export function useReports() {
             const { data: rawPaymentsData, error: paymentsError } = await paymentsQuery
             if (paymentsError) throw paymentsError
 
-            // 2. Fetch Contract Details in Batch
+            // Fetch Contract Details for Properties
             const contractIds = Array.from(new Set(rawPaymentsData?.map((p: any) => p.contract_id).filter(Boolean)))
             const contractsMap: Record<string, any> = {}
 
             if (contractIds.length > 0) {
-                const { data: contractsData, error: contractsError } = await supabase
+                const { data: contractsData } = await supabase
                     .from('contracts')
                     .select(`
                         id,
@@ -79,8 +87,6 @@ export function useReports() {
                     `)
                     .in('id', contractIds)
 
-                if (contractsError) throw contractsError
-
                 contractsData?.forEach((c: any) => {
                     const unit = Array.isArray(c.units) ? c.units[0] : c.units
                     const property = Array.isArray(unit?.properties) ? unit?.properties[0] : unit?.properties
@@ -91,139 +97,245 @@ export function useReports() {
                 })
             }
 
-            // 3. Merge Payments with Contract/Property info
-            const paymentsData = rawPaymentsData.map((p: any) => {
-                const contractInfo = contractsMap[p.contract_id || '']
-                return {
-                    ...p,
-                    contracts: {
-                        units: {
-                            properties: {
-                                id: contractInfo?.property_id,
-                                name: contractInfo?.property_name
-                            }
-                        },
-                        tenants: {
-                            name: Array.isArray(p.tenants) ? p.tenants[0]?.name : p.tenants?.name
-                        }
-                    }
-                }
-            })
-
-            // 4. Fetch Expenses
-            let expensesQuery = supabase
+            // 2. Fetch General Expenses
+            const { data: expensesData, error: expensesError } = await supabase
                 .from('expenses')
-                .select(`
-                    *,
-                    properties (
-                        id,
-                        name
-                    )
-                `)
+                .select(`*, properties (id, name)`)
                 .gte('date', startDate)
                 .lte('date', endDate)
-
-            const { data: expensesData, error: expensesError } = await expensesQuery
             if (expensesError) throw expensesError
 
-            // Helper to check if a date falls within the selected specific months
-            const isDateInSelectedMonths = (dateStr: string) => {
-                const monthPart = parseInt(dateStr.split('-')[1]) - 1 // 0-11
-                return selectedIndices.includes(monthPart)
-            }
+            // 3. Fetch Owner Expenses (from the fixed page)
+            const { data: ownerExpensesData, error: ownerExpensesError } = await supabase
+                .from('owner_expenses')
+                .select(`*, property:properties (id, name), owner:owners(id, name)`)
+                .gte('date', startDate)
+                .lte('date', endDate)
+            if (ownerExpensesError) throw ownerExpensesError
 
-            // Filter by properties AND specific months
-            const filteredPayments = paymentsData.filter((p: any) => {
-                const pId = p.contracts?.units?.properties?.id
-                const matchProperty = properties.length > 0 ? properties.includes(pId) : true
+            // 4. Fetch Owner Incomes
+            const { data: ownerIncomesData, error: ownerIncomesError } = await supabase
+                .from('owner_incomes')
+                .select(`*, property:properties (id, name), owner:owners(id, name)`)
+                .gte('date', startDate)
+                .lte('date', endDate)
+            if (ownerIncomesError) throw ownerIncomesError
+
+            // Filter Incomes by Property and Month
+            const filteredPayments = rawPaymentsData.filter((p: any) => {
+                const pId = contractsMap[p.contract_id || '']?.property_id
+                const matchProperty = properties.length > 0 ? (pId && properties.includes(pId)) : true
                 const matchMonth = isDateInSelectedMonths(p.date)
                 return matchProperty && matchMonth
             })
 
-            const filteredExpenses = expensesData.filter((e: any) => {
-                const matchProperty = properties.length > 0 ? properties.includes(e.property_id) : true
+            const filteredOwnerIncomes = (ownerIncomesData || []).filter((i: any) => {
+                const matchProperty = properties.length > 0 ? (i.property_id && properties.includes(i.property_id)) : true
+                const matchMonth = isDateInSelectedMonths(i.date)
+                return matchProperty && matchMonth
+            })
+
+            // Filter Expenses by Property and Month
+            const filteredGeneralExpenses = (expensesData || []).filter((e: any) => {
+                const matchProperty = properties.length > 0 ? (e.property_id && properties.includes(e.property_id)) : true
                 const matchMonth = isDateInSelectedMonths(e.date)
                 return matchProperty && matchMonth
             })
 
-            // Transform Data - Split by Currency
-            const dataUsd = filteredPayments
-                .filter((p: any) => p.currency === 'USD')
-                .map((p: any) => ({
-                    date: p.date && isValid(parseISO(p.date)) ? format(parseISO(p.date), 'dd/MM/yyyy') : p.date,
-                    tenantName: p.contracts?.tenants?.name || 'Desconocido',
-                    concept: p.concept,
-                    credit: p.amount,
-                    debit: 0,
-                    balance: p.amount // Placeholder for balance
-                }))
+            // COLLECT ALL AVAILABLE RATES FOR THIS PERIOD
+            const ratesByDate: Record<string, number> = {}
+            const allRawItems = [...(rawPaymentsData || []), ...(expensesData || []), ...(ownerExpensesData || []), ...(ownerIncomesData || [])]
+            allRawItems.forEach((item: any) => {
+                if (item.exchange_rate && item.exchange_rate > 0) {
+                    const d = item.date && isValid(parseISO(item.date)) ? format(parseISO(item.date), 'dd/MM/yyyy') : item.date
+                    if (d) ratesByDate[d] = item.exchange_rate
+                }
+            })
+            
+            // Helper to get rate with fallback to other items in the same month if exact date not found
+            const getRate = (itemDate: string) => {
+                if (ratesByDate[itemDate]) return ratesByDate[itemDate]
+                // Fallback: look for ANY rate in the same month/year
+                const [day, month, year] = itemDate.split('/')
+                const monthlyRates = Object.entries(ratesByDate).filter(([d]) => d.endsWith(`${month}/${year}`))
+                if (monthlyRates.length > 0) return monthlyRates[0][1] // Use first available for that month
+                return 0
+            }
 
-            const dataBs = filteredPayments
-                .filter((p: any) => p.currency === 'VES')
-                .map((p: any) => {
+            const filteredOwnerExpenses = (ownerExpensesData || []).filter((e: any) => {
+                // If specific owners are selected, we MUST show their expenses even if they have no property linked
+                const matchOwner = owners.length > 0 ? (e.owner_id && owners.includes(e.owner_id)) : true
+                // If owners are selected, property filter is less strict for their personal expenses
+                const matchProperty = (properties.length > 0) ? (e.property_id && properties.includes(e.property_id)) : true
+                
+                const matchMonth = isDateInSelectedMonths(e.date)
+                
+                if (owners.length > 0) {
+                    return matchOwner && matchMonth
+                }
+                return matchProperty && matchMonth
+            })
+
+            // COMBINE AND TRANSFORM INCOMES
+            const dataUsd = [
+                ...filteredPayments.filter((p: any) => p.currency?.toUpperCase().trim() === 'USD').map((p: any) => {
+                    const d = p.date && isValid(parseISO(p.date)) ? format(parseISO(p.date), 'dd/MM/yyyy') : p.date
+                    const rate = p.exchange_rate || getRate(d)
+                    return {
+                        date: d,
+                        tenantName: (Array.isArray(p.tenants) ? p.tenants[0]?.name : p.tenants?.name) || 'Inquilino',
+                        concept: p.concept,
+                        credit: p.amount,
+                        debit: 0,
+                        balance: p.amount,
+                        rate: rate,
+                        originalAmount: (p.amount || 0) * rate
+                    }
+                }),
+                ...filteredOwnerIncomes.filter((i: any) => i.currency?.toUpperCase().trim() === 'USD').map((i: any) => {
+                    const d = i.date && isValid(parseISO(i.date)) ? format(parseISO(i.date), 'dd/MM/yyyy') : i.date
+                    const rate = i.exchange_rate || getRate(d)
+                    return {
+                        date: d,
+                        tenantName: i.owner?.name || 'Propietario',
+                        concept: `${i.category} - ${i.description}`,
+                        credit: i.amount,
+                        debit: 0,
+                        balance: i.amount,
+                        rate: rate,
+                        originalAmount: (i.amount || 0) * rate
+                    }
+                })
+            ]
+
+            const dataBs = [
+                ...filteredPayments.filter((p: any) => p.currency?.toUpperCase().trim() !== 'USD').map((p: any) => {
                     const rate = p.exchange_rate || 0
                     const incomeUsd = rate > 0 ? (p.amount / rate) : 0
                     return {
                         date: p.date && isValid(parseISO(p.date)) ? format(parseISO(p.date), 'dd/MM/yyyy') : p.date,
-                        tenantName: p.contracts?.tenants?.name || 'Desconocido',
+                        tenantName: (Array.isArray(p.tenants) ? p.tenants[0]?.name : p.tenants?.name) || 'Inquilino',
                         concept: p.concept,
-                        credit: p.amount, // This is in VES
+                        credit: p.amount,
                         debit: 0,
-                        balance: p.amount, // in VES
+                        balance: p.amount,
                         rate: rate,
                         incomeUsd: incomeUsd,
-                        balanceUsd: incomeUsd // in USD
+                        balanceUsd: incomeUsd,
+                        originalAmount: p.amount // Consistent with dataUsd
+                    }
+                }),
+                ...filteredOwnerIncomes.filter((i: any) => i.currency !== 'USD').map((i: any) => {
+                    const rate = i.exchange_rate || 0
+                    const incomeUsd = rate > 0 ? (i.amount / rate) : 0
+                    return {
+                        date: i.date && isValid(parseISO(i.date)) ? format(parseISO(i.date), 'dd/MM/yyyy') : i.date,
+                        tenantName: i.owner?.name || 'Propietario',
+                        concept: `${i.category} - ${i.description}`,
+                        credit: i.amount,
+                        debit: 0,
+                        balance: i.amount,
+                        rate: rate,
+                        incomeUsd: incomeUsd,
+                        balanceUsd: incomeUsd,
+                        originalAmount: i.amount // Consistent with dataUsd
                     }
                 })
+            ]
 
-            const dataExpenses = filteredExpenses.map((e: any) => ({
-                date: e.date && isValid(parseISO(e.date)) ? format(parseISO(e.date), 'dd/MM/yyyy') : e.date,
-                category: e.category,
-                description: e.description,
-                amount: e.amount,
-                status: e.status
-            }))
+            const categoryMap: Record<string, string> = {
+                'fee': 'Honorarios / Comisiones',
+                'withdrawal': 'Retiro / Pago',
+                'tax': 'Impuestos',
+                'maintenance': 'Mantenimiento',
+                'other': 'Otro / Varios'
+            }
 
-            // 3. Fetch Owners and Property Relationships
-            const { data: ownersData, error: ownersError } = await supabase
-                .from('property_owners')
-                .select(`
-                    percentage,
-                    property_id,
-                    owner:owners (
-                        id,
-                        name
-                    )
-                `)
-
-            if (ownersError) throw ownersError
+            // COMBINE AND TRANSFORM EXPENSES
+            const dataExpenses = [
+                ...filteredGeneralExpenses.map((e: any) => {
+                    const isBs = e.currency === 'Bs' || e.currency === 'VES'
+                    const rate = e.exchange_rate || 0
+                    const amountUsd = isBs && rate > 0 ? (e.amount / rate) : e.amount
+                    const amountBs = isBs ? e.amount : (e.amount * rate)
+                    return {
+                        date: e.date && isValid(parseISO(e.date)) ? format(parseISO(e.date), 'dd/MM/yyyy') : e.date,
+                        category: categoryMap[e.category] || e.category,
+                        description: e.description,
+                        amount: amountUsd, // USD for balance
+                        originalAmount: amountBs, // Always have BS equivalent
+                        currency: e.currency,
+                        rate: rate,
+                        status: e.status
+                    }
+                }),
+                ...filteredOwnerExpenses.map((e: any) => {
+                    const isBs = e.currency === 'Bs' || e.currency === 'VES'
+                    const rate = e.exchange_rate || 0
+                    const amountUsd = isBs && rate > 0 ? (e.amount / rate) : e.amount
+                    const amountBs = isBs ? e.amount : (e.amount * rate)
+                    return {
+                        date: e.date && isValid(parseISO(e.date)) ? format(parseISO(e.date), 'dd/MM/yyyy') : e.date,
+                        category: categoryMap[e.category] || e.category,
+                        description: `${e.description} (${e.owner?.name || ''})`,
+                        amount: amountUsd,
+                        originalAmount: amountBs, // Always have BS equivalent
+                        currency: e.currency,
+                        rate: rate,
+                        status: e.status
+                    }
+                })
+            ]
 
             // Calculate Net Income calculation per property to distribute correctly
-            // We need to group payments and expenses by property
             const propertyFinancials: Record<string, { income: number, expense: number, net: number }> = {}
+            const ownerShares: Record<string, { name: string, amount: number, personalAdjustments: number }> = {}
 
-            // Process Income
             filteredPayments.forEach((p: any) => {
-                const pid = p.contracts?.units?.properties?.id
+                const pid = contractsMap[p.contract_id || '']?.property_id
                 if (!pid) return
-
                 if (!propertyFinancials[pid]) propertyFinancials[pid] = { income: 0, expense: 0, net: 0 }
-
-                let amountUsd = p.amount
-                if (p.currency === 'VES') {
-                    const rate = p.exchange_rate || 0
-                    amountUsd = rate > 0 ? (p.amount / rate) : 0
-                }
+                let amountUsd = p.currency === 'VES' ? (p.exchange_rate > 0 ? (p.amount / p.exchange_rate) : 0) : p.amount
                 propertyFinancials[pid].income += amountUsd
             })
 
-            // Process Expenses
-            filteredExpenses.forEach((e: any) => {
+            filteredOwnerIncomes.forEach((i: any) => {
+                const pid = i.property_id
+                let amountUsd = i.currency !== 'USD' ? (i.exchange_rate > 0 ? (i.amount / i.exchange_rate) : 0) : i.amount
+                
+                if (pid) {
+                    if (!propertyFinancials[pid]) propertyFinancials[pid] = { income: 0, expense: 0, net: 0 }
+                    propertyFinancials[pid].income += amountUsd
+                } else {
+                    const ownerName = i.owner?.name || 'Desconocido'
+                    if (!ownerShares[ownerName]) ownerShares[ownerName] = { name: ownerName, amount: 0, personalAdjustments: 0 }
+                    if (ownerShares[ownerName].personalAdjustments === undefined) ownerShares[ownerName].personalAdjustments = 0
+                    ownerShares[ownerName].personalAdjustments += amountUsd
+                }
+            })
+
+            filteredGeneralExpenses.forEach((e: any) => {
                 const pid = e.property_id
                 if (!pid) return
                 if (!propertyFinancials[pid]) propertyFinancials[pid] = { income: 0, expense: 0, net: 0 }
+                let amountUsd = (e.currency === 'Bs' || e.currency === 'VES') ? (e.exchange_rate > 0 ? (e.amount / e.exchange_rate) : 0) : e.amount
+                propertyFinancials[pid].expense += amountUsd
+            })
 
-                propertyFinancials[pid].expense += e.amount
+            filteredOwnerExpenses.forEach((e: any) => {
+                const pid = e.property_id
+                let amountUsd = (e.currency === 'Bs' || e.currency === 'VES') ? (e.exchange_rate > 0 ? (e.amount / e.exchange_rate) : 0) : e.amount
+                
+                if (pid) {
+                    if (!propertyFinancials[pid]) propertyFinancials[pid] = { income: 0, expense: 0, net: 0 }
+                    propertyFinancials[pid].expense += amountUsd
+                } else {
+                    // Personal owner expense with no property: substract from ownerShares later or keep in a separate map
+                    const ownerName = e.owner?.name || 'Desconocido'
+                    if (!ownerShares[ownerName]) ownerShares[ownerName] = { name: ownerName, amount: 0, personalAdjustments: 0 }
+                    if (ownerShares[ownerName].personalAdjustments === undefined) ownerShares[ownerName].personalAdjustments = 0
+                    ownerShares[ownerName].personalAdjustments -= amountUsd
+                }
             })
 
             // Calculate Net for each property
@@ -232,42 +344,82 @@ export function useReports() {
             })
 
             // Distribute to owners
-            const ownerShares: Record<string, { name: string, amount: number }> = {}
+            const { data: ownersData } = await supabase.from('property_owners').select(`percentage, property_id, owner:owners (id, name)`)
             let totalNetIncome = 0
 
-            // Filter property owners by the selected properties (if filtering is active)
-            const relevantPropertyOwners = properties.length > 0
-                ? ownersData.filter((po: any) => properties.includes(po.property_id))
-                : ownersData
+            const relevantPropertyOwners = properties.length > 0 ? (ownersData || []).filter((po: any) => properties.includes(po.property_id)) : (ownersData || [])
 
-            // We iterate over the financial records of properties that are relevant
+            const distributionMap: Record<string, { owner: string, properties: string[], totalShare: number, totalGrossForOwnerProps: number, personalAdjustments: number }> = {}
+
             Object.keys(propertyFinancials).forEach(pid => {
-                // If filter is active and this property is not in it, skip (though filteredPayments should handle this)
-                if (properties.length > 0 && !properties.includes(pid)) return
-
                 const net = propertyFinancials[pid].net
-                totalNetIncome += net
-
-                // Find owners for this property
+                const income = propertyFinancials[pid].income
                 const propsOwners = relevantPropertyOwners.filter((po: any) => po.property_id === pid)
+                
+                const pInfo: any = Object.values(contractsMap).find((c: any) => c.property_id === pid)
+                const propertyName = pInfo?.property_name || 'Propiedad'
 
                 propsOwners.forEach((po: any) => {
                     const ownerName = po.owner?.name || 'Desconocido'
                     const share = net * (po.percentage / 100)
+                    const grossPortion = income * (po.percentage / 100)
 
-                    if (!ownerShares[ownerName]) {
-                        ownerShares[ownerName] = { name: ownerName, amount: 0 }
+                    if (!distributionMap[ownerName]) {
+                        distributionMap[ownerName] = { 
+                            owner: ownerName, 
+                            properties: [], 
+                            totalShare: 0, 
+                            totalGrossForOwnerProps: 0, 
+                            personalAdjustments: 0 
+                        }
                     }
-                    ownerShares[ownerName].amount += share
+                    
+                    if (!distributionMap[ownerName].properties.includes(propertyName)) {
+                        distributionMap[ownerName].properties.push(propertyName)
+                    }
+                    distributionMap[ownerName].totalShare += share
+                    distributionMap[ownerName].totalGrossForOwnerProps += income // Sum the TOTAL income of properties where they participate
                 })
             })
 
-            // Transform to distribution array with effective percentage
-            const dataDistribution = Object.values(ownerShares).map(share => ({
-                owner: share.name, // Component expects 'owner'
-                amount: share.amount,
-                percentage: totalNetIncome !== 0 ? (share.amount / totalNetIncome) * 100 : 0
-            }))
+            // Collect personal adjustments
+            Object.keys(ownerShares).forEach(name => {
+                if (ownerShares[name].personalAdjustments !== 0) {
+                    if (!distributionMap[name]) {
+                        distributionMap[name] = { 
+                            owner: name, 
+                            properties: ['AJUSTES'], 
+                            totalShare: 0, 
+                            totalGrossForOwnerProps: 0, 
+                            personalAdjustments: 0 
+                        }
+                    }
+                    distributionMap[name].personalAdjustments += ownerShares[name].personalAdjustments
+                }
+            })
+
+            const dataDistribution = Object.values(distributionMap).map(d => {
+                const finalAmount = d.totalShare + d.personalAdjustments
+                // Participation % is (totalShare / sum of net of properties they own)
+                // Actually, if they own 100% of Prop A ($1000) and Prop B ($1000). net is 2000. totalShare is 2000. % is 100.
+                // We'll sum the weighted percentages: (Share_A + Share_B) / (Net_A + Net_B)
+                let weightedPercentage = 0
+                // Sum the nets of all properties this owner participates in
+                const totalNetOfOwnedProps = Object.keys(propertyFinancials)
+                    .filter(pid => relevantPropertyOwners.some((po: any) => po.property_id === pid && po.owner?.name === d.owner))
+                    .reduce((sum, pid) => sum + propertyFinancials[pid].net, 0)
+                
+                if (totalNetOfOwnedProps > 0) {
+                    weightedPercentage = (d.totalShare / totalNetOfOwnedProps) * 100
+                }
+
+                return {
+                    owner: d.owner,
+                    property: d.properties.join(', '),
+                    percentage: weightedPercentage,
+                    amount: finalAmount
+                }
+            })
 
             return {
                 dataUsd,
@@ -276,7 +428,7 @@ export function useReports() {
                 dataDistribution
             }
 
-        } catch (err: any) {
+        } catch (err) {
             console.error('Error fetching income/expense:', err)
             toast.error('Error al generar reporte financiero')
             return null
