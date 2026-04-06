@@ -116,22 +116,65 @@ export const TenantStatementReport = React.forwardRef<HTMLDivElement, TenantStat
                     </div>
                 </div>
 
+                {/* 2.2 Pending Months Section */}
+                {data.pendingMonths.length > 0 && (
+                    <div className="mt-4">
+                        <h3 className="text-sm font-bold text-rose-700 uppercase tracking-widest mb-3 bg-rose-50 p-2 rounded border border-rose-100 flex justify-between">
+                            <span>2. Meses Pendientes de Pago</span>
+                            <span className="font-black">Deuda: {formatMoney(data.totalDebt)}</span>
+                        </h3>
+                        <div className="border border-rose-200 rounded overflow-hidden">
+                            <Table className="text-[10px]">
+                                <TableHeader>
+                                    <TableRow className="border-b-2 border-rose-400 bg-rose-50 hover:bg-rose-50">
+                                        <TableHead className="text-rose-900 font-bold">MES / AÑO Pendiente</TableHead>
+                                        <TableHead className="text-rose-900 font-bold text-right">MONTO CANON ($)</TableHead>
+                                        <TableHead className="text-rose-900 font-bold uppercase text-center italic opacity-60">Status</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {data.pendingMonths.map((m, idx) => (
+                                        <TableRow key={idx} className="border-b border-rose-100 bg-white">
+                                            <TableCell className="font-bold text-rose-900 uppercase">
+                                                {m.month} {m.year}
+                                            </TableCell>
+                                            <TableCell className="text-right font-black text-rose-600">
+                                                {formatMoney(m.amount)}
+                                            </TableCell>
+                                            <TableCell className="text-center italic text-rose-400 font-bold uppercase text-[8px]">
+                                                PENDIENTE
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </div>
+                    </div>
+                )}
+
                 {/* 3. Executive Summary */}
                 <div className="pt-6">
                     <h3 className="text-sm font-bold text-gray-800 uppercase tracking-widest mb-4 border-b pb-2">Resumen Operativo</h3>
-                    <div className="grid grid-cols-3 gap-6">
-                        <div className="bg-white border-l-4 border-emerald-500 shadow-sm p-4 rounded-r-lg border-y border-r border-gray-100">
-                            <p className="text-xs font-bold text-emerald-600 uppercase tracking-wider mb-2">Total Pagado</p>
-                            <p className="text-2xl font-black text-gray-900">{formatMoney(data.totalPaidBs, 'Bs')}</p>
-                            <p className="text-sm text-gray-500 mt-1 font-medium">{formatMoney(data.totalPaid)}</p>
+                    <div className="grid grid-cols-4 gap-4">
+                        <div className="bg-white border-l-4 border-rose-600 shadow-sm p-3 rounded-r-lg border-y border-r border-gray-100">
+                            <p className="text-[10px] font-bold text-rose-600 uppercase tracking-wider mb-1">Deuda Acumulada</p>
+                            <p className="text-xl font-black text-gray-900 leading-none mb-1">{formatMoney(data.totalDebt)}</p>
+                            <p className="text-[10px] text-gray-500 font-bold uppercase">{data.pendingMonths.length} Meses</p>
                         </div>
-                        <div className="bg-white border-l-4 border-blue-500 shadow-sm p-4 rounded-r-lg border-y border-r border-gray-100">
-                            <p className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-2">Pagos Registrados</p>
-                            <p className="text-2xl font-black text-gray-900">{data.payments.length}</p>
+                        <div className="bg-white border-l-4 border-emerald-500 shadow-sm p-3 rounded-r-lg border-y border-r border-gray-100">
+                            <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider mb-1">Total Pagado (Periodo)</p>
+                            <p className="text-xl font-black text-gray-900 leading-none mb-1">{formatMoney(data.totalPaid)}</p>
+                            <p className="text-[10px] text-gray-500 font-bold uppercase">{data.payments.length} Pagos</p>
                         </div>
-                        <div className="bg-white border-l-4 border-slate-500 shadow-sm p-4 rounded-r-lg border-y border-r border-gray-100">
-                            <p className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Canon Mensual</p>
-                            <p className="text-2xl font-black text-gray-900">{formatMoney(data.contractInfo?.rentAmount || 0)}</p>
+                        <div className="bg-white border-l-4 border-blue-500 shadow-sm p-3 rounded-r-lg border-y border-r border-gray-100">
+                            <p className="text-[10px] font-bold text-blue-600 uppercase tracking-wider mb-1">En Bolívares</p>
+                            <p className="text-xl font-black text-gray-900 leading-none mb-1">{formatMoney(data.totalPaidBs, 'Bs')}</p>
+                            <p className="text-[10px] text-gray-500 font-bold uppercase">Total Equivalente</p>
+                        </div>
+                        <div className="bg-white border-l-4 border-slate-500 shadow-sm p-3 rounded-r-lg border-y border-r border-gray-100">
+                            <p className="text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-1">Canon Mensual</p>
+                            <p className="text-xl font-black text-gray-900 leading-none mb-1">{formatMoney(data.contractInfo?.rentAmount || 0)}</p>
+                            <p className="text-[10px] text-gray-500 font-bold uppercase">Vigente</p>
                         </div>
                     </div>
                 </div>

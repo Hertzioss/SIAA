@@ -169,8 +169,9 @@ export const OperationalReport = React.forwardRef<HTMLDivElement, OperationalRep
                                                     <TableHead className="text-gray-900 font-bold w-[150px] min-w-[150px] max-w-[150px] whitespace-normal break-words">INQUILINO</TableHead>
                                                     <TableHead className="text-gray-900 font-bold w-[100px] min-w-[100px] max-w-[100px] whitespace-normal break-words">UNIDAD</TableHead>
                                                     <TableHead className="text-gray-900 font-bold w-[120px]">CONTRATO (Ini / Fin)</TableHead>
-                                                    <TableHead className="text-gray-900 font-bold text-right w-[120px]">MESES ATRASADOS</TableHead>
-                                                    <TableHead className="text-gray-900 font-bold text-right w-[120px]">DEUDA TOTAL ($)</TableHead>
+                                                    <TableHead className="text-gray-900 font-bold text-right w-[80px]">CANON ($)</TableHead>
+                                                    <TableHead className="text-gray-900 font-bold text-right w-[100px]">MESES ATRASADOS</TableHead>
+                                                    <TableHead className="text-gray-900 font-bold text-right w-[100px]">DEUDA TOTAL ($)</TableHead>
                                                 </TableRow>
                                             </TableHeader>
                                             <TableBody>
@@ -186,10 +187,15 @@ export const OperationalReport = React.forwardRef<HTMLDivElement, OperationalRep
                                                                 <span className={`text-[8px] italic ${row.endDate === 'Indefinido' ? 'text-amber-600' : 'opacity-60'}`}>Fin: {row.endDate}</span>
                                                             </div>
                                                         </TableCell>
-                                                        <TableCell className={`text-right font-bold w-[120px] ${row.months === "Revisar Fecha" ? "text-rose-600" : "text-gray-600"}`}>
+                                                        <TableCell className={`text-right font-bold w-[80px] text-gray-600`}>
+                                                            ${(row.rent || 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                        </TableCell>
+                                                        <TableCell className={`text-right font-bold w-[100px] ${row.months === "Revisar Fecha" ? "text-rose-600" : "text-gray-600"}`}>
                                                             {row.months}
                                                         </TableCell>
-                                                        <TableCell className="text-right text-rose-600 font-bold w-[120px]">${(row.debt || 0).toFixed(2)}</TableCell>
+                                                        <TableCell className="text-right text-rose-600 font-bold w-[100px]">
+                                                            ${(row.debt || 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                        </TableCell>
                                                     </TableRow>
                                                 ))}
                                             </TableBody>

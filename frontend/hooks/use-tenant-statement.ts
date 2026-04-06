@@ -36,6 +36,8 @@ export interface TenantStatementData {
     payments: StatementPayment[]
     totalPaid: number
     totalPaidBs: number
+    pendingMonths: { month: string, year: number, amount: number }[]
+    totalDebt: number
     period: string
 }
 
@@ -112,6 +114,54 @@ export function useTenantStatement() {
 
             const totalPaid = statementPayments.reduce((acc, p) => acc + p.amount, 0)
             const totalPaidBs = statementPayments.reduce((acc, p) => acc + (p.amount * (p.exchangeRate || 0)), 0)
+            
+            // 5. Calculate pending months
+            const pendingMonths: { month: string, year: number, amount: number }[] = []
+            let totalDebt = 0
+            
+            if (contract && contract.start_date) {
+                const startDate = parseISO(contract.start_date)
+                const now = new Date()
+                
+                // Fetch ALL payments for this contract (not just in range) to know total paid months
+                const { data: allPayments } = await supabase
+                    .from('payments')
+                    .select('id')
+                    .eq('contract_id', contract.id)
+                    .in('status', ['approved', 'paid'])
+                
+                const totalPaidMonths = allPayments?.length || 0
+                
+                // Calculate months passed between startDate and endRange
+                // We use the report's start/end dates
+                const reportStart = filters.startDate
+                const reportEnd = filters.endDate
+                
+                const monthsInReportRange = (reportEnd.getFullYear() - reportStart.getFullYear()) * 12 + (reportEnd.getMonth() - reportStart.getMonth()) + 1
+                
+                // For each month in the report range, check if it was paid
+                // This is a naive but effective way: 
+                // We know totalPaidMonths from start of contract.
+                // We need to know if a specific month in the report range is "covered" by those total payments.
+                const monthsNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
+                
+                for (let i = 0; i < monthsInReportRange; i++) {
+                    const currentMonthDate = new Date(reportStart.getFullYear(), reportStart.getMonth() + i, 1)
+                    
+                    // Months elapsed from contract start to this specific month in report
+                    const elapsedSinceStart = (currentMonthDate.getFullYear() - startDate.getFullYear()) * 12 + (currentMonthDate.getMonth() - startDate.getMonth()) + 1
+                    
+                    if (elapsedSinceStart > totalPaidMonths) {
+                        pendingMonths.push({
+                            month: monthsNames[currentMonthDate.getMonth()],
+                            year: currentMonthDate.getFullYear(),
+                            amount: contract.rent_amount || 0
+                        })
+                    }
+                }
+                totalDebt = pendingMonths.reduce((sum, m) => sum + m.amount, 0)
+            }
+
             const periodStr = `${format(filters.startDate, 'dd/MM/yyyy')} - ${format(filters.endDate, 'dd/MM/yyyy')}`
 
             const result: TenantStatementData = {
@@ -124,6 +174,8 @@ export function useTenantStatement() {
                 payments: statementPayments,
                 totalPaid: parseFloat(totalPaid.toFixed(2)),
                 totalPaidBs: parseFloat(totalPaidBs.toFixed(2)),
+                pendingMonths,
+                totalDebt,
                 period: periodStr
             }
 

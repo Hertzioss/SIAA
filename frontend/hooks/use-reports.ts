@@ -77,6 +77,7 @@ export function useReports() {
                     .from('contracts')
                     .select(`
                         id,
+                        rent_amount,
                         units (
                             id,
                             properties (
@@ -92,7 +93,8 @@ export function useReports() {
                     const property = Array.isArray(unit?.properties) ? unit?.properties[0] : unit?.properties
                     contractsMap[c.id] = {
                         property_id: property?.id,
-                        property_name: property?.name
+                        property_name: property?.name,
+                        rent_amount: c.rent_amount
                     }
                 })
             }
@@ -572,6 +574,7 @@ export function useReports() {
                     endDate: c.end_date ? new Date(c.end_date).toLocaleDateString('es-VE') : 'Indefinido',
                     months: isExtremeDebt ? "Revisar Fecha" : debtMonths,
                     debt: isExtremeDebt ? 0 : totalDebt,
+                    rent: c.rent_amount || 0,
                     property_id: unit?.property_id
                 }
             }).filter(Boolean)
