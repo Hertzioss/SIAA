@@ -141,8 +141,9 @@ export function useOwnerReport() {
             // 3. Fetch Owner Expenses (Directly linked to owner)
             const { data: ownerExpenses, error: expError } = await supabase
                 .from('owner_expenses')
-                .select('amount, owner_id, currency, date, category, description, exchange_rate')
-                .eq('status', 'paid')
+                .select('amount, owner_id, currency, date, category, description, exchange_rate, status')
+                // Remove .eq('status', 'paid') to match fetchIncomeExpense behavior or include 'approved'
+                .in('status', ['paid', 'approved']) 
                 .gte('date', startStr)
                 .lte('date', endStr)
                 .order('date', { ascending: true })
@@ -156,8 +157,9 @@ export function useOwnerReport() {
             if (propertyIdsKeys.length > 0) {
                 const { data: propExp, error: propExpError } = await supabase
                     .from('expenses')
-                    .select('amount, property_id, currency, date, category, description, exchange_rate, properties(name)')
+                    .select('amount, property_id, currency, date, category, description, exchange_rate, status, properties(name)')
                     .in('property_id', propertyIdsKeys)
+                    .in('status', ['paid', 'approved']) // Also add consistency filter here
                     .gte('date', startStr)
                     .lte('date', endStr);
 
@@ -361,9 +363,10 @@ export function useOwnerReport() {
                 });
             });
 
-            // Sort Expenses by Date
+            // Sort Movements by Date (using ISO date for safety)
             Object.values(ownerStats).forEach(stat => {
-                stat.expenses.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+                stat.payments.sort((a, b) => new Date(a.date.split('/').reverse().join('-')).getTime() - new Date(b.date.split('/').reverse().join('-')).getTime());
+                stat.expenses.sort((a, b) => new Date(a.date.split('/').reverse().join('-')).getTime() - new Date(b.date.split('/').reverse().join('-')).getTime());
             });
 
             // Calculate Net & Property Count

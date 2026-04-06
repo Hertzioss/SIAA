@@ -27,20 +27,7 @@ export const OwnerFinancialReport = React.forwardRef<HTMLDivElement, OwnerFinanc
     const netTotalUsd = totalIncomeUsd - totalExpensesUsd
     const netTotalBs = totalIncomeBs - totalExpensesBs
 
-    // Sort movements by date
-    const sortedPayments = React.useMemo(() => {
-        if (!data[0]?.payments) return []
-        return [...data[0].payments].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-    }, [data])
-
-    const sortedExpenses = React.useMemo(() => {
-        if (!data[0]?.expenses) return []
-        return [...data[0].expenses].sort((a, b) => {
-            const dateA = a.date ? new Date(a.date).getTime() : 0
-            const dateB = b.date ? new Date(b.date).getTime() : 0
-            return dateA - dateB
-        })
-    }, [data])
+    // Movements are now handled per owner in the loop below
 
     return (
         <div ref={ref} className="p-8 bg-white text-black font-sans w-full max-w-[1000px] mx-auto shadow-sm border border-gray-100 rounded-sm [print-color-adjust:exact]">
@@ -64,107 +51,120 @@ export const OwnerFinancialReport = React.forwardRef<HTMLDivElement, OwnerFinanc
             ) : (
                 <div className="space-y-8">
                     {/* 1. Header & Owner Info */}
-                    <div className="border-b-2 border-gray-800 pb-6">
-                        <div className="flex flex-col md:flex-row print:flex-row justify-between items-start mb-6">
-                            <div>
-                                <h1 className="text-3xl font-black uppercase tracking-widest text-gray-900">ESTADO DE CUENTA</h1>
-                                <p className="text-md font-medium text-gray-500 uppercase mt-1 tracking-wider">Reporte Financiero</p>
-                            </div>
-                            <div className="text-right mt-2 md:mt-0 print:mt-0">
-                                <div className="bg-gray-100 px-4 py-2 rounded-md border border-gray-200">
-                                    <p className="text-xs text-gray-500 font-bold uppercase mb-1">Período del Reporte</p>
-                                    <p className="text-sm font-semibold text-gray-900">{period}</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="bg-slate-50 border border-slate-200 p-5 rounded-lg">
-                            <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Datos del Beneficiario</h2>
-                            <div className="flex items-center justify-start">
-                                <div className="flex items-center gap-4">
-                                    <div>
-                                        <p className="text-xl font-bold text-slate-900">{data[0].ownerName}</p>
-                                        <p className="text-sm text-slate-600 mt-0.5"> <span className="font-semibold">{data[0].ownerDocId}</span></p>
+                    {data.map((owner, ownerIdx) => (
+                        <div key={owner.ownerId} className={cn("space-y-8", ownerIdx > 0 && "pt-12 border-t-2 border-dashed border-gray-200 mt-12 print:break-before-page")}>
+                            <div className="bg-slate-50 border border-slate-200 p-5 rounded-lg">
+                                <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Datos del Beneficiario</h2>
+                                <div className="flex items-center justify-start">
+                                    <div className="flex items-center gap-4">
+                                        <div className="h-10 w-10 bg-slate-200 rounded-full flex items-center justify-center text-slate-600 font-bold">
+                                            {owner.ownerName.charAt(0)}
+                                        </div>
+                                        <div>
+                                            <p className="text-xl font-bold text-slate-900">{owner.ownerName}</p>
+                                            <p className="text-sm text-slate-600 mt-0.5"> <span className="font-semibold">{owner.ownerDocId}</span></p>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
+
+                            {/* 2. Details */}
+                            <div className="space-y-6 pt-2">
+                                {/* Payments */}
+                                {owner.payments.length > 0 && (
+                                    <div>
+                                        <h3 className="text-sm font-bold text-gray-800 uppercase tracking-widest mb-3 bg-gray-100 p-2 rounded">1. Detalle de Ingresos</h3>
+                                        <div className="border border-gray-300 rounded overflow-hidden">
+                                            <Table className="text-[10px]">
+                                                <TableHeader>
+                                                    <TableRow className="border-b-2 border-gray-400 bg-gray-50 hover:bg-gray-50">
+                                                        <TableHead className="text-gray-900 font-bold w-[100px]">FECHA</TableHead>
+                                                        <TableHead className="text-gray-900 font-bold w-[150px]">INQUILINO</TableHead>
+                                                        <TableHead className="text-gray-900 font-bold w-[150px]">EDIF / UNIDAD</TableHead>
+                                                        <TableHead className="text-gray-900 font-bold text-right">MONTO ORIG.</TableHead>
+                                                        <TableHead className="text-gray-900 font-bold text-right">TASA (Bs/USD)</TableHead>
+                                                        <TableHead className="text-gray-900 font-bold text-right">MONTO (Bs)</TableHead>
+                                                    </TableRow>
+                                                </TableHeader>
+                                                <TableBody>
+                                                    {owner.payments.map((p, idx) => (
+                                                        <TableRow key={`pay-${ownerIdx}-${idx}`} className={cn("border-b border-gray-200", idx % 2 === 0 ? "bg-white" : "bg-gray-50/50")}>
+                                                            <TableCell className="font-medium text-gray-600">{p.date}</TableCell>
+                                                            <TableCell className="leading-tight">{p.tenantName}</TableCell>
+                                                            <TableCell className="leading-tight">{p.propertyName} / {p.unitName}</TableCell>
+                                                            <TableCell className="text-right font-medium">
+                                                                {p.currency === 'VES' ? 'Bs.' : '$'} {Number(p.amountOriginal || p.amount).toLocaleString('es-VE', { minimumFractionDigits: 2 })}
+                                                            </TableCell>
+                                                            <TableCell className="text-right text-gray-500">{p.exchangeRate}</TableCell>
+                                                            <TableCell className="text-right font-bold text-gray-900">{formatMoney(p.amount, 'Bs')}</TableCell>
+                                                        </TableRow>
+                                                    ))}
+                                                </TableBody>
+                                            </Table>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Expenses */}
+                                {owner.expenses.length > 0 && (
+                                    <div className="pt-2">
+                                        <h3 className="text-sm font-bold text-gray-800 uppercase tracking-widest mb-3 bg-gray-100 p-2 rounded">2. Detalle de Egresos</h3>
+                                        <div className="border border-gray-300 rounded overflow-hidden">
+                                            <Table className="text-[10px]">
+                                                <TableHeader>
+                                                    <TableRow className="border-b-2 border-gray-400 bg-gray-50 hover:bg-gray-50">
+                                                        <TableHead className="text-gray-900 font-bold w-[100px]">FECHA</TableHead>
+                                                        <TableHead className="text-gray-900 font-bold w-[20%]">CATEGORÍA</TableHead>
+                                                        <TableHead className="text-gray-900 font-bold w-[40%]">DESCRIPCIÓN</TableHead>
+                                                        <TableHead className="text-gray-900 font-bold text-right">MONTO ORIG.</TableHead>
+                                                        <TableHead className="text-gray-900 font-bold text-right">TASA (Bs/USD)</TableHead>
+                                                        <TableHead className="text-gray-900 font-bold text-right">MONTO (Bs)</TableHead>
+                                                    </TableRow>
+                                                </TableHeader>
+                                                <TableBody>
+                                                    {owner.expenses.map((e, idx) => (
+                                                        <TableRow key={`exp-${ownerIdx}-${idx}`} className={cn("border-b border-gray-200", idx % 2 === 0 ? "bg-white" : "bg-gray-50/50")}>
+                                                            <TableCell className="font-medium text-gray-600">{e.date || '-'}</TableCell>
+                                                            <TableCell className="w-[20%] whitespace-pre-wrap break-words ">{e.category}</TableCell>
+                                                            <TableCell className="whitespace-pre-wrap break-words">{e.description}</TableCell>
+                                                            <TableCell className="text-right font-medium">
+                                                                {e.currency === 'VES' ? 'Bs.' : '$'} {Number(e.amountOriginal).toLocaleString('es-VE', { minimumFractionDigits: 2 })}
+                                                            </TableCell>
+                                                            <TableCell className="text-right text-gray-500">{e.exchangeRate}</TableCell>
+                                                            <TableCell className="text-right font-bold text-gray-900">
+                                                                {formatMoney(e.amount, 'Bs')}
+                                                            </TableCell>
+                                                        </TableRow>
+                                                    ))}
+                                                </TableBody>
+                                            </Table>
+                                        </div>
+                                    </div>
+                                )}
+                                
+                                {/* Individual Subtotal for Multiple Owners */}
+                                {data.length > 1 && (
+                                    <div className="bg-gray-50 p-3 rounded border text-right">
+                                        <p className="text-xs font-bold text-gray-500 uppercase tracking-tighter">Subtotal {owner.ownerName}</p>
+                                        <div className="mt-1 flex justify-end gap-6">
+                                            <div>
+                                                <span className="text-[10px] text-emerald-600 font-bold mr-2">INGRESOS:</span>
+                                                <span className="text-sm font-bold">{formatMoney(owner.totalIncomeUsd)}</span>
+                                            </div>
+                                            <div>
+                                                <span className="text-[10px] text-rose-600 font-bold mr-2">EGRESOS:</span>
+                                                <span className="text-sm font-bold">{formatMoney(owner.totalExpensesUsd)}</span>
+                                            </div>
+                                            <div>
+                                                <span className="text-[10px] text-blue-600 font-bold mr-2">NETO:</span>
+                                                <span className="text-sm font-bold">{formatMoney(owner.netBalanceUsd)}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
                         </div>
-                    </div>
-
-                    {/* 2. Details */}
-                    <div className="space-y-6 pt-2">
-                        {/* Payments */}
-                        {data[0].payments.length > 0 && (
-                            <div>
-                                <h3 className="text-sm font-bold text-gray-800 uppercase tracking-widest mb-3 bg-gray-100 p-2 rounded">1. Detalle de Ingresos</h3>
-                                <div className="border border-gray-300 rounded overflow-hidden">
-                                    <Table className="text-[10px]">
-                                        <TableHeader>
-                                            <TableRow className="border-b-2 border-gray-400 bg-gray-50 hover:bg-gray-50">
-                                                <TableHead className="text-gray-900 font-bold w-[100px]">FECHA</TableHead>
-                                                <TableHead className="text-gray-900 font-bold w-[150px] min-w-[150px] max-w-[150px] whitespace-normal break-words">INQUILINO</TableHead>
-                                                <TableHead className="text-gray-900 font-bold w-[150px] min-w-[150px] max-w-[150px] whitespace-normal break-words">EDIF / UNIDAD</TableHead>
-                                                <TableHead className="text-gray-900 font-bold text-right">MONTO ORIG.</TableHead>
-                                                <TableHead className="text-gray-900 font-bold text-right">TASA (Bs/USD)</TableHead>
-                                                <TableHead className="text-gray-900 font-bold text-right">MONTO (Bs)</TableHead>
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            {sortedPayments.map((p, idx) => (
-                                                <TableRow key={`pay-${idx}`} className={cn("border-b border-gray-200", idx % 2 === 0 ? "bg-white" : "bg-gray-50/50")}>
-                                                    <TableCell className="font-medium text-gray-600">{p.date}</TableCell>
-                                                    <TableCell className="w-[150px] min-w-[150px] max-w-[150px] whitespace-normal break-words leading-tight">{p.tenantName}</TableCell>
-                                                    <TableCell className="w-[150px] min-w-[150px] max-w-[150px] whitespace-normal break-words leading-tight">{p.propertyName} / {p.unitName}</TableCell>
-                                                    <TableCell className="text-right font-medium">
-                                                        {p.currency === 'VES' ? 'Bs.' : '$'} {Number(p.amountOriginal || p.amount).toLocaleString('es-VE', { minimumFractionDigits: 2 })}
-                                                    </TableCell>
-                                                    <TableCell className="text-right text-gray-500">{p.exchangeRate}</TableCell>
-                                                    <TableCell className="text-right font-bold text-gray-900">{formatMoney(p.amount, 'Bs')}</TableCell>
-                                                </TableRow>
-                                            ))}
-                                        </TableBody>
-                                    </Table>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Expenses */}
-                        {data[0].expenses.length > 0 && (
-                            <div className="pt-2">
-                                <h3 className="text-sm font-bold text-gray-800 uppercase tracking-widest mb-3 bg-gray-100 p-2 rounded">2. Detalle de Egresos</h3>
-                                <div className="border border-gray-300 rounded overflow-hidden">
-                                    <Table className="text-[10px]">
-                                        <TableHeader>
-                                            <TableRow className="border-b-2 border-gray-400 bg-gray-50 hover:bg-gray-50">
-                                                <TableHead className="text-gray-900 font-bold w-[100px]">FECHA</TableHead>
-                                                <TableHead className="text-gray-900 font-bold w-[20%]">CATEGORÍA</TableHead>
-                                                <TableHead className="text-gray-900 font-bold w-[40%]">DESCRIPCIÓN</TableHead>
-                                                <TableHead className="text-gray-900 font-bold text-right">MONTO ORIG.</TableHead>
-                                                <TableHead className="text-gray-900 font-bold text-right">TASA (Bs/USD)</TableHead>
-                                                <TableHead className="text-gray-900 font-bold text-right">MONTO (Bs)</TableHead>
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            {sortedExpenses.map((e, idx) => (
-                                                <TableRow key={`exp-${idx}`} className={cn("border-b border-gray-200", idx % 2 === 0 ? "bg-white" : "bg-gray-50/50")}>
-                                                    <TableCell className="font-medium text-gray-600">{e.date || '-'}</TableCell>
-                                                    <TableCell className="w-[20%] whitespace-pre-wrap break-words ">{e.category}</TableCell>
-                                                    <TableCell className="whitespace-pre-wrap break-words">{e.description}</TableCell>
-                                                    <TableCell className="text-right font-medium">
-                                                        {e.currency === 'VES' ? 'Bs.' : '$'} {Number(e.amountOriginal).toLocaleString('es-VE', { minimumFractionDigits: 2 })}
-                                                    </TableCell>
-                                                    <TableCell className="text-right text-gray-500">{e.exchangeRate}</TableCell>
-                                                    <TableCell className="text-right font-bold text-gray-900">
-                                                        Bs {Number(e.amount).toLocaleString('es-VE', { minimumFractionDigits: 2 })}
-                                                    </TableCell>
-                                                </TableRow>
-                                            ))}
-                                        </TableBody>
-                                    </Table>
-                                </div>
-                            </div>
-                        )}
-                    </div>
+                    ))}
 
                     {/* 3. Executive Summary (Moved to Bottom) */}
                     <div className="pt-6 break-inside-avoid">
