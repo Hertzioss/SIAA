@@ -33,6 +33,7 @@ export function useTenants() {
                     *,
                     contracts (
                         status,
+                        rent_amount,
                         unit:units (
                             id,
                             name,

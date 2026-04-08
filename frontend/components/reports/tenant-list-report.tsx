@@ -15,66 +15,83 @@ interface TenantListReportProps {
  */
 export const TenantListReport = React.forwardRef<HTMLDivElement, TenantListReportProps>(({ data, filters }, ref) => {
     return (
-        <div ref={ref} className="p-8 bg-white text-black font-sans w-full max-w-[1000px] mx-auto shadow-sm border border-gray-100 rounded-sm [print-color-adjust:exact]">
-            <div className="space-y-8">
-                {/* Header */}
-                <div className="border-b-2 border-gray-800 pb-6">
-                    <div className="flex flex-col md:flex-row print:flex-row justify-between items-start mb-6">
+        <div ref={ref} className="p-4 bg-white text-black font-sans w-full max-w-[216mm] mx-auto [print-color-adjust:exact]">
+            <style dangerouslySetInnerHTML={{ __html: `
+                @page { 
+                    size: 216mm 330mm; 
+                    margin: 10mm 8mm; 
+                }
+                @media print {
+                    .print-container { width: 100% !important; margin: 0 !important; border: none !important; }
+                    body { overflow: visible !important; }
+                }
+            `}} />
+            <div className="space-y-6 print-container">
+                {/* Header Substituted for brevity in view, but keeping the same structure */}
+                <div className="border-b-2 border-gray-800 pb-4">
+                    <div className="flex justify-between items-start mb-4">
                         <div>
-                            <h1 className="text-2xl font-black uppercase tracking-widest text-gray-900">REPORTE DE INQUILINOS</h1>
-                            <div className="mt-2 space-y-1">
-                                <p className="text-sm font-semibold text-gray-600 uppercase tracking-wider">
+                            <h1 className="text-xl font-black uppercase tracking-widest text-gray-900">REPORTE DE INQUILINOS</h1>
+                            <div className="mt-1 space-y-0.5">
+                                <p className="text-xs font-semibold text-gray-600 uppercase tracking-wider">
                                     {filters?.propertyName ? `INMUEBLE: ${filters.propertyName}` : 'Listado General'}
                                 </p>
                                 {filters?.ownerName && (
-                                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    <p className="text-[10px] font-medium text-gray-500 uppercase tracking-wider">
                                         PROPIETARIO: {filters.ownerName}
                                     </p>
                                 )}
                             </div>
                         </div>
-                        <div className="text-right mt-2 md:mt-0 print:mt-0">
-                            <div className="bg-gray-100 px-4 py-2 rounded-md border border-gray-200">
-                                <p className="text-[10px] text-gray-500 font-bold uppercase mb-1">Fecha de Generación</p>
-                                <p className="text-xs font-semibold text-gray-900">{new Date().toLocaleDateString('es-VE')}</p>
+                        <div className="text-right">
+                            <div className="bg-gray-100 px-3 py-1 rounded-md border border-gray-200">
+                                <p className="text-[9px] text-gray-500 font-bold uppercase">Generación: {new Date().toLocaleDateString('es-VE')}</p>
                             </div>
                         </div>
                     </div>
                 </div>
 
                 {/* Details Table */}
-                <div className="space-y-6 pt-2">
+                <div className="space-y-4 pt-1">
                     <div className="border border-gray-300 rounded overflow-hidden">
-                        <Table className="text-[10px]">
+                        <Table className="text-[9px] table-fixed w-full">
                             <TableHeader>
                                 <TableRow className="border-b-2 border-gray-400 bg-gray-50 hover:bg-gray-50">
-                                    <TableHead className="text-gray-900 font-bold w-[140px]">NOMBRE</TableHead>
-                                    <TableHead className="text-gray-900 font-bold">DOCUMENTO</TableHead>
-                                    <TableHead className="text-gray-900 font-bold w-[140px]">CONTACTO</TableHead>
-                                    <TableHead className="text-gray-900 font-bold">PROPIEDAD / UNIDAD</TableHead>
-                                    <TableHead className="text-gray-900 font-bold w-[140px]">PROPIETARIO</TableHead>
+                                    <TableHead className="text-gray-900 font-bold w-[130px] px-2 py-2">NOMBRE</TableHead>
+                                    <TableHead className="text-gray-900 font-bold w-[80px] px-1 py-2">CI/RIF</TableHead>
+                                    <TableHead className="text-gray-900 font-bold w-[120px] px-1 py-2">CONTACTO</TableHead>
+                                    <TableHead className="text-gray-900 font-bold w-[110px] px-1 py-2">INMUEBLE</TableHead>
+                                    <TableHead className="text-gray-900 font-bold w-[65px] px-1 py-2 text-center">UNIDAD</TableHead>
+                                    <TableHead className="text-gray-900 font-bold w-[120px] px-1 py-2">PROPIETARIO</TableHead>
+                                    <TableHead className="text-gray-900 font-bold text-right w-[80px] px-1 py-2">CANON</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {data.map((t, idx) => (
                                     <TableRow key={`tenant-${t.id || idx}`} className={cn("border-b border-gray-200", idx % 2 === 0 ? "bg-white" : "bg-gray-50/50")}>
-                                        <TableCell className="font-medium text-gray-900 max-w-[160px]">
-                                            <div className="break-words whitespace-pre-wrap">{t.name}</div>
+                                        <TableCell className="font-bold text-gray-900 px-2 py-2 overflow-hidden overflow-wrap-anywhere">
+                                            {t.name}
                                         </TableCell>
-                                        <TableCell className="text-gray-600">{t.doc_id}</TableCell>
-                                        <TableCell className="text-gray-600 max-w-[140px]">
-                                            <div className="break-words whitespace-pre-wrap">{t.phone || '-'}</div>
-                                            <div className="text-[9px] text-gray-400 break-words whitespace-pre-wrap">{t.email}</div>
+                                        <TableCell className="text-gray-600 font-medium px-1 py-2">{t.doc_id}</TableCell>
+                                        <TableCell className="text-gray-600 px-1 py-2 line-clamp-2">
+                                            <div className="font-medium text-[8.5px] truncate">{t.phone || '-'}</div>
+                                            <div className="text-[8px] text-gray-400 italic truncate">{t.email}</div>
                                         </TableCell>
-                                        <TableCell className="text-gray-600">{t.propertyName} / {t.unitName}</TableCell>
-                                        <TableCell className="text-gray-600 max-w-[140px]">
-                                            <div className="break-words whitespace-pre-wrap">{t.ownerName}</div>
+                                        <TableCell className="text-gray-700 font-semibold px-1 py-2 truncate">{t.propertyName}</TableCell>
+                                        <TableCell className="text-gray-700 font-black px-1 py-2 text-center bg-gray-100/50">{t.unitName}</TableCell>
+                                        <TableCell className="text-gray-600 px-1 py-2">
+                                            <div className="text-[8.5px] leading-snug whitespace-normal break-words py-1">{t.ownerName}</div>
+                                        </TableCell>
+                                        <TableCell className="text-right font-bold px-1 py-2 whitespace-nowrap">
+                                            <div className="text-xs text-gray-900">
+                                                {t.currency === 'USD' ? '$' : 'Bs'} {Number(t.monthlyAmount || 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                            </div>
                                         </TableCell>
                                     </TableRow>
                                 ))}
                                 {data.length === 0 && (
                                     <TableRow>
-                                        <TableCell colSpan={5} className="text-center py-8 text-gray-500">No hay inquilinos para mostrar</TableCell>
+                                        <TableCell colSpan={7} className="text-center py-8 text-gray-500">No hay inquilinos para mostrar</TableCell>
                                     </TableRow>
                                 )}
                             </TableBody>

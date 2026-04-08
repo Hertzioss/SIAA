@@ -15,6 +15,7 @@ export interface Tenant {
     contacts?: TenantContact[];
     contracts?: {
         status: string;
+        rent_amount?: number;
         unit: {
             property: {
                 id: string;

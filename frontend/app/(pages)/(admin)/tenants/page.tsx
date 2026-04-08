@@ -223,11 +223,19 @@ export default function TenantsPage() {
 
         return {
             ...tenant,
-            propertyName: contract?.unit?.property?.name || "-",
-            unitName: contract?.unit?.name || "-",
+            propertyName: contract?.unit?.property?.name || "Sin Asignar",
+            unitName: contract?.unit?.name || "Sin Asignar",
             ownerName: ownerName,
-            statusText: tenant.status === 'solvent' ? 'Solvente' : 'Moroso'
+            statusText: tenant.status === 'solvent' ? 'Solvente' : 'Moroso',
+            monthlyAmount: contract?.rent_amount || 0,
+            currency: "USD"
         };
+    }).sort((a, b) => {
+        // Sort by Property Name first
+        const propSort = a.propertyName.localeCompare(b.propertyName);
+        if (propSort !== 0) return propSort;
+        // Then by Unit Name
+        return a.unitName.localeCompare(b.unitName, undefined, { numeric: true, sensitivity: 'base' });
     });
 
     return (
@@ -248,10 +256,11 @@ export default function TenantsPage() {
                             { header: "Nombre", key: "name" },
                             { header: "Documento", key: "doc_id" },
                             { header: "Teléfono", key: "phone" },
-                            { header: "Email", key: "email" },
                             { header: "Propiedad", key: "propertyName" },
                             { header: "Unidad", key: "unitName" },
                             { header: "Propietario", key: "ownerName" },
+                            { header: "Canon", key: "monthlyAmount" },
+                            { header: "Moneda", key: "currency" },
                         ]}
                         title="Reporte de Inquilinos"
                         hidePdf={true}
