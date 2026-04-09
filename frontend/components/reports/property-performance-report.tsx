@@ -37,7 +37,7 @@ export const PropertyPerformanceReport = forwardRef<HTMLDivElement, PropertyPerf
                 <div className="border-b-2 border-gray-800 pb-6">
                     <div className="flex flex-col md:flex-row print:flex-row justify-between items-start mb-6">
                         <div>
-                            <h1 className="text-3xl font-black uppercase tracking-widest text-gray-900">RENDIMIENTO POR PORTAFOLIO</h1>
+                            <h1 className="text-3xl font-black uppercase tracking-widest text-gray-900">RENDIMIENTO POR INMUEBLE</h1>
                             <p className="text-md font-medium text-gray-500 uppercase mt-1 tracking-wider">Desglose por Propietario e Inmueble</p>
                         </div>
                         <div className="text-right mt-2 md:mt-0 print:mt-0">
