@@ -440,7 +440,7 @@ export function useReports() {
         }
     }, [])
 
-    const fetchOccupancy = useCallback(async (properties: string[]) => {
+    const fetchOccupancy = useCallback(async (properties: string[], reportStartStr?: string, reportEndStr?: string) => {
         setIsLoading(true)
         try {
             // 1. Fetch units with property name
@@ -454,40 +454,80 @@ export function useReports() {
                 ? unitsData.filter((u: any) => properties.includes(u.property_id))
                 : unitsData
 
-            // 2. Batch fetch active contracts for these units
+            // 2. Batch fetch ALL contracts for these units that might overlap with the timeframe
             const unitIds = filtered.map((u: any) => u.id)
             const contractsMap: Record<string, any> = {}
+
+            const reportStart = reportStartStr ? parseISO(reportStartStr) : new Date(0)
+            const reportEnd = reportEndStr ? parseISO(reportEndStr) : new Date()
 
             if (unitIds.length > 0) {
                 const { data: contractsData } = await supabase
                     .from('contracts')
                     .select(`
-                        id, unit_id, status, rent_amount,
+                        id, unit_id, status, rent_amount, start_date, end_date,
                         tenants(name, doc_id, phone, email)
                     `)
                     .in('unit_id', unitIds)
-                    .eq('status', 'active')
+                    .in('status', ['active', 'ended', 'terminated'])
+
+                const reportStartMs = reportStart.getTime()
+                const reportEndMs = new Date(reportEnd.getTime() + 86399999).getTime() // end of day
+
+                // Sort: active contracts first, then by start_date descending
+                contractsData?.sort((a: any, b: any) => {
+                    if (a.status === 'active' && b.status !== 'active') return -1
+                    if (b.status === 'active' && a.status !== 'active') return 1
+                    
+                    const dateA = a.start_date ? new Date(a.start_date).getTime() : 0
+                    const dateB = b.start_date ? new Date(b.start_date).getTime() : 0
+                    return dateB - dateA
+                })
 
                 contractsData?.forEach((c: any) => {
-                    contractsMap[c.unit_id] = c
+                    // Normalize dates
+                    const cStartMs = c.start_date ? new Date(c.start_date).getTime() : 0
+                    
+                    // If the contract is explicitly marked as 'active' in the database, 
+                    // it means the tenant is still there, even if the formal end_date has passed.
+                    let cEndMs = c.end_date ? new Date(c.end_date).getTime() : new Date('2099-12-31').getTime()
+                    if (c.status === 'active') {
+                        cEndMs = new Date('2099-12-31').getTime()
+                    }
+
+                    // Overlap condition:
+                    const overlaps = cStartMs <= reportEndMs && cEndMs >= reportStartMs
+                    
+                    // Keep the first one that overlaps (which is the most recent/active due to sort)
+                    if (overlaps && !contractsMap[c.unit_id]) {
+                        contractsMap[c.unit_id] = c
+                    }
                 })
             }
 
-            return filtered.map((u: any) => {
-                const activeContract = contractsMap[u.id]
-                const tenant = Array.isArray(activeContract?.tenants) ? activeContract.tenants[0] : activeContract?.tenants
+            const mappedData = filtered.map((u: any) => {
+                const overlappingContract = contractsMap[u.id]
+                const tenant = Array.isArray(overlappingContract?.tenants) ? overlappingContract.tenants[0] : overlappingContract?.tenants
+                
+                // If there's an overlapping contract, it's considered Occupped in that period.
+                // Conversely, if dates weren't provided, we could fallback to u.status === 'occupied', 
+                // but the overlap logic works for "today" as well.
+                const isOccupied = !!overlappingContract
                 
                 return {
                     property: u.properties?.name || 'Desconocida',
                     unit: u.name,
-                    status: u.status === 'occupied' ? 'Ocupado' : 'Vacante',
-                    tenant: u.status === 'occupied' ? (tenant?.name || 'Sin Asignar') : '-',
-                    docId: u.status === 'occupied' ? (tenant?.doc_id || '-') : '-',
-                    phone: u.status === 'occupied' ? (tenant?.phone || '-') : '-',
-                    email: u.status === 'occupied' ? (tenant?.email || '-') : '-',
-                    rent: u.status === 'occupied' ? (activeContract?.rent_amount || 0) : 0
+                    status: isOccupied ? 'Ocupado' : 'Vacante',
+                    tenant: isOccupied ? (tenant?.name || 'Sin Asignar') : '-',
+                    docId: isOccupied ? (tenant?.doc_id || '-') : '-',
+                    phone: isOccupied ? (tenant?.phone || '-') : '-',
+                    email: isOccupied ? (tenant?.email || '-') : '-',
+                    rent: isOccupied ? (overlappingContract?.rent_amount || 0) : 0
                 }
             })
+
+            // Sort purely by unit name alphanumerically
+            return mappedData.sort((a: any, b: any) => a.unit.localeCompare(b.unit, undefined, { numeric: true }))
         } catch (err: any) {
             console.error('Error fetching occupancy:', err)
             toast.error('Error al generar reporte de ocupación')
@@ -497,7 +537,7 @@ export function useReports() {
         }
     }, [])
 
-    const fetchDelinquency = useCallback(async (properties: string[]) => {
+    const fetchDelinquency = useCallback(async (properties: string[], reportStartStr?: string, reportEndStr?: string) => {
         setIsLoading(true)
         try {
             // 1. Fetch all tenants with active contracts
@@ -520,52 +560,86 @@ export function useReports() {
             const contractIds = contractsData.map((c: any) => c.id)
             const { data: paymentsData, error: paymentsError } = await supabase
                 .from('payments')
-                .select('contract_id, amount, status')
+                .select('contract_id, amount, status, date, billing_period')
                 .in('contract_id', contractIds)
                 .in('status', ['approved', 'paid'])
 
             if (paymentsError) throw paymentsError
 
-            // Group payments by contract
-            const paymentsMap: Record<string, number> = {}
+            // Helper to parse billing_period
+            const spanishMonthMap: Record<string, string> = {
+                'enero': '01', 'febrero': '02', 'marzo': '03', 'abril': '04',
+                'mayo': '05', 'junio': '06', 'julio': '07', 'agosto': '08',
+                'septiembre': '09', 'octubre': '10', 'noviembre': '11', 'diciembre': '12'
+            }
+            const toYearMonth = (bp: string | null, fallbackDate: string | null): string | null => {
+                if (bp) {
+                    if (/^\d{4}-\d{2}/.test(bp)) return bp.substring(0, 7)
+                    const parts = bp.trim().toLowerCase().split(/[\s/\-]+/)
+                    if (parts.length >= 2) {
+                        const monthKey = parts[0]
+                        const yearPart = parts.find(p => /^\d{4}$/.test(p))
+                        const monthNum = spanishMonthMap[monthKey]
+                        if (monthNum && yearPart) return `${yearPart}-${monthNum}`
+                    }
+                }
+                if (fallbackDate) return fallbackDate.substring(0, 7)
+                return null
+            }
+
+            // Group payments by contract, extracting their normalized Year-Month
+            const paidMonthsByContract: Record<string, Set<string>> = {}
             paymentsData?.forEach((p: any) => {
-                if (!paymentsMap[p.contract_id]) paymentsMap[p.contract_id] = 0
-                paymentsMap[p.contract_id]++
+                const ym = toYearMonth(p.billing_period, p.date)
+                if (!ym) return
+                if (!paidMonthsByContract[p.contract_id]) paidMonthsByContract[p.contract_id] = new Set()
+                paidMonthsByContract[p.contract_id].add(ym)
             })
 
-            const now = new Date()
+            const reportStart = reportStartStr ? parseISO(reportStartStr) : new Date(0) // Default to far past if not provided (should be provided)
+            const reportEnd = reportEndStr ? parseISO(reportEndStr) : new Date()
+
             const reportData = contractsData.map((c: any) => {
                 const tenant = Array.isArray(c.tenants) ? c.tenants[0] : c.tenants
                 const unit = Array.isArray(c.units) ? c.units[0] : c.units
                 const property = Array.isArray(unit?.properties) ? unit.properties[0] : unit?.properties
                 
-                // Calculate months since start
                 if (!c.start_date) return null
-                const startDate = new Date(c.start_date)
-                
-                // Validate date is realistic (not in the distant past/future due to typos)
-                if (isNaN(startDate.getTime()) || startDate.getFullYear() < 1900) return null
+                const contractStartDate = new Date(c.start_date)
+                if (isNaN(contractStartDate.getTime()) || contractStartDate.getFullYear() < 1900) return null
 
-                const monthDiff = (now.getFullYear() - startDate.getFullYear()) * 12 + (now.getMonth() - startDate.getMonth())
-                
-                // +1 because if started this month, it's already due 1 month
-                const expectedMonths = Math.max(0, monthDiff + 1)
-                
-                const paidMonths = paymentsMap[c.id] || 0
-                const debtMonths = Math.max(0, expectedMonths - paidMonths)
-                const totalDebt = debtMonths * (c.rent_amount || 0)
+                // Determine effective start date for the report range
+                const effectiveStart = contractStartDate > reportStart ? contractStartDate : reportStart
 
-                // Skip if no debt unless manually marked as delinquent
-                if (debtMonths <= 0 && tenant?.status !== 'delinquent') return null
+                let expectedMonthsCount = 0
+                let missingMonthsCount = 0
 
-                // SAFETY: If debt is astronomical (e.g. 24,000 months), something is wrong with the date
-                const isExtremeDebt = debtMonths > 120 // More than 10 years
-                
-                // Calculate which months are pending (most recent ones back to PaidMonths count)
-                // If it's extreme, log it and don't show the huge number
-                if (isExtremeDebt) {
-                    console.error('Astronomic debt detected. Contract:', c.id, 'Tenant:', tenant?.name, 'Start Date:', c.start_date)
+                const contractPaidSet = paidMonthsByContract[c.id] || new Set()
+
+                // Walk month by month from effectiveStart to reportEnd
+                if (effectiveStart <= reportEnd) {
+                    const monthsInRange = (reportEnd.getFullYear() - effectiveStart.getFullYear()) * 12 + (reportEnd.getMonth() - effectiveStart.getMonth()) + 1
+                    
+                    for (let i = 0; i < monthsInRange; i++) {
+                        const mDate = new Date(effectiveStart.getFullYear(), effectiveStart.getMonth() + i, 1)
+                        // If month is in the future relative to today, break/skip (we don't charge future debt)
+                        const today = new Date()
+                        if (mDate > new Date(today.getFullYear(), today.getMonth(), 1)) continue
+
+                        expectedMonthsCount++
+                        
+                        const ym = `${mDate.getFullYear()}-${String(mDate.getMonth() + 1).padStart(2, '0')}`
+                        if (!contractPaidSet.has(ym)) {
+                            missingMonthsCount++
+                        }
+                    }
                 }
+
+                const totalDebt = missingMonthsCount * (c.rent_amount || 0)
+
+                if (missingMonthsCount <= 0 && tenant?.status !== 'delinquent') return null
+
+                const isExtremeDebt = missingMonthsCount > 120 
 
                 return {
                     tenant: tenant?.name || 'Desconocido',
@@ -573,7 +647,7 @@ export function useReports() {
                     unit: unit?.name || 'N/A',
                     startDate: c.start_date ? new Date(c.start_date).toLocaleDateString('es-VE') : '-',
                     endDate: c.end_date ? new Date(c.end_date).toLocaleDateString('es-VE') : 'Indefinido',
-                    months: isExtremeDebt ? "Revisar Fecha" : debtMonths,
+                    months: isExtremeDebt ? "Revisar Fecha" : missingMonthsCount,
                     debt: isExtremeDebt ? 0 : totalDebt,
                     rent: c.rent_amount || 0,
                     property_id: unit?.property_id
@@ -586,7 +660,8 @@ export function useReports() {
                 ? reportData.filter((r: any) => properties.includes(r.property_id))
                 : reportData
 
-            return finalData
+            // Sort purely by unit name alphanumerically
+            return finalData.sort((a: any, b: any) => a.unit.localeCompare(b.unit, undefined, { numeric: true }))
         } catch (err: any) {
             console.error('Error fetching delinquency:', err)
             toast.error('Error al generar reporte de morosidad')
@@ -619,28 +694,9 @@ export function useReports() {
         }
     }, [])
 
-    const fetchPropertyPerformance = useCallback(async (months: string[], year: string, properties: string[]) => {
+    const fetchPropertyPerformance = useCallback(async (startDate: string, endDate: string, properties: string[]) => {
         setIsLoading(true);
         try {
-            const monthMap: Record<string, number> = {
-                'ENERO': 0, 'FEBRERO': 1, 'MARZO': 2, 'ABRIL': 3, 'MAYO': 4, 'JUNIO': 5,
-                'JULIO': 6, 'AGOSTO': 7, 'SEPTIEMBRE': 8, 'OCTUBRE': 9, 'NOVIEMBRE': 10, 'DICIEMBRE': 11
-            };
-            const selectedIndices = months.map(m => monthMap[m.toUpperCase()]).filter(i => i !== undefined).sort((a, b) => a - b);
-            
-            if (months.length === 0) {
-                toast.warning('Debe seleccionar al menos un mes.');
-                setIsLoading(false);
-                return [];
-            }
-
-            const startMonth = String(selectedIndices[0] + 1).padStart(2, '0');
-            const endMonth = String(selectedIndices[selectedIndices.length - 1] + 1).padStart(2, '0');
-            const lastDay = new Date(parseInt(year), selectedIndices[selectedIndices.length - 1] + 1, 0).getDate();
-            
-            const startDate = `${year}-${startMonth}-01`;
-            const endDate = `${year}-${endMonth}-${String(lastDay).padStart(2, '0')}`;
-
             // 1. Fetch Payments (Income)
             const { data: payments } = await supabase
                 .from('payments')
@@ -852,6 +908,46 @@ export function useReports() {
         }
     }, [supabase]);
 
+    const fetchUnitHistory = useCallback(async (unitIds: string[]) => {
+        setIsLoading(true);
+        try {
+            const { data, error } = await supabase
+                .from('units')
+                .select(`
+                    id, name, status, type,
+                    properties (id, name, address),
+                    contracts (
+                        id, status, rent_amount, start_date, end_date,
+                        tenants (id, name, doc_id, phone, email)
+                    )
+                `)
+                .in('id', unitIds);
+
+            if (error) throw error;
+
+            if (data) {
+                data.forEach((unitData: any) => {
+                    if (unitData.contracts) {
+                        // Sort by start_date descending
+                        unitData.contracts.sort((a: any, b: any) => {
+                            const dateA = a.start_date ? new Date(a.start_date).getTime() : 0;
+                            const dateB = b.start_date ? new Date(b.start_date).getTime() : 0;
+                            return dateB - dateA;
+                        });
+                    }
+                });
+            }
+
+            return data;
+        } catch (err: any) {
+            console.error(err);
+            toast.error('Error al generar historial de unidades');
+            return null;
+        } finally {
+            setIsLoading(false);
+        }
+    }, [supabase]);
+
     return {
         isLoading,
         error,
@@ -859,6 +955,7 @@ export function useReports() {
         fetchOccupancy,
         fetchDelinquency,
         fetchMaintenance,
-        fetchPropertyPerformance
+        fetchPropertyPerformance,
+        fetchUnitHistory
     }
 }

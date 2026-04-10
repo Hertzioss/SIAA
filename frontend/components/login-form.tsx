@@ -133,7 +133,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
               <FieldSeparator className="*:data-[slot=field-separator-content]:bg-card"> </FieldSeparator>
 
               <FieldDescription className="text-center">
-                Problemas con tu cuenta? <a href="#">Contacta al administrador</a>
+                Problemas con tu cuenta? <a href="mailto:soporte@escritorio.legal">Contacta al administrador</a>
               </FieldDescription>
             </FieldGroup>
           </form>

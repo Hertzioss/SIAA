@@ -93,6 +93,7 @@ export function useTenantStatement() {
                 .gte('date', startStr)
                 .lte('date', endStr)
                 .order('date', { ascending: true })
+                .order('billing_period', { ascending: true, nullsFirst: false })
 
             if (payError) throw payError
 
@@ -112,53 +113,84 @@ export function useTenantStatement() {
                 status: p.status
             }))
 
+            // Sort client-side: primary by payment date, secondary by billing_period (chronological)
+            statementPayments.sort((a, b) => {
+                // Compare dates (already in dd/MM/yyyy — convert back for comparison)
+                const [da, ma, ya] = (a.date || '').split('/').map(Number)
+                const [db, mb, yb] = (b.date || '').split('/').map(Number)
+                const dateA = new Date(ya, ma - 1, da).getTime()
+                const dateB = new Date(yb, mb - 1, db).getTime()
+                if (dateA !== dateB) return dateA - dateB
+                // Same date: sort by billing_period (YYYY-MM) chronologically
+                const bpA = a.billingPeriod || ''
+                const bpB = b.billingPeriod || ''
+                return bpA.localeCompare(bpB)
+            })
+
             const totalPaid = statementPayments.reduce((acc, p) => acc + p.amount, 0)
             const totalPaidBs = statementPayments.reduce((acc, p) => acc + (p.amount * (p.exchangeRate || 0)), 0)
             
-            // 5. Calculate pending months
+            // 5. Calculate pending months — only within the selected date range
             const pendingMonths: { month: string, year: number, amount: number }[] = []
             let totalDebt = 0
-            
+
             if (contract && contract.start_date) {
-                const startDate = parseISO(contract.start_date)
-                const now = new Date()
-                
-                // Fetch ALL payments for this contract (not just in range) to know total paid months
-                const { data: allPayments } = await supabase
-                    .from('payments')
-                    .select('id')
-                    .eq('contract_id', contract.id)
-                    .in('status', ['approved', 'paid'])
-                
-                const totalPaidMonths = allPayments?.length || 0
-                
-                // Calculate months passed between startDate and endRange
-                // We use the report's start/end dates
+                const contractStartDate = parseISO(contract.start_date)
                 const reportStart = filters.startDate
                 const reportEnd = filters.endDate
-                
-                const monthsInReportRange = (reportEnd.getFullYear() - reportStart.getFullYear()) * 12 + (reportEnd.getMonth() - reportStart.getMonth()) + 1
-                
-                // For each month in the report range, check if it was paid
-                // This is a naive but effective way: 
-                // We know totalPaidMonths from start of contract.
-                // We need to know if a specific month in the report range is "covered" by those total payments.
-                const monthsNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
-                
-                for (let i = 0; i < monthsInReportRange; i++) {
-                    const currentMonthDate = new Date(reportStart.getFullYear(), reportStart.getMonth() + i, 1)
-                    
-                    // Months elapsed from contract start to this specific month in report
-                    const elapsedSinceStart = (currentMonthDate.getFullYear() - startDate.getFullYear()) * 12 + (currentMonthDate.getMonth() - startDate.getMonth()) + 1
-                    
-                    if (elapsedSinceStart > totalPaidMonths) {
+
+                const monthsNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+                    "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
+
+                // Fetch payments for this contract within the report range to know which months are covered
+                const { data: rangePayments } = await supabase
+                    .from('payments')
+                    .select('date, billing_period')
+                    .eq('contract_id', contract.id)
+                    .in('status', ['approved', 'paid'])
+                    .gte('date', startStr)
+                    .lte('date', endStr)
+
+                // Build a set of "YYYY-MM" strings that have at least one payment in the range
+                const paidMonthKeys = new Set<string>()
+                ;(rangePayments || []).forEach((p: any) => {
+                    // Prefer billing_period if available, otherwise use payment date
+                    if (p.billing_period) {
+                        // billing_period may be "2025-03" or "2025-03-01"
+                        const key = p.billing_period.substring(0, 7) // "YYYY-MM"
+                        paidMonthKeys.add(key)
+                    } else if (p.date) {
+                        const key = p.date.substring(0, 7) // "YYYY-MM"
+                        paidMonthKeys.add(key)
+                    }
+                })
+
+                // Walk each month in the report range
+                const totalMonthsInRange =
+                    (reportEnd.getFullYear() - reportStart.getFullYear()) * 12 +
+                    (reportEnd.getMonth() - reportStart.getMonth()) + 1
+
+                for (let i = 0; i < totalMonthsInRange; i++) {
+                    const monthDate = new Date(reportStart.getFullYear(), reportStart.getMonth() + i, 1)
+
+                    // Skip months before contract start
+                    if (monthDate < new Date(contractStartDate.getFullYear(), contractStartDate.getMonth(), 1)) continue
+
+                    // Skip future months (beyond today)
+                    const today = new Date()
+                    if (monthDate > new Date(today.getFullYear(), today.getMonth(), 1)) continue
+
+                    const key = `${monthDate.getFullYear()}-${String(monthDate.getMonth() + 1).padStart(2, '0')}`
+
+                    if (!paidMonthKeys.has(key)) {
                         pendingMonths.push({
-                            month: monthsNames[currentMonthDate.getMonth()],
-                            year: currentMonthDate.getFullYear(),
+                            month: monthsNames[monthDate.getMonth()],
+                            year: monthDate.getFullYear(),
                             amount: contract.rent_amount || 0
                         })
                     }
                 }
+
                 totalDebt = pendingMonths.reduce((sum, m) => sum + m.amount, 0)
             }
 

@@ -22,10 +22,20 @@ export default function TenantLayout({ children }: { children: React.ReactNode }
             const { data: { session } } = await supabase.auth.getSession()
             if (!session) {
                 router.push('/signin')
-            } else {
-                // Optional: Check if role is tenant? 
-                // For now, let's just ensure they are logged in.
+                return
+            }
+
+            const role = session.user.user_metadata.role
+            const isSuperAdminEnv = process.env.NEXT_PUBLIC_SUPER_ADMIN_EMAIL === session.user.email
+
+            // Solo inquilinos pueden acceder aquí
+            if (role === 'tenant' && !isSuperAdminEnv) {
                 setLoading(false)
+            } else if (role === 'owner' && !isSuperAdminEnv) {
+                router.push('/owners/dashboard')
+            } else {
+                // admin, operator o super admin → panel de administración
+                router.push('/dashboard')
             }
         }
         checkUser()

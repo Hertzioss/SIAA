@@ -18,7 +18,7 @@ export default function LogoutPage() {
             if (error) console.log('Error cerrando sesión:', error)
         }
         doLogout()
-        router.replace('/')
+        router.replace('/signin')
     }, [router])
 
     return (

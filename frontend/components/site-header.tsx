@@ -5,7 +5,15 @@ import { Separator } from "@/components/ui/separator"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { ModeToggle } from "./mode-togle"
 import { ExchangeRateDisplay } from "./exchange-rate-display"
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation"
+import { LogOut } from "lucide-react"
+import { supabase } from "@/lib/supabase"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 
 
 const getHeaderTitle = () => {
@@ -36,8 +44,15 @@ const getHeaderTitle = () => {
  */
 export function SiteHeader() {
 
+  const router = useRouter()
+
   const siteHeader = {
     title: getHeaderTitle()
+  }
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
+    router.push('/signin')
   }
 
   return (
@@ -52,6 +67,24 @@ export function SiteHeader() {
         <div className="ml-auto flex items-center gap-2">
           <ExchangeRateDisplay />
           <ModeToggle />
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleLogout}
+                  className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                  aria-label="Cerrar sesión"
+                >
+                  <LogOut className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                <p>Cerrar sesión</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
       </div>
     </header>

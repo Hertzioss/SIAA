@@ -15,8 +15,10 @@ import * as XLSX from 'xlsx'
 import { toast } from "sonner"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
-import { cn } from "@/lib/utils"
+import { cn, parseLocalDate } from "@/lib/utils"
 import { useReactToPrint } from "react-to-print"
+import { startOfYear, endOfYear, format } from "date-fns"
+import { UnitHistoryReport } from "@/components/reports/unit-history-report"
 import { useReports, IncomeExpenseData, OperationalData } from "@/hooks/use-reports"
 import { useProperties } from "@/hooks/use-properties"
 import { useOwners } from "@/hooks/use-owners"
@@ -79,8 +81,14 @@ const REPORT_TYPES = [
         color: 'text-purple-600',
         bgColor: 'bg-purple-100'
     },
-    
-    
+    {
+        id: 'unit-history',
+        title: 'Histórico de Contratos',
+        description: 'Trazabilidad actual e histórica de contratos para un espacio específico.',
+        icon: FileText,
+        color: 'text-slate-600',
+        bgColor: 'bg-slate-100'
+    }
 ]
 
 const ALL_MONTHS = [
@@ -120,7 +128,7 @@ const formatPeriod = (months: string[], year: string) => {
 }
 
 export default function ReportsPage() {
-    const { fetchIncomeExpense, fetchOccupancy, fetchDelinquency, fetchMaintenance, fetchPropertyPerformance, isLoading } = useReports()
+    const { fetchIncomeExpense, fetchOccupancy, fetchDelinquency, fetchMaintenance, fetchPropertyPerformance, fetchUnitHistory, isLoading } = useReports()
     const { properties, loading: isLoadingProperties } = useProperties()
     const { owners, loading: isLoadingOwners } = useOwners()
 
@@ -129,18 +137,23 @@ export default function ReportsPage() {
     const [operationalData, setOperationalData] = useState<any[] | null>(null)
     const [maintenanceData, setMaintenanceData] = useState<any[] | null>(null)
     const [performanceData, setPerformanceData] = useState<any | null>(null)
+    const [unitHistoryData, setUnitHistoryData] = useState<any | null>(null)
 
     const [selectedReportId, setSelectedReportId] = useState<string | null>(null)
     const [isGenerated, setIsGenerated] = useState(false)
     const [filters, setFilters] = useState({
         months: ['MARZO'] as string[],
-        year: '2024',
+        year: '2026',
+        startDate: startOfYear(new Date()),
+        endDate: endOfYear(new Date()),
         properties: [] as string[],
-        owners: [] as string[]
+        owners: [] as string[],
+        units: [] as string[]
     })
     const [openPropertySelect, setOpenPropertySelect] = useState(false)
     const [openOwnerSelect, setOpenOwnerSelect] = useState(false)
     const [openMonthSelect, setOpenMonthSelect] = useState(false)
+    const [openUnitSelect, setOpenUnitSelect] = useState(false)
     const [isMounted, setIsMounted] = useState(false)
 
     useEffect(() => {
@@ -167,6 +180,17 @@ export default function ReportsPage() {
 
         return properties.filter(p => ownerPropertyIds.has(p.id))
     }, [filters.owners, owners, properties])
+
+    const availableUnits = useMemo(() => {
+        if (filters.properties.length === 0) return [];
+        const units: any[] = [];
+        properties.forEach(p => {
+            if (filters.properties.includes(p.id) && p.units) {
+                units.push(...p.units);
+            }
+        });
+        return units.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+    }, [filters.properties, properties]);
     
     const router = useRouter()
 
@@ -185,6 +209,7 @@ export default function ReportsPage() {
         setOperationalData(null)
         setMaintenanceData(null)
         setPerformanceData(null)
+        setUnitHistoryData(null)
         // Default to current month if needed or keep default
     }
 
@@ -217,17 +242,36 @@ export default function ReportsPage() {
             const data = await fetchIncomeExpense(filters.months, filters.year, propertiesToFetch, filters.owners)
             setIncomeExpenseData(data)
         } else if (selectedReportId === 'occupancy') {
-            const data = await fetchOccupancy(propertiesToFetch)
+            const data = await fetchOccupancy(
+                propertiesToFetch,
+                format(filters.startDate, "yyyy-MM-dd"),
+                format(filters.endDate, "yyyy-MM-dd")
+            )
             setOperationalData(data)
         } else if (selectedReportId === 'delinquency') {
-            const data = await fetchDelinquency(propertiesToFetch)
+            const data = await fetchDelinquency(
+                propertiesToFetch,
+                format(filters.startDate, "yyyy-MM-dd"),
+                format(filters.endDate, "yyyy-MM-dd")
+            )
             setOperationalData(data)
         } else if (selectedReportId === 'maintenance') {
             const data = await fetchMaintenance(propertiesToFetch)
             setMaintenanceData(data)
         } else if (selectedReportId === 'performance') {
-            const data = await fetchPropertyPerformance(filters.months, filters.year, propertiesToFetch)
+            const data = await fetchPropertyPerformance(
+                format(filters.startDate, "yyyy-MM-dd"),
+                format(filters.endDate, "yyyy-MM-dd"),
+                propertiesToFetch
+            )
             setPerformanceData(data)
+        } else if (selectedReportId === 'unit-history') {
+            if (filters.units.length === 0) {
+                toast.error('Debe seleccionar al menos una unidad');
+                return;
+            }
+            const data = await fetchUnitHistory(filters.units)
+            setUnitHistoryData(data)
         }
 
         setIsGenerated(true)
@@ -240,6 +284,7 @@ export default function ReportsPage() {
         setOperationalData(null)
         setMaintenanceData(null)
         setPerformanceData(null)
+        setUnitHistoryData(null)
     }
 
     const handleBackToFilters = () => {
@@ -248,6 +293,7 @@ export default function ReportsPage() {
         setOperationalData(null)
         setMaintenanceData(null)
         setPerformanceData(null)
+        setUnitHistoryData(null)
     }
 
     const handleDownloadExcel = () => {
@@ -354,6 +400,24 @@ export default function ReportsPage() {
         )
     }
 
+    const toggleUnit = (id: string) => {
+        setFilters(prev => ({
+            ...prev,
+            units: prev.units.includes(id)
+                ? prev.units.filter(u => u !== id)
+                : [...prev.units, id]
+        }))
+    }
+
+    const toggleAllUnits = () => {
+        setFilters(prev => {
+            if (prev.units.length === availableUnits.length) {
+                return { ...prev, units: [] } // Deselect all
+            }
+            return { ...prev, units: availableUnits.map((u: any) => u.id) } // Select all
+        })
+    }
+
     return (
         <div className="container mx-auto p-6 space-y-8">
             {/* HEADER */}
@@ -414,70 +478,95 @@ export default function ReportsPage() {
                         </CardHeader>
                         <CardContent className="space-y-6">
                             <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label>Meses</Label>
-                                    <Popover open={openMonthSelect} onOpenChange={setOpenMonthSelect}>
-                                        <PopoverTrigger asChild>
-                                            <Button
-                                                variant="outline"
-                                                role="combobox"
-                                                aria-expanded={openMonthSelect}
-                                                className="w-full justify-between"
-                                            >
-                                                {filters.months.length === 0
-                                                    ? "Seleccionar mes(es)..."
-                                                    : filters.months.length === ALL_MONTHS.length
-                                                        ? "Todo el Año"
-                                                        : `${filters.months.length} mes(es)`}
-                                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                            </Button>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-full p-0">
-                                            <Command>
-                                                <CommandInput placeholder="Buscar mes..." />
-                                                <CommandList>
-                                                    <CommandEmpty>No encontrado.</CommandEmpty>
-                                                    <CommandGroup>
-                                                        <CommandItem
-                                                            onSelect={toggleAllMonths}
-                                                            className="font-medium"
-                                                        >
-                                                            <Check
-                                                                className={cn(
-                                                                    "mr-2 h-4 w-4",
-                                                                    filters.months.length === ALL_MONTHS.length
-                                                                        ? "opacity-100"
-                                                                        : "opacity-0"
-                                                                )}
-                                                            />
-                                                            Todo el Año
-                                                        </CommandItem>
-                                                        {ALL_MONTHS.map((month) => (
-                                                            <CommandItem
-                                                                key={month}
-                                                                value={month}
-                                                                onSelect={() => toggleMonth(month)}
-                                                            >
-                                                                <Check
-                                                                    className={cn(
-                                                                        "mr-2 h-4 w-4",
-                                                                        filters.months.includes(month)
-                                                                            ? "opacity-100"
-                                                                            : "opacity-0"
-                                                                    )}
-                                                                />
-                                                                {month}
-                                                            </CommandItem>
-                                                        ))}
-                                                    </CommandGroup>
-                                                </CommandList>
-                                            </Command>
-                                        </PopoverContent>
-                                    </Popover>
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>Año</Label>
-                                    <Select value={filters.year} onValueChange={(v) => setFilters({ ...filters, year: v })}>
+                                {selectedReportId === 'unit-history' ? (
+                                    <div className="col-span-2 text-sm text-muted-foreground p-3 bg-muted rounded-md border">
+                                        Seleccione una Propiedad en el panel inferior, y luego elija la Unidad que desea consultar.
+                                    </div>
+                                ) : selectedReportId === 'delinquency' || selectedReportId === 'occupancy' || selectedReportId === 'performance' ? (
+                                    <>
+                                        <div className="space-y-2">
+                                            <Label>Desde</Label>
+                                            <Input
+                                                type="date"
+                                                value={format(filters.startDate, "yyyy-MM-dd")}
+                                                onChange={(e) => e.target.value && setFilters({ ...filters, startDate: parseLocalDate(e.target.value) })}
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label>Hasta</Label>
+                                            <Input
+                                                type="date"
+                                                value={format(filters.endDate, "yyyy-MM-dd")}
+                                                onChange={(e) => e.target.value && setFilters({ ...filters, endDate: parseLocalDate(e.target.value) })}
+                                            />
+                                        </div>
+                                    </>
+                                ) : (
+                                    <>
+                                        <div className="space-y-2">
+                                            <Label>Meses</Label>
+                                            <Popover open={openMonthSelect} onOpenChange={setOpenMonthSelect}>
+                                                <PopoverTrigger asChild>
+                                                    <Button
+                                                        variant="outline"
+                                                        role="combobox"
+                                                        aria-expanded={openMonthSelect}
+                                                        className="w-full justify-between"
+                                                    >
+                                                        {filters.months.length === 0
+                                                            ? "Seleccionar mes(es)..."
+                                                            : filters.months.length === ALL_MONTHS.length
+                                                                ? "Todo el Año"
+                                                                : `${filters.months.length} mes(es)`}
+                                                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                                    </Button>
+                                                </PopoverTrigger>
+                                                <PopoverContent className="w-full p-0">
+                                                    <Command>
+                                                        <CommandInput placeholder="Buscar mes..." />
+                                                        <CommandList>
+                                                            <CommandEmpty>No encontrado.</CommandEmpty>
+                                                            <CommandGroup>
+                                                                <CommandItem
+                                                                    onSelect={toggleAllMonths}
+                                                                    className="font-medium"
+                                                                >
+                                                                    <Check
+                                                                        className={cn(
+                                                                            "mr-2 h-4 w-4",
+                                                                            filters.months.length === ALL_MONTHS.length
+                                                                                ? "opacity-100"
+                                                                                : "opacity-0"
+                                                                        )}
+                                                                    />
+                                                                    Todo el Año
+                                                                </CommandItem>
+                                                                {ALL_MONTHS.map((month) => (
+                                                                    <CommandItem
+                                                                        key={month}
+                                                                        value={month}
+                                                                        onSelect={() => toggleMonth(month)}
+                                                                    >
+                                                                        <Check
+                                                                            className={cn(
+                                                                                "mr-2 h-4 w-4",
+                                                                                filters.months.includes(month)
+                                                                                    ? "opacity-100"
+                                                                                    : "opacity-0"
+                                                                            )}
+                                                                        />
+                                                                        {month}
+                                                                    </CommandItem>
+                                                                ))}
+                                                            </CommandGroup>
+                                                        </CommandList>
+                                                    </Command>
+                                                </PopoverContent>
+                                            </Popover>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label>Año</Label>
+                                            <Select value={filters.year} onValueChange={(v) => setFilters({ ...filters, year: v })}>
                                         <SelectTrigger>
                                             <SelectValue placeholder="Seleccione año" />
                                         </SelectTrigger>
@@ -488,6 +577,8 @@ export default function ReportsPage() {
                                         </SelectContent>
                                     </Select>
                                 </div>
+                                    </>
+                                )}
                             </div>
                             
                             {/* OWNER SELECTOR */}
@@ -615,13 +706,83 @@ export default function ReportsPage() {
                                 </Popover>
                             </div>
 
+                            {selectedReportId === 'unit-history' && (
+                                <div className="space-y-2">
+                                    <Label>Unidades a consultar</Label>
+                                    <Popover open={openUnitSelect} onOpenChange={setOpenUnitSelect}>
+                                        <PopoverTrigger asChild>
+                                            <Button
+                                                variant="outline"
+                                                role="combobox"
+                                                aria-expanded={openUnitSelect}
+                                                className="w-full justify-between"
+                                                disabled={availableUnits.length === 0}
+                                            >
+                                                {filters.units.length === 0
+                                                    ? availableUnits.length > 0 ? "Seleccionar unidades..." : "Primero seleccione una propiedad"
+                                                    : filters.units.length === availableUnits.length
+                                                        ? "Todas las unidades (Filtradas)"
+                                                        : `${filters.units.length} seleccionada(s)`}
+                                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                            </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-full p-0">
+                                            <Command key={filters.properties.join(',')}>
+                                                <CommandInput placeholder="Buscar unidad..." />
+                                                <CommandList>
+                                                    <CommandEmpty>No se encontraron unidades.</CommandEmpty>
+                                                    <CommandGroup>
+                                                        <CommandItem
+                                                            onSelect={toggleAllUnits}
+                                                            className="font-medium"
+                                                        >
+                                                            <Check
+                                                                className={cn(
+                                                                    "mr-2 h-4 w-4",
+                                                                    filters.units.length === availableUnits.length && availableUnits.length > 0
+                                                                        ? "opacity-100"
+                                                                        : "opacity-0"
+                                                                )}
+                                                            />
+                                                            Todas las unidades
+                                                        </CommandItem>
+                                                        {availableUnits.map((u: any) => (
+                                                            <CommandItem
+                                                                key={u.id}
+                                                                value={u.id}
+                                                                onSelect={() => toggleUnit(u.id)}
+                                                            >
+                                                                <Check
+                                                                    className={cn(
+                                                                        "mr-2 h-4 w-4",
+                                                                        filters.units.includes(u.id)
+                                                                            ? "opacity-100"
+                                                                            : "opacity-0"
+                                                                    )}
+                                                                />
+                                                                {u.name}
+                                                            </CommandItem>
+                                                        ))}
+                                                    </CommandGroup>
+                                                </CommandList>
+                                            </Command>
+                                        </PopoverContent>
+                                    </Popover>
+                                </div>
+                            )}
+
+
                             <div className="bg-muted/50 p-4 rounded-md flex items-start gap-3">
                                 <Filter className="h-5 w-5 text-muted-foreground mt-0.5" />
                                 <div className="text-sm text-muted-foreground">
                                     <p>Se generará el reporte con los siguientes criterios:</p>
                                     <ul className="list-disc list-inside mt-1">
                                         <li>Periodo: <strong>
-                                            {formatPeriod(filters.months, filters.year)}
+                                            {selectedReportId === 'unit-history' 
+                                                ? 'Histórico completo'
+                                                : selectedReportId === 'delinquency' || selectedReportId === 'occupancy' || selectedReportId === 'performance'
+                                                ? `Desde: ${format(filters.startDate, "dd/MM/yyyy")} Hasta: ${format(filters.endDate, "dd/MM/yyyy")}`
+                                                : formatPeriod(filters.months, filters.year)}
                                         </strong></li>
                                         <li>Alcance: <strong>
                                             {filters.properties.length === 0
@@ -663,7 +824,13 @@ export default function ReportsPage() {
                             <div className="text-sm">
                                 <span className="text-muted-foreground">Reporte:</span> <strong>{selectedReport?.title}</strong>
                                 <span className="mx-2 text-muted-foreground">|</span>
-                                <span className="text-muted-foreground">Periodo:</span> <strong>{formatPeriod(filters.months, filters.year)}</strong>
+                                <span className="text-muted-foreground">Periodo:</span> <strong>
+                                    {selectedReportId === 'unit-history' 
+                                        ? 'Histórico completo'
+                                        : selectedReportId === 'delinquency' || selectedReportId === 'occupancy' || selectedReportId === 'performance'
+                                        ? `Desde: ${format(filters.startDate, "dd/MM/yyyy")} Hasta: ${format(filters.endDate, "dd/MM/yyyy")}`
+                                        : formatPeriod(filters.months, filters.year)}
+                                </strong>
                             </div>
                         </div>
                         <div className="flex gap-2">
@@ -694,7 +861,7 @@ export default function ReportsPage() {
                                     ref={componentRef}
                                     type="occupancy"
                                     data={operationalData}
-                                    period={formatPeriod(filters.months, filters.year)}
+                                    period={`Desde: ${format(filters.startDate, "dd/MM/yyyy")} Hasta: ${format(filters.endDate, "dd/MM/yyyy")}`}
                                 />
                             )}
                             {selectedReportId === 'delinquency' && operationalData && (
@@ -702,7 +869,7 @@ export default function ReportsPage() {
                                     ref={componentRef}
                                     type="delinquency"
                                     data={operationalData}
-                                    period={formatPeriod(filters.months, filters.year)}
+                                    period={`Desde: ${format(filters.startDate, "dd/MM/yyyy")} Hasta: ${format(filters.endDate, "dd/MM/yyyy")}`}
                                 />
                             )}
                             {selectedReportId === 'maintenance' && maintenanceData && (
@@ -716,7 +883,13 @@ export default function ReportsPage() {
                                 <PropertyPerformanceReport
                                     ref={componentRef}
                                     data={performanceData}
-                                    period={formatPeriod(filters.months, filters.year)}
+                                    period={`Desde: ${format(filters.startDate, "dd/MM/yyyy")} Hasta: ${format(filters.endDate, "dd/MM/yyyy")}`}
+                                />
+                            )}
+                            {selectedReportId === 'unit-history' && unitHistoryData && (
+                                <UnitHistoryReport
+                                    ref={componentRef}
+                                    data={unitHistoryData}
                                 />
                             )}
                         </div>
