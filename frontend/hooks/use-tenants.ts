@@ -240,12 +240,39 @@ export function useTenants() {
 
     const updateTenant = async (id: string, tenantData: Partial<Omit<Tenant, 'id' | 'created_at'>>) => {
         try {
+            // First, get the current tenant to know if they have a linked user account
+            const { data: currentTenant, error: fetchError } = await supabase
+                .from('tenants')
+                .select('user_id')
+                .eq('id', id)
+                .single();
+
+            if (fetchError) console.warn("Could not fetch tenant before update", fetchError);
+
             const { error } = await supabase
                 .from('tenants')
                 .update(tenantData)
                 .eq('id', id);
 
             if (error) throw error;
+
+            // Sync with auth system if the email or name changed
+            if (currentTenant?.user_id && (tenantData.email || tenantData.name)) {
+                try {
+                    await fetch('/api/tenants/update-user', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            userId: currentTenant.user_id,
+                            email: tenantData.email,
+                            name: tenantData.name
+                        })
+                    });
+                } catch (syncError) {
+                    console.error("Failed to sync tenant data to auth user:", syncError);
+                    toast.warning("Inquilino actualizado, pero hubo un error sincronizando sus accesos.");
+                }
+            }
 
             toast.success('Inquilino actualizado exitosamente');
             fetchTenants();

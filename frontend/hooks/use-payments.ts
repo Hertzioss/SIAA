@@ -323,7 +323,7 @@ export function usePayments() {
                 tenant: {
                     name: fullPayment.tenant?.name || 'Inquilino',
                     docId: fullPayment.tenant?.doc_id || '',
-                    property: fullPayment.unit?.property_name || '',
+                    property: `${fullPayment.unit?.property_name || ''} - ${fullPayment.unit?.name || ''}`.trim() || 'Inmueble',
                     propertyType: unitData?.type
                 },
                 company: {
@@ -405,7 +405,7 @@ export function usePayments() {
                             tenant: {
                                 name: fullPayment.tenant?.name || 'Inquilino',
                                 docId: fullPayment.tenant?.doc_id || '',
-                                property: fullPayment.unit?.property_name || '',
+                                property: `${fullPayment.unit?.property_name || ''} - ${fullPayment.unit?.name || ''}`.trim() || 'Inmueble',
                                 propertyType: unitData?.type
                             },
                             company: {
