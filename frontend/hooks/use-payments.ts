@@ -339,7 +339,7 @@ export function usePayments() {
 
             // 3. Generate PDF Base64
             const { generatePaymentReceiptPDF } = await import('@/lib/payment-pdf-generator');
-            const pdfBase64 = generatePaymentReceiptPDF(pdfData);
+            const pdfBase64 = await generatePaymentReceiptPDF(pdfData);
 
             // 4. Send to API
             const res = await fetch('/api/payments/resend-receipt', {
@@ -420,7 +420,7 @@ export function usePayments() {
                         };
 
                         const { generatePaymentReceiptPDF } = await import('@/lib/payment-pdf-generator');
-                        pdfBase64 = generatePaymentReceiptPDF(pdfData);
+                        pdfBase64 = await generatePaymentReceiptPDF(pdfData);
                     }
                 } catch (pdfErr) {
                     console.error("Error generating PDF for approval email:", pdfErr);

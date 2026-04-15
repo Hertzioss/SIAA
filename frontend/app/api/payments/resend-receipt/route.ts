@@ -48,9 +48,9 @@ Adjunto a este correo encontrará su recibo de pago en formato PDF, el cual ha s
             const attachments = []
             if (pdfBase64) {
                 // Remove the data URI part if present
-                const base64Data = pdfBase64.replace(/^data:application\/pdf;filename=generated\.pdf;base64,/, '')
+                const base64Data = pdfBase64.replace(/^data:application\/pdf;filename=generated\.pdf;base64,/, '').replace(/^data:application\/pdf;base64,/, '')
                 attachments.push({
-                    filename: `Recibo_${payment.reference || payment.id?.substring(0,8)}.pdf`,
+                    filename: `Recibo_${tenant.name.replace(/\s+/g, '_')}_${payment.date}.pdf`,
                     content: base64Data,
                     encoding: 'base64',
                     contentType: 'application/pdf'
