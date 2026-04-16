@@ -79,13 +79,14 @@ export const generatePaymentReceiptPDF = async (data: any): Promise<string> => {
                         quality: 0.85 // Compresión JPEG vital para enviar por API REST
                     });
 
-                    // 4. Inyectar imagen en jsPDF
+                    // 4. Inyectar imagen en jsPDF (Hoja Carta en Portrait para impresoras caseras)
                     const pdf = new jsPDF({
-                        orientation: 'landscape',
+                        orientation: 'portrait',
                         unit: 'mm',
-                        format: [215.9, 139.7]
+                        format: 'letter' // Carta: ~215.9 x 279.4 mm
                     });
 
+                    // El ancho de la hoja carta coincide exacto con 215.9mm.
                     pdf.addImage(dataUrl, 'JPEG', 0, 0, 215.9, 139.7);
                     
                     // 5. Devolver Base64
