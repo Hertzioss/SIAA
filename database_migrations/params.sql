@@ -1,5 +1,5 @@
 -- =============================================================================
--- SIAA — Parámetros del Sistema
+-- Parámetros del Sistema
 -- Última actualización: 2026-04-23
 -- Contiene: usuario administrador inicial.
 -- Ejecutar DESPUÉS de schema.sql y seed.sql en una instancia nueva.

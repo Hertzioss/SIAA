@@ -121,7 +121,7 @@ export default function OwnerDashboard() {
                 </div>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-5">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                 <Card
                     className={selectedMonth !== 'all' && (metrics.totalIncomeMonthUSD > 0 || metrics.totalIncomeMonthVES > 0) ? "cursor-pointer transition-all hover:scale-[1.02] hover:shadow-md hover:border-emerald-200 dark:hover:border-emerald-800" : ""}
                     onClick={() => { 
@@ -192,7 +192,7 @@ export default function OwnerDashboard() {
                             </div>
                         </div>
                         <p className="text-xs text-muted-foreground mt-2">
-                            Egresos prorrateados
+                            Egresos
                         </p>
                     </CardContent>
                 </Card>
@@ -247,31 +247,27 @@ export default function OwnerDashboard() {
                         </p>
                     </CardContent>
                 </Card>
-                <Card>
+                <Card 
+                    className={metrics.vacantUnits > 0 ? "cursor-pointer transition-all hover:scale-[1.02] hover:shadow-md hover:border-blue-200 dark:hover:border-blue-800" : ""}
+                    onClick={() => { 
+                        if (metrics.vacantUnits > 0) {
+                            router.push(`/owners/vacant-units`)
+                        } 
+                    }}
+                >
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">
+                        <CardTitle className="text-sm font-medium flex flex-col items-start gap-1">
+                            {metrics.vacantUnits > 0 && (
+                                <span className="text-[10px] font-normal bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full dark:bg-blue-900/50 dark:text-blue-200 whitespace-nowrap">Ver {metrics.vacantUnits} Vacante{metrics.vacantUnits !== 1 ? 's' : ''}</span>
+                            )}
                             Ocupación
                         </CardTitle>
                         <Users className="h-4 w-4 text-blue-500" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{metrics.occupiedUnits} / {metrics.totalUnits}</div>
-                        <p className="text-xs text-muted-foreground">
+                        <div className="text-2xl font-bold mt-1">{metrics.occupiedUnits} / {metrics.totalUnits}</div>
+                        <p className="text-xs text-muted-foreground mt-2">
                             {metrics.occupancyRate.toFixed(1)}% Tasa de ocupación
-                        </p>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">
-                            Vacantes
-                        </CardTitle>
-                        <AlertCircle className="h-4 w-4 text-rose-500" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{metrics.vacantUnits}</div>
-                        <p className="text-xs text-muted-foreground">
-                            Unidades disponibles
                         </p>
                     </CardContent>
                 </Card>

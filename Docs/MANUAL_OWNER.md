@@ -6,7 +6,7 @@ Este documento explica cómo interpretar los informes y la gestión de sus Inmue
 
 ## 1. Su Rol en el Sistema
 
-SIAA permite gestionar sus inmuebles de forma transparente. Aunque la operación diaria (cobros, contratos) la realiza el administrador, usted tiene visibilidad total sobre el rendimiento financiero de sus inmuebles.
+Permite gestionar sus inmuebles de forma transparente. Aunque la operación diaria (cobros, contratos) la realiza el administrador, usted tiene visibilidad total sobre el rendimiento financiero de sus inmuebles.
 
 ## 2. Portal del Propietario
 
