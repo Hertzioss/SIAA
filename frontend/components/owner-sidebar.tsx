@@ -5,6 +5,7 @@ import {
     IconBuilding,
     IconDashboard,
     IconLogout,
+    IconReceipt,
 } from "@tabler/icons-react"
 import { supabase } from "@/lib/supabase"
 import { NavMain } from "@/components/nav-main"
@@ -32,6 +33,11 @@ const ownerNavData = {
             title: "Mis Inmuebles",
             url: "/owners/my-properties",
             icon: IconBuilding,
+        },
+        {
+            title: "Registrar Egresos",
+            url: "/owners/expenses",
+            icon: IconReceipt,
         },
     ],
 }
