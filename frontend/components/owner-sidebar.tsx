@@ -87,7 +87,7 @@ export function OwnerSidebar({ ...props }: React.ComponentProps<typeof Sidebar>)
                 <NavMain items={ownerNavData.navMain} />
             </SidebarContent>
             <SidebarFooter>
-                <NavUser user={user} />
+                <NavUser user={user} hideConfig={true} />
             </SidebarFooter>
         </Sidebar>
     )

@@ -35,12 +35,14 @@ import {
  */
 export function NavUser({
   user,
+  hideConfig = false,
 }: {
   user: {
     name: string
     email: string
     avatar: string
   }
+  hideConfig?: boolean
 }) {
   const { isMobile } = useSidebar()
   const router = useRouter()
@@ -93,15 +95,19 @@ export function NavUser({
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuGroup>
-              <DropdownMenuItem asChild>
-                <a href="/account">
-                  <IconUserCircle />
-                  Configuración
-                </a>
-              </DropdownMenuItem>
-            </DropdownMenuGroup>
-            <DropdownMenuSeparator />
+            {(!hideConfig) && (
+              <>
+                <DropdownMenuGroup>
+                  <DropdownMenuItem asChild>
+                    <a href="/account">
+                      <IconUserCircle />
+                      Configuración
+                    </a>
+                  </DropdownMenuItem>
+                </DropdownMenuGroup>
+                <DropdownMenuSeparator />
+              </>
+            )}
             <DropdownMenuItem onClick={handleLogout}>
               <IconLogout />
               Salir
