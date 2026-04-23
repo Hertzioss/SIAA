@@ -10,12 +10,12 @@ export const generateEmailHtml = (title: string, message: string, recipientName:
     <style>
         body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #f4f4f5; margin: 0; padding: 0; }
         .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; margin-top: 20px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        .header { background-color: #000000; color: #ffffff; padding: 24px; text-align: center; }
+        .header { background-color: #1e3a8a; color: #ffffff; padding: 24px; text-align: center; }
         .header h1 { margin: 0; font-size: 20px; font-weight: 600; }
         .content { padding: 32px; color: #333333; line-height: 1.6; }
         .content p { margin-bottom: 16px; font-size: 16px; }
         .footer { background-color: #f4f4f5; padding: 24px; text-align: center; font-size: 12px; color: #666666; border-top: 1px solid #e4e4e7; }
-        .button { display: inline-block; background-color: #000000; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 500; margin-top: 16px; }
+        .button { display: inline-block; background-color: #1e3a8a; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 500; margin-top: 16px; }
     </style>
 </head>
 <body>
@@ -59,7 +59,7 @@ export const generateOwnerCredentialsEmail = (name: string, email: string, passw
         </div>
         <p>Le recomendamos cambiar esta contraseña una vez ingrese al sistema.</p>
         <p>Puede acceder al portal en cualquier momento haciendo clic en el siguiente enlace:</p>
-        <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/owners/login" style="display: inline-block; background-color: #000000; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 500; margin-top: 16px;">Ir al Portal</a>
+        <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/owners/login" style="display: inline-block; background-color: #1e3a8a; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 500; margin-top: 16px;">Ir al Portal</a>
         `
         : `
         <p>Hola <strong>${name}</strong>,</p>
@@ -71,7 +71,7 @@ export const generateOwnerCredentialsEmail = (name: string, email: string, passw
             <p style="margin: 8px 0 0 0; font-family: monospace;">Contraseña: <strong>${password}</strong></p>
         </div>
         <p>Puede acceder al portal haciendo clic en el siguiente botón:</p>
-        <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/owners/login" style="display: inline-block; background-color: #000000; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 500; margin-top: 16px;">Acceder al Portal</a>
+        <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/owners/login" style="display: inline-block; background-color: #1e3a8a; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 500; margin-top: 16px;">Acceder al Portal</a>
         `
 
     return generateEmailHtml(title, content, name) // We are abusing the 'message' param slightly by passing HTML, but our generateEmailHtml needs adjustment to allow HTML or we just wrap it.
@@ -96,15 +96,15 @@ export const generateOwnerCredentialsTemplate = (name: string, email: string, pa
     <style>
         body { font-family: system-ui, -apple-system, sans-serif; background-color: #f4f4f5; margin: 0; padding: 0; line-height: 1.5; color: #18181b; }
         .container { max-width: 500px; margin: 40px auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
-        .header { background-color: #18181b; color: #ffffff; padding: 32px; text-align: center; }
+        .header { background-color: #1e3a8a; color: #ffffff; padding: 32px; text-align: center; }
         .header h1 { margin: 0; font-size: 24px; font-weight: 600; letter-spacing: -0.025em; }
         .content { padding: 40px 32px; }
         .credentials { background-color: #f4f4f5; border: 1px solid #e4e4e7; border-radius: 8px; padding: 24px; margin: 24px 0; }
         .label { font-size: 12px; text-transform: uppercase; letter-spacing: 0.1em; color: #71717a; font-weight: 600; margin-bottom: 4px; }
         .value { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 16px; color: #18181b; font-weight: 500; }
         .footer { background-color: #fafafa; padding: 24px; text-align: center; font-size: 13px; color: #71717a; border-top: 1px solid #e4e4e7; }
-        .button { display: inline-block; background-color: #18181b; color: #ffffff; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 500; margin-top: 8px; }
-        .button:hover { background-color: #27272a; }
+        .button { display: inline-block; background-color: #1e3a8a; color: #ffffff; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 500; margin-top: 8px; }
+        .button:hover { background-color: #172554; }
     </style>
 </head>
 <body>

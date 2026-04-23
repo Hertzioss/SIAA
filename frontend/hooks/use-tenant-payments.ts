@@ -2,12 +2,14 @@ import { useState, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import { toast } from 'sonner'
 import { v4 as uuidv4 } from 'uuid'
+import { useSystemConfig } from '@/hooks/use-system-config'
 
 import { PaymentInsert, PaymentWithDetails, MonthlyBalance } from '@/types/payment'
 
 export type { PaymentInsert, PaymentWithDetails, MonthlyBalance }
 
 export function useTenantPayments() {
+    const { config } = useSystemConfig()
     const [isLoading, setIsLoading] = useState(false)
     const [history, setHistory] = useState<PaymentWithDetails[]>([])
 
@@ -85,14 +87,93 @@ export function useTenantPayments() {
                 await Promise.all(successfulPayments.map(async (payment) => {
                     if (!payment?.id) return
                     try {
+                        let pdfBase64 = undefined;
+
+                        // Fetch full payment details to generate PDF
+                        const { data: fullPayment } = await supabase
+                            .from('payments')
+                            .select(`
+                                *,
+                                tenants(name, doc_id, email),
+                                contracts(
+                                    units(
+                                        name, type,
+                                        properties(
+                                            name,
+                                            property_owners(
+                                                owners(name, doc_id, logo_url)
+                                            )
+                                        )
+                                    )
+                                )
+                            `)
+                            .eq('id', payment.id)
+                            .single();
+                            
+                        if (fullPayment) {
+                            const contractData = Array.isArray(fullPayment.contracts) ? fullPayment.contracts[0] : fullPayment.contracts;
+                            const unitData = Array.isArray(contractData?.units) ? contractData?.units[0] : contractData?.units;
+                            const propertyData = Array.isArray(unitData?.properties) ? unitData?.properties[0] : unitData?.properties;
+                            
+                            let ownersList: any[] = [];
+                            let ownerLogo: string | null = null;
+                            const propertyOwners = propertyData?.property_owners;
+                            if (Array.isArray(propertyOwners)) {
+                                ownersList = propertyOwners.map((po: any) => {
+                                    const logo = po.owners?.logo_url;
+                                    if (logo && !ownerLogo) ownerLogo = logo;
+                                    return {
+                                        name: po.owners?.name,
+                                        docId: po.owners?.doc_id
+                                    };
+                                }).filter((o: any) => o.name);
+                            }
+
+                            const finalLogo = ownerLogo || config?.logo_url || null;
+
+                            const tenantData = Array.isArray(fullPayment.tenants) ? fullPayment.tenants[0] : fullPayment.tenants;
+
+                            const pdfData = {
+                                payment: {
+                                    date: fullPayment.date,
+                                    amount: fullPayment.amount,
+                                    id: fullPayment.id,
+                                    concept: (fullPayment.concept || 'PAGO').replace(/Renta/gi, 'Canon'),
+                                    status: 'approved',
+                                    reference: fullPayment.reference_number || undefined,
+                                    rate: fullPayment.exchange_rate || undefined,
+                                    currency: fullPayment.currency || undefined
+                                },
+                                tenant: {
+                                    name: tenantData?.name || 'Inquilino',
+                                    docId: tenantData?.doc_id || '',
+                                    property: `${propertyData?.name || ''} - ${unitData?.name || ''}`.trim() || 'Inmueble',
+                                    propertyType: unitData?.type
+                                },
+                                company: {
+                                    name: config?.name || 'Escritorio Legal',
+                                    rif: config?.rif,
+                                    phone: config?.phone,
+                                    email: config?.email
+                                },
+                                owners: ownersList.length > 0 ? ownersList : undefined,
+                                logoSrc: finalLogo,
+                                timezone: config?.timezone
+                            };
+
+                            const { generatePaymentReceiptPDF } = await import('@/lib/payment-pdf-generator');
+                            pdfBase64 = await generatePaymentReceiptPDF(pdfData);
+                        }
+
                         await fetch('/api/payments/update-status', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
                                 id: payment.id,
-                                status: 'approved', // Re-assert status to trigger email
-                                notes: payments[0].notes, // Pass notes potentially
-                                sendEmail: true
+                                status: 'approved',
+                                notes: payments[0].notes,
+                                sendEmail: true,
+                                pdfBase64
                             })
                         })
                     } catch (e) {
