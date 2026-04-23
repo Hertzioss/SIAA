@@ -38,8 +38,24 @@ export async function POST(request: Request) {
             const message = `
 RECIBO DE PAGO
 
-Adjunto a este correo encontrará su recibo de pago en formato PDF, el cual ha sido VALIDADO y APROBADO exitosamente.
+Estimado(a) ${tenant.name},
 
+Adjunto a este correo encontrará su recibo de pago formalizado en PDF, el cual ha sido VALIDADO y APROBADO exitosamente.
+
+Detalles de la Transacción:
+------------------------------------------------
+Fecha: ${payment.date}
+Monto: ${payment.currency === 'VES' ? 'Bs. ' : '$'}${payment.amount}
+Concepto: ${payment.concept}
+Referencia: ${payment.reference_number || 'N/A'}
+Notas: ${payment.notes || 'Gracias por su pago.'}
+------------------------------------------------
+
+Puede descargar su recibo en cualquier momento ingresando a su portal de inquilino:
+${process.env.NEXT_PUBLIC_APP_URL || 'https://escritorio.legal'}
+
+Atentamente,
+Administración
 `
 
             const html = generateEmailHtml(subject, message.replace(/\n/g, '<br/>'), tenant.name)

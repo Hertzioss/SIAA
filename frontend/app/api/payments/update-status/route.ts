@@ -54,7 +54,7 @@ Su pago ha sido VALIDADO y APROBADO exitosamente.
 Detalles de la Transacción:
 ------------------------------------------------
 Fecha: ${payment.date}
-Monto: $${payment.amount} ${payment.currency}
+Monto: ${payment.currency === 'VES' ? 'Bs. ' : '$'}${payment.amount}
 Concepto: ${payment.concept}
 Referencia: ${payment.reference_number || 'N/A'}
 Notas: ${notes || 'Gracias por su pago.'}
