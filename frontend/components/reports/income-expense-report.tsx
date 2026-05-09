@@ -67,6 +67,7 @@ export const IncomeExpenseReport = React.forwardRef<HTMLDivElement, IncomeExpens
                 debit: 0,
                 credit: item.credit || 0,
                 balance: 0,
+                balanceBs: 0,
                 type: 'income_usd',
                 originalAmount: item.originalAmount,
                 rate: item.rate
@@ -82,6 +83,7 @@ export const IncomeExpenseReport = React.forwardRef<HTMLDivElement, IncomeExpens
                 debit: 0,
                 credit: item.incomeUsd || 0,
                 balance: 0,
+                balanceBs: 0,
                 type: 'income_bs',
                 originalAmount: item.credit,
                 rate: item.rate
@@ -97,6 +99,7 @@ export const IncomeExpenseReport = React.forwardRef<HTMLDivElement, IncomeExpens
                 debit: item.amount,
                 credit: 0,
                 balance: 0,
+                balanceBs: 0,
                 type: 'expense',
                 originalAmount: item.originalAmount,
                 rate: item.rate
