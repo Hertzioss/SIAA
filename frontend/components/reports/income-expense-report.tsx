@@ -11,6 +11,7 @@ interface Movement {
     type: 'income_usd' | 'income_bs' | 'expense'
     originalAmount?: number
     rate?: number
+    balanceBs: number
 }
 
 interface Distribution {
@@ -111,9 +112,16 @@ export const IncomeExpenseReport = React.forwardRef<HTMLDivElement, IncomeExpens
 
         // Calculate running balance
         let runningBalance = 0
+        let runningBalanceBs = 0
         return unified.map(m => {
             runningBalance += (m.credit - m.debit)
-            return { ...m, balance: runningBalance }
+            
+            // Determine BS amount for this row
+            // If originalAmount is provided, use it. Otherwise calculate from rate.
+            const amountBs = m.originalAmount || (m.credit > 0 ? m.credit * (m.rate || 0) : m.debit * (m.rate || 0))
+            runningBalanceBs += (m.credit > 0 ? amountBs : -amountBs)
+
+            return { ...m, balance: runningBalance, balanceBs: runningBalanceBs }
         })
     }, [dataUsd, dataBs, dataExpenses])
 
@@ -147,8 +155,8 @@ export const IncomeExpenseReport = React.forwardRef<HTMLDivElement, IncomeExpens
                                     <TableHead className="text-gray-900 font-bold w-[120px] min-w-[120px] max-w-[120px] whitespace-normal break-words">INQUILINO / ENTIDAD</TableHead>
                                     <TableHead className="text-gray-900 font-bold w-[30%]">CONCEPTO / DESCRIPCIÓN</TableHead>
                                     <TableHead className="text-gray-900 font-bold text-center w-[60px]">TASA</TableHead>
-                                    <TableHead className="text-gray-900 font-bold text-right text-rose-700">DEBE (EGRESOS)</TableHead>
-                                    <TableHead className="text-gray-900 font-bold text-right text-emerald-700">HABER (INGRESOS)</TableHead>
+                                    <TableHead className="text-gray-900 font-bold text-right text-rose-700">DEBE (E)</TableHead>
+                                    <TableHead className="text-gray-900 font-bold text-right text-emerald-700">HABER (I)</TableHead>
                                     <TableHead className="text-gray-900 font-bold text-right">SALDO</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -171,7 +179,7 @@ export const IncomeExpenseReport = React.forwardRef<HTMLDivElement, IncomeExpens
                                                     <>
                                                         <span className="block">${row.debit.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                                                         {row.originalAmount && row.originalAmount > 0 && (
-                                                            <span className="block text-[8px] text-slate-500 italic mt-0.5 font-bold">
+                                                            <span className="block text-[10px] text-slate-500 italic mt-0.5 font-bold">
                                                                 Bs. {row.originalAmount.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                                             </span>
                                                         )}
@@ -183,7 +191,7 @@ export const IncomeExpenseReport = React.forwardRef<HTMLDivElement, IncomeExpens
                                                     <>
                                                         <span className="block">${row.credit.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                                                         {row.originalAmount && row.originalAmount > 0 && (
-                                                            <span className="block text-[8px] text-slate-500 italic mt-0.5 font-bold">
+                                                            <span className="block text-[10px] text-slate-500 italic mt-0.5 font-bold">
                                                                 Bs. {row.originalAmount.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                                             </span>
                                                         )}
@@ -191,7 +199,7 @@ export const IncomeExpenseReport = React.forwardRef<HTMLDivElement, IncomeExpens
                                                 ) : ''}
                                             </TableCell>
                                             <TableCell className="text-right font-bold py-1">
-                                                ${row.balance.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                Bs. {row.balanceBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                             </TableCell>
                                         </TableRow>
                                     ))

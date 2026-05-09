@@ -196,6 +196,7 @@ export default function OwnerDashboard() {
                         </p>
                     </CardContent>
                 </Card>
+                {/* 
                 <Card 
                     className={selectedMonth !== 'all' && metrics.pendingPaymentsCount > 0 ? "cursor-pointer transition-all hover:scale-[1.02] hover:shadow-md hover:border-amber-200 dark:hover:border-amber-800" : ""}
                     onClick={() => { 
@@ -247,6 +248,7 @@ export default function OwnerDashboard() {
                         </p>
                     </CardContent>
                 </Card>
+                */}
                 <Card 
                     className={metrics.vacantUnits > 0 ? "cursor-pointer transition-all hover:scale-[1.02] hover:shadow-md hover:border-blue-200 dark:hover:border-blue-800" : ""}
                     onClick={() => { 
