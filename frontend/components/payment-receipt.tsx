@@ -14,6 +14,7 @@ interface PaymentReceiptProps {
         rate?: number
         amountBs?: number
         amountUsd?: number
+        currency?: string
     }
     tenant: {
         name: string
@@ -45,10 +46,10 @@ export const PaymentReceipt = React.forwardRef<HTMLDivElement, PaymentReceiptPro
 
     const paymentReceiptProps = { payment, tenant, company, owners, logoSrc, timezone }
 
-    const amountVal = parseAmount(payment.amount)
-    const rate = payment.rate || 65.26 // Mock rate if missing
-    const amountBs = payment.amountBs ?? (amountVal * rate)
-    const amountUsd = payment.amountUsd ?? amountVal
+    const amountBs = payment.amountBs ?? 0
+    const amountUsd = payment.amountUsd ?? 0
+    const rate = payment.rate || 0
+    
     return (
         <div ref={ref} className="relative bg-white p-2 mx-auto text-black font-sans text-xs shadow-lg print:shadow-none" style={{ width: '8.5in', minHeight: '5.5in', maxHeight: '5.5in', overflow: 'hidden' }}>
             {/* Inner border container for print margins */}
@@ -100,12 +101,16 @@ export const PaymentReceipt = React.forwardRef<HTMLDivElement, PaymentReceiptPro
                         <div className="w-44 shrink-0 font-bold text-[10px] uppercase text-gray-900">RECIBO POR:</div>
                         <div className="flex-1 flex justify-start gap-3 px-3">
                             <div className="text-left min-w-[80px]">
-                                <div className="font-bold text-sm text-gray-900">{amountBs.toLocaleString('es-VE', { minimumFractionDigits: 2 })}</div>
-                                <div className="font-bold text-gray-500 text-xs">{amountUsd > 0 ? amountUsd.toLocaleString('en-US', { minimumFractionDigits: 2 }) : '-'}</div>
+                                <div className="font-bold text-sm text-gray-900">
+                                    {payment.currency === 'USD' ? amountUsd.toLocaleString('en-US', { minimumFractionDigits: 2 }) : amountBs.toLocaleString('es-VE', { minimumFractionDigits: 2 })}
+                                </div>
+                                <div className="font-bold text-gray-500 text-xs">
+                                    -
+                                </div>
                             </div>
                             <div className="text-left font-bold uppercase text-[10px] flex flex-col justify-center gap-0.5">
-                                <div className="text-gray-900">BOLIVARES</div>
-                                <div className="text-gray-500">DOLARES</div>
+                                <div className="text-gray-900">{payment.currency === 'USD' ? 'DOLARES' : 'BOLIVARES'}</div>
+                                <div className="text-gray-500">{payment.currency === 'USD' ? 'BOLIVARES' : 'DOLARES'}</div>
                             </div>
                         </div>
                     </div>
@@ -198,7 +203,7 @@ export const PaymentReceipt = React.forwardRef<HTMLDivElement, PaymentReceiptPro
                             </div>
                             <div className="flex items-center pt-1 border-t border-gray-300">
                                 <div className="w-44 shrink-0 font-bold uppercase text-gray-900 text-[10px]">TOTAL Bs.:</div>
-                                <div className="font-mono font-bold text-[10px]">{((amountUsd * rate) + amountBs).toLocaleString('es-VE', { minimumFractionDigits: 2 })}</div>
+                                <div className="font-mono font-bold text-[10px]">{amountBs.toLocaleString('es-VE', { minimumFractionDigits: 2 })}</div>
                             </div>
                         </div>
                     </div>

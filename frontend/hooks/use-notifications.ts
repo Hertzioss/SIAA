@@ -122,7 +122,7 @@ export function useNotifications() {
             const { title, message, type, target, recipientType } = data;
             const baseNotification = { title, message, type, user_id: null };
 
-            let recipientsData: { email: string, name: string, property?: string }[] = [];
+            const recipientsData: { email: string, name: string, property?: string }[] = [];
 
             if (target.type === 'tenant') {
                 if (!target.id) throw new Error("Tenant ID required for single tenant notification");
@@ -149,7 +149,7 @@ export function useNotifications() {
                     ? tenant.contracts.find((c: any) => c.status === 'active')
                     : (tenant.contracts as any)?.status === 'active' ? tenant.contracts : null;
                 
-                const unit = Array.isArray(activeContract?.units) ? activeContract.units[0] : activeContract?.units;
+                const unit: any = Array.isArray(activeContract?.units) ? activeContract.units[0] : activeContract?.units;
                 const propertyName = Array.isArray(unit?.properties) ? unit.properties[0]?.name : unit?.properties?.name;
 
                 notificationsToInsert.push({
@@ -214,7 +214,7 @@ export function useNotifications() {
                     const t = c.tenant as any;
                     if (!t) return;
 
-                    const unit = Array.isArray(c.unit) ? c.unit[0] : c.unit;
+                    const unit: any = Array.isArray(c.unit) ? c.unit[0] : c.unit;
                     const propertyName = Array.isArray(unit?.properties) ? unit.properties[0]?.name : unit?.properties?.name;
 
                     if (recipientType === 'tenant' || recipientType === 'both') {
@@ -268,7 +268,7 @@ export function useNotifications() {
                         ? t.contracts.find((c: any) => c.status === 'active')
                         : (t.contracts as any)?.status === 'active' ? t.contracts : null;
                     
-                    const unit = Array.isArray(activeContract?.units) ? activeContract.units[0] : activeContract?.units;
+                    const unit: any = Array.isArray(activeContract?.units) ? activeContract.units[0] : activeContract?.units;
                     const propertyName = Array.isArray(unit?.properties) ? unit.properties[0]?.name : unit?.properties?.name;
 
                     if (recipientType === 'tenant' || recipientType === 'both') {
