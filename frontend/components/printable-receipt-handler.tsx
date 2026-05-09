@@ -46,19 +46,38 @@ export function PrintableReceiptHandler({ payment, onClose }: PrintableReceiptHa
 
     if (!payment) return null
 
+    // Robust data resolution for nested Supabase joins (handling both single objects and arrays)
+    const contractData = Array.isArray(payment.contracts) ? payment.contracts[0] : payment.contracts;
+    const unitData = Array.isArray(contractData?.units) ? contractData?.units[0] : contractData?.units;
+    const propertyData = Array.isArray(unitData?.properties) ? unitData?.properties[0] : unitData?.properties;
+    const propertyOwners = propertyData?.property_owners;
+
     // Logic to determine logo:
-    // 1. System Config Logo (priority)
-    // 2. Owner Logo (fallback)
-    const ownerLogo = payment.contracts?.units?.properties?.property_owners?.find((po: { owners: { name: string; doc_id: string; logo_url?: string | null } }) => po.owners?.logo_url)?.owners?.logo_url
+    // 1. Owner Logo (priority if exists in property owners)
+    // 2. System Config Logo (fallback)
+    let ownerLogo: string | null = null;
+    if (Array.isArray(propertyOwners)) {
+        ownerLogo = propertyOwners.find((po: any) => po.owners?.logo_url)?.owners?.logo_url || null;
+    }
+
     const finalLogo = ownerLogo || config?.logo_url || null
 
     // Helper: first owner's RIF (doc_id)
-    const firstOwnerDocId = payment.contracts?.units?.properties?.property_owners?.[0]?.owners?.doc_id || ""
+    const firstOwnerDocId = (Array.isArray(propertyOwners) && propertyOwners.length > 0) 
+        ? propertyOwners[0]?.owners?.doc_id 
+        : "";
 
     // Company info for the receipt
-    // RIF Logic: 1. System config (if not empty), 2. First Owner doc_id, 3. Empty string
     const companyName = config?.name || "Escritorio Legal"
     const companyRif = config?.rif?.trim() ? config.rif : firstOwnerDocId
+
+    // Map owners for the component
+    const ownersList = Array.isArray(propertyOwners) 
+        ? propertyOwners.map((po: any) => ({
+            name: po.owners?.name,
+            docId: po.owners?.doc_id
+          })).filter(o => o.name)
+        : [];
 
     return (
         <div style={{ position: "fixed", top: "-9999px", left: "-9999px" }}>
@@ -78,8 +97,8 @@ export function PrintableReceiptHandler({ payment, onClose }: PrintableReceiptHa
                 tenant={{
                     name: payment.tenants?.name || "Inquilino",
                     docId: payment.tenants?.doc_id || "",
-                    property: `${payment.contracts?.units?.properties?.name || ''} - ${payment.contracts?.units?.name || ''}`.trim() || "Inmueble",
-                    propertyType: payment.contracts?.units?.type || "local"
+                    property: `${propertyData?.name || ''} - ${unitData?.name || ''}`.trim() || "Inmueble",
+                    propertyType: unitData?.type || "local"
                 }}
                 company={{
                      name: companyName,
@@ -87,10 +106,7 @@ export function PrintableReceiptHandler({ payment, onClose }: PrintableReceiptHa
                      phone: config?.phone || '',
                      email: config?.email || ''
                 }}
-                owners={payment.contracts?.units?.properties?.property_owners?.map((po: { owners: { name: string; doc_id: string; logo_url?: string | null } }) => ({
-                    name: po.owners?.name,
-                    docId: po.owners?.doc_id
-                })) || []}
+                owners={ownersList}
                 logoSrc={finalLogo}
                 timezone={config?.timezone || 'America/Caracas'}
             />
