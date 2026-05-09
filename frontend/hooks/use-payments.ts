@@ -436,11 +436,21 @@ export function usePayments() {
             const data = await res.json();
             if (!res.ok) throw new Error(data.details || data.error);
 
-            toast.success(`Pago ${status === 'approved' ? 'conciliado' : 'rechazado'} correctamente`, {
-                description: sendEmail 
-                    ? 'Se ha notificado al inquilino por correo electrónico con el recibo adjunto.'
-                    : 'El estado del pago ha sido actualizado en el sistema.'
-            });
+            // Notify user about payment update
+            toast.success(`Pago ${status === 'approved' ? 'conciliado' : 'rechazado'} correctamente`);
+            
+            // Notify user about email status specifically if they requested it
+            if (sendEmail) {
+                if (data.emailSent) {
+                    toast.info('Correo enviado', {
+                        description: 'Se ha notificado al inquilino por correo electrónico con el recibo adjunto.'
+                    });
+                } else {
+                    toast.warning('Correo no enviado', {
+                        description: data.emailError || 'El correo no pudo ser enviado, pero el pago se actualizó correctamente.'
+                    });
+                }
+            }
             fetchPayments(); // Refresh list to update UI
         } catch (err: unknown) {
             const error = err as Error;

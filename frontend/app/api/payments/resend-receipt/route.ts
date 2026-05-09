@@ -30,7 +30,20 @@ export async function POST(request: Request) {
             )
         }
 
-        // 2. Send Email
+        // 2. Check if email is enabled in system config
+        const { data: company } = await supabaseAdmin
+            .from('companies')
+            .select('email_enabled')
+            .single()
+        
+        if (company && company.email_enabled === false) {
+             return NextResponse.json(
+                { error: 'El envío de correos está desactivado en la configuración del sistema.' },
+                { status: 400 }
+            )
+        }
+
+        // 3. Send Email
         if (payment?.tenant?.email) {
             const tenant = payment.tenant
             const subject = 'Recibo de Pago - Escritorio Legal'

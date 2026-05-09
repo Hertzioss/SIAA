@@ -11,6 +11,7 @@ export interface SystemConfig {
   email: string
   logo_url?: string | null
   timezone: string
+  email_enabled?: boolean
 }
 
 export function useSystemConfig() {
@@ -29,7 +30,8 @@ export function useSystemConfig() {
                     phone: res.data.phone || "",
                     email: res.data.email || "",
                     logo_url: res.data.logo_url,
-                    timezone: res.data.timezone || "America/Caracas"
+                    timezone: res.data.timezone || "America/Caracas",
+                    email_enabled: res.data.email_enabled ?? true
                 })
             }
         } catch (error) {

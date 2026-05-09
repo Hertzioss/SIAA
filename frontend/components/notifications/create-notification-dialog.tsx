@@ -6,10 +6,14 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Loader2 } from "lucide-react"
 import { useTenants } from "@/hooks/use-tenants"
 import { useProperties } from "@/hooks/use-properties"
 import { supabase } from "@/lib/supabase"
+import { useSystemConfig } from "@/hooks/use-system-config"
+import { Check, ChevronsUpDown, AlertCircle, Loader2 } from "lucide-react"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
+import { cn } from "@/lib/utils"
 
 interface CreateNotificationDialogProps {
     open: boolean
@@ -44,7 +48,13 @@ export function CreateNotificationDialog({ open, onOpenChange, onSubmit, initial
     const [recipientType, setRecipientType] = useState<'tenant' | 'contacts' | 'both'>('tenant')
     const [copyToAdmin, setCopyToAdmin] = useState(false)
 
+    // UI state for Comboboxes
+    const [openTenant, setOpenTenant] = useState(false)
+    const [openProperty, setOpenProperty] = useState(false)
+
     const [isSubmitting, setIsSubmitting] = useState(false)
+    const { config } = useSystemConfig()
+    const isEmailDisabled = config?.email_enabled === false
 
     // Update state when initialData changes or dialog opens
     useEffect(() => {
@@ -53,8 +63,6 @@ export function CreateNotificationDialog({ open, onOpenChange, onSubmit, initial
             setMessage(initialData.message)
             setType(initialData.type)
         }
-        // We generally don't reset scope/tenant/property from initialData unless we store that in templates too.
-        // For now templates only have content.
     }, [open, initialData])
 
     const { tenants } = useTenants()
@@ -78,7 +86,7 @@ export function CreateNotificationDialog({ open, onOpenChange, onSubmit, initial
             })
 
             // Send admin copy if requested
-            if (copyToAdmin) {
+            if (copyToAdmin && !isEmailDisabled) {
                 const { data: company } = await supabase
                     .from('companies')
                     .select('email, name')
@@ -107,7 +115,6 @@ export function CreateNotificationDialog({ open, onOpenChange, onSubmit, initial
             setCopyToAdmin(false)
         } catch (error) {
             console.error("Error submitting notification:", error)
-            // Toast is likely handled in onSubmit (the hook), but we catch here to prevent crash
         } finally {
             setIsSubmitting(false)
         }
@@ -115,13 +122,26 @@ export function CreateNotificationDialog({ open, onOpenChange, onSubmit, initial
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[425px]">
+            <DialogContent className="sm:max-w-[600px]">
                 <DialogHeader>
                     <DialogTitle>Redactar Comunicado</DialogTitle>
                     <DialogDescription>
                         Crea una nueva notificación para el sistema o para destinatarios específicos.
                     </DialogDescription>
                 </DialogHeader>
+
+                {isEmailDisabled && (
+                    <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-3 rounded-md flex items-start gap-3">
+                        <AlertCircle className="h-5 w-5 text-red-600 mt-0.5" />
+                        <div>
+                            <p className="text-sm font-semibold text-red-800 dark:text-red-400">Envío de correos desactivado</p>
+                            <p className="text-xs text-red-700 dark:text-red-500">
+                                La notificación se guardará en el sistema, pero no se enviarán correos electrónicos a los inquilinos.
+                            </p>
+                        </div>
+                    </div>
+                )}
+
                 <form onSubmit={handleSubmit} className="grid gap-4 py-4">
                     <div className="grid gap-2">
                         <Label htmlFor="title">Asunto / Título</Label>
@@ -138,7 +158,7 @@ export function CreateNotificationDialog({ open, onOpenChange, onSubmit, initial
                         <div className="grid gap-2">
                             <Label htmlFor="type">Tipo</Label>
                             <Select value={type} onValueChange={(v: any) => setType(v)}>
-                                <SelectTrigger>
+                                <SelectTrigger className="w-full">
                                     <SelectValue placeholder="Tipo" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -153,11 +173,11 @@ export function CreateNotificationDialog({ open, onOpenChange, onSubmit, initial
                         <div className="grid gap-2">
                             <Label htmlFor="scope">Alcance</Label>
                             <Select value={scope} onValueChange={(v: any) => setScope(v)}>
-                                <SelectTrigger>
+                                <SelectTrigger className="w-full">
                                     <SelectValue placeholder="Alcance" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="all">Todos los Inquilinos</SelectItem>
+                                    <SelectItem value="all">Todos</SelectItem>
                                     <SelectItem value="property">Por Inmueble</SelectItem>
                                     <SelectItem value="tenant">Un Inquilino</SelectItem>
                                 </SelectContent>
@@ -168,18 +188,49 @@ export function CreateNotificationDialog({ open, onOpenChange, onSubmit, initial
                     {scope === 'property' && (
                         <div className="grid gap-2">
                             <Label htmlFor="property">Inmueble</Label>
-                            <Select value={propertyId} onValueChange={setPropertyId} required={scope === 'property'}>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Seleccione inmueble" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {properties.map((p) => (
-                                        <SelectItem key={p.id} value={p.id}>
-                                            {p.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                            <Popover open={openProperty} onOpenChange={setOpenProperty}>
+                                <PopoverTrigger asChild>
+                                    <Button
+                                        variant="outline"
+                                        role="combobox"
+                                        aria-expanded={openProperty}
+                                        className="justify-between w-full font-normal"
+                                    >
+                                        {propertyId
+                                            ? properties.find((p) => p.id === propertyId)?.name
+                                            : "Seleccione inmueble..."}
+                                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
+                                    <Command>
+                                        <CommandInput placeholder="Buscar inmueble..." />
+                                        <CommandList>
+                                            <CommandEmpty>No se encontró el inmueble.</CommandEmpty>
+                                            <CommandGroup>
+                                                {properties.map((p) => (
+                                                    <CommandItem
+                                                        key={p.id}
+                                                        value={p.name}
+                                                        onSelect={() => {
+                                                            setPropertyId(p.id)
+                                                            setOpenProperty(false)
+                                                        }}
+                                                    >
+                                                        <Check
+                                                            className={cn(
+                                                                "mr-2 h-4 w-4",
+                                                                propertyId === p.id ? "opacity-100" : "opacity-0"
+                                                            )}
+                                                        />
+                                                        {p.name}
+                                                    </CommandItem>
+                                                ))}
+                                            </CommandGroup>
+                                        </CommandList>
+                                    </Command>
+                                </PopoverContent>
+                            </Popover>
                         </div>
                     )}
 
@@ -187,25 +238,56 @@ export function CreateNotificationDialog({ open, onOpenChange, onSubmit, initial
                     {scope === 'tenant' && (
                         <div className="grid gap-2">
                             <Label htmlFor="tenant">Inquilino</Label>
-                            <Select value={tenantId} onValueChange={setTenantId} required={scope === 'tenant'}>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Busque inquilino" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {tenants.map((t) => (
-                                        <SelectItem key={t.id} value={t.id}>
-                                            {t.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                            <Popover open={openTenant} onOpenChange={setOpenTenant}>
+                                <PopoverTrigger asChild>
+                                    <Button
+                                        variant="outline"
+                                        role="combobox"
+                                        aria-expanded={openTenant}
+                                        className="justify-between w-full font-normal"
+                                    >
+                                        {tenantId
+                                            ? tenants.find((t) => t.id === tenantId)?.name
+                                            : "Seleccione inquilino..."}
+                                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
+                                    <Command>
+                                        <CommandInput placeholder="Buscar por nombre..." />
+                                        <CommandList>
+                                            <CommandEmpty>No se encontró el inquilino.</CommandEmpty>
+                                            <CommandGroup>
+                                                {tenants.map((t) => (
+                                                    <CommandItem
+                                                        key={t.id}
+                                                        value={t.name}
+                                                        onSelect={() => {
+                                                            setTenantId(t.id)
+                                                            setOpenTenant(false)
+                                                        }}
+                                                    >
+                                                        <Check
+                                                            className={cn(
+                                                                "mr-2 h-4 w-4",
+                                                                tenantId === t.id ? "opacity-100" : "opacity-0"
+                                                            )}
+                                                        />
+                                                        {t.name}
+                                                    </CommandItem>
+                                                ))}
+                                            </CommandGroup>
+                                        </CommandList>
+                                    </Command>
+                                </PopoverContent>
+                            </Popover>
                         </div>
                     )}
 
                     <div className="grid gap-2">
                         <Label>Destinatarios de Correo</Label>
                         <Select value={recipientType} onValueChange={(v: any) => setRecipientType(v)}>
-                            <SelectTrigger>
+                            <SelectTrigger className="w-full">
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>

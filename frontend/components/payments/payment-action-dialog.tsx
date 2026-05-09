@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Loader2 } from "lucide-react"
+import { useSystemConfig } from "@/hooks/use-system-config"
+import { AlertCircle, Loader2 } from "lucide-react"
 
 interface PaymentActionDialogProps {
     open: boolean
@@ -34,15 +35,20 @@ export function PaymentActionDialog({
     const [loading, setLoading] = useState(false)
     const [notes, setNotes] = useState("")
     const [sendEmail, setSendEmail] = useState(false)
+    const { config } = useSystemConfig()
+
+    const isEmailDisabled = config?.email_enabled === false
+    const canSendEmail = !!tenantEmail && !isEmailDisabled
 
     const handleSubmit = async () => {
         if (!paymentId || !action) return
 
         try {
             setLoading(true)
-            await onConfirm(paymentId, action === 'approve' ? 'approved' : 'rejected', notes || (action === 'approve' ? `Conciliado: ${concept || ''}` : ""), sendEmail)
+            await onConfirm(paymentId, action === 'approve' ? 'approved' : 'rejected', notes || (action === 'approve' ? `Conciliado: ${concept || ''}` : ""), sendEmail && canSendEmail)
             onOpenChange(false)
             setNotes("") // Reset
+            setSendEmail(false) // Reset
         } catch (error) {
             console.error(error)
         } finally {
@@ -66,19 +72,36 @@ export function PaymentActionDialog({
                 <div className="grid gap-4 py-4">
                     <div>
                         <Label htmlFor="tenantEmail" className="text-sm font-normal cursor-pointer">
-                            <span className="font-semibold">Email del inquilino:</span> {tenantEmail}
+                            <span className="font-semibold">Email del inquilino:</span> {tenantEmail || <span className="text-red-500 italic">No registrado</span>}
                         </Label>
                     </div>
-                    <div className="flex items-center space-x-2 bg-yellow-50 dark:bg-yellow-900/40 border border-yellow-200 dark:border-yellow-800 p-4 rounded-md">
+                    <div className={`flex items-center space-x-2 p-4 rounded-md border ${
+                        !canSendEmail 
+                            ? "bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 opacity-80" 
+                            : "bg-yellow-50 dark:bg-yellow-900/40 border-yellow-200 dark:border-yellow-800"
+                    }`}>
                         <Checkbox
                             id="sendEmail"
-                            checked={sendEmail}
+                            checked={sendEmail && canSendEmail}
                             onCheckedChange={(c) => setSendEmail(!!c)}
+                            disabled={!canSendEmail}
                             className="h-5 w-5"
                         />
-                        <Label htmlFor="sendEmail" className="text-sm font-medium cursor-pointer flex-1">
-                            Enviar correo al inquilino informando la Aprobación del pago
-                        </Label>
+                        <div className="flex-1">
+                            <Label htmlFor="sendEmail" className={`text-sm font-medium cursor-pointer ${!canSendEmail ? 'text-muted-foreground' : ''}`}>
+                                Enviar correo al inquilino informando la {action === 'approve' ? 'Aprobación' : 'Notificación'} del pago
+                            </Label>
+                            {isEmailDisabled && (
+                                <p className="text-[10px] text-red-500 font-semibold mt-1 flex items-center gap-1">
+                                    <AlertCircle className="h-3 w-3" /> El envío de correos está desactivado en la configuración.
+                                </p>
+                            )}
+                            {!tenantEmail && (
+                                <p className="text-[10px] text-orange-500 font-semibold mt-1 flex items-center gap-1">
+                                    <AlertCircle className="h-3 w-3" /> El inquilino no tiene correo registrado.
+                                </p>
+                            )}
+                        </div>
                     </div>
 
                     {/* Payment Details for Verification */}

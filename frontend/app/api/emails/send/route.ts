@@ -31,20 +31,28 @@ export async function POST(request: Request) {
 
         // Parallel processing of emails (be mindful of rate limits)
         // For MailRelay SMTP, sequential or small batches is safer to avoid connection limits
-        const results = await Promise.allSettled(recipients.map(async (recipient: { email: string, name: string }) => {
-            // Replace tags in message
+        const results = await Promise.allSettled(recipients.map(async (recipient: { email: string, name: string, property?: string }) => {
+            // Replace tags in message and subject
             const today = new Date().toLocaleDateString('es-VE', { day: '2-digit', month: 'long', year: 'numeric' })
-            const personalizedMessage = message
-                .replace(/{inquilino}/g, recipient.name || 'Inquilino')
-                .replace(/{fecha}/g, today)
-                .replace(/{email}/g, recipient.email || '')
+            
+            const replacer = (text: string) => {
+                if (!text) return text
+                return text
+                    .replace(/{inquilino}/g, recipient.name || 'Inquilino')
+                    .replace(/{fecha}/g, today)
+                    .replace(/{email}/g, recipient.email || '')
+                    .replace(/{propiedad}/g, recipient.property || 'su propiedad')
+            }
+
+            const personalizedSubject = replacer(subject)
+            const personalizedMessage = replacer(message)
 
             // Generate full HTML
-            const html = generateEmailHtml(subject, personalizedMessage, recipient.name)
+            const html = generateEmailHtml(personalizedSubject, personalizedMessage, recipient.name)
 
             return sendEmail({
                 to: recipient.email,
-                subject,
+                subject: personalizedSubject,
                 html
             })
         }))

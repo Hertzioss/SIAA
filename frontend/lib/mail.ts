@@ -12,7 +12,9 @@ export interface SendEmailData {
 
 export const sendEmail = async ({ to, subject, html, attachments }: SendEmailData) => {
     const apiKey = process.env.RESEND_APIKEY
-    const from = process.env.FROM_EMAIL || 'onboarding@resend.dev'
+    const fromEmail = process.env.FROM_EMAIL || 'onboarding@resend.dev'
+    const fromName = process.env.FROM_NAME || 'Escritorio Legal'
+    const from = fromEmail.includes('<') ? fromEmail : `${fromName} <${fromEmail}>`
 
     if (!apiKey) {
         throw new Error('RESEND_APIKEY is not defined in environment variables')

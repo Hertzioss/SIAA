@@ -34,9 +34,22 @@ export async function POST(request: Request) {
             )
         }
 
-        // 2. Send Email if requested
+        // 2. Check if email is enabled in system config
+        const { data: company } = await supabaseAdmin
+            .from('companies')
+            .select('email_enabled')
+            .single()
+        
+        const isEmailSystemEnabled = company?.email_enabled ?? true
+        let emailSent = false
+        let emailError = null
+
+        // 3. Send Email if requested
         if (shouldSendEmail) {
-            if (payment?.tenant?.email) {
+            if (!isEmailSystemEnabled) {
+                emailError = 'El envío de correos está desactivado globalmente en la configuración del sistema.'
+                console.warn('Email skipped: System email is disabled.')
+            } else if (payment?.tenant?.email) {
                 const tenant = payment.tenant
                 const subject = status === 'approved'
                     ? 'Recibo de Pago - Escritorio Legal'
@@ -96,24 +109,29 @@ Por favor ingrese al portal para corregir o reenviar su comprobante.
                 }
 
                 try {
-                    // console.log(`Attempting to send email to ${tenant.email} via nodemailer...`)
                     await sendEmail({
                         to: tenant.email,
                         subject,
                         html,
                         attachments
                     })
-                    // console.log(`Email sent successfully to ${tenant.email}`)
-                } catch (emailError: any) {
-                    console.error("Error sending payment notification:", emailError)
-                    console.error("Stack:", emailError.stack)
+                    emailSent = true
+                } catch (err: any) {
+                    console.error("Error sending payment notification:", err)
+                    emailError = err.message || "Error al enviar el correo"
                 }
             } else {
-                console.warn(`Skipping email: Payment ${id} updated, but tenant email is missing or join failed. Payment data:`, JSON.stringify(payment))
+                emailError = 'El inquilino no tiene un correo electrónico configurado.'
+                console.warn(`Skipping email: Payment ${id} updated, but tenant email is missing.`)
             }
         }
 
-        return NextResponse.json({ success: true })
+        return NextResponse.json({ 
+            success: true, 
+            emailSent, 
+            emailError,
+            emailSystemDisabled: !isEmailSystemEnabled
+        })
 
     } catch (error: any) {
         console.error('API Error updating payment:', error)
