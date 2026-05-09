@@ -240,7 +240,7 @@ export default function TenantsPage() {
 
     return (
         <div className="container mx-auto p-6 space-y-8">
-            <div className="flex justify-between items-center">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight">Inquilinos</h1>
                     <p className="text-muted-foreground">
@@ -248,7 +248,7 @@ export default function TenantsPage() {
                     </p>
                 </div>
 
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2 w-full sm:w-auto">
                     <ExportButtons
                         data={exportData}
                         filename="inquilinos"
@@ -272,7 +272,7 @@ export default function TenantsPage() {
                         {isSyncing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
                         Sincronizar Accesos
                     </Button> */}
-                    <Button onClick={handleCreate}>
+                    <Button onClick={handleCreate} className="ml-auto sm:ml-0">
                         <Plus className="mr-2 h-4 w-4" /> Registrar Inquilino
                     </Button>
                 </div>
@@ -280,18 +280,18 @@ export default function TenantsPage() {
 
             <Card>
                 <CardHeader>
-                    <div className="flex items-center justify-between">
-                        <div>
+                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                        <div className="shrink-0">
                             <CardTitle>Listado de Inquilinos</CardTitle>
                             <CardDescription>Base de datos de inquilinos registrados.</CardDescription>
                         </div>
-                        <div className="flex items-center gap-4">
+                        <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
                             <Select
                                 value={ownerFilter}
                                 onValueChange={handleOwnerChange}
                                 disabled={propertyFilter !== "all"}
                             >
-                                <SelectTrigger className="w-[200px]">
+                                <SelectTrigger className="w-full sm:w-[180px]">
                                     <SelectValue placeholder="Por Propietario" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -303,7 +303,7 @@ export default function TenantsPage() {
                             </Select>
 
                             <Select value={propertyFilter} onValueChange={handlePropertyChange}>
-                                <SelectTrigger className="w-[200px]">
+                                <SelectTrigger className="w-full sm:w-[180px]">
                                     <SelectValue placeholder="Por Propiedad" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -313,11 +313,11 @@ export default function TenantsPage() {
                                     ))}
                                 </SelectContent>
                             </Select>
-                            <div className="relative w-64">
+                            <div className="relative w-full sm:w-64">
                                 <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                                 <Input
                                     placeholder="Buscar inquilino..."
-                                    className="pl-8"
+                                    className="pl-8 w-full"
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
                                 />

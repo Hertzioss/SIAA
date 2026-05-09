@@ -576,7 +576,7 @@ export function TenantDialog({ open, onOpenChange, mode, tenant, properties, onS
                                                 <div className="flex justify-between items-center">
                                                     <CardTitle className="text-base flex items-center gap-2">
                                                         <FileText className="h-4 w-4" />
-                                                        {contract.units?.name}
+                                                        {contract.units?.properties?.name} - {contract.units?.name}
                                                     </CardTitle>
                                                     <Badge variant={contract.status === 'active' ? 'default' : 'secondary'}>
                                                         {contract.status === 'active' ? 'Vigente' : 'Finalizado'}

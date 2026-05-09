@@ -70,71 +70,95 @@ export function useTenantStatement() {
             if (tenantError || !tenant) throw tenantError || new Error('Inquilino no encontrado')
 
             // 2. Fetch active contract with unit & property
-            const { data: contracts } = await supabase
+            const { data: contracts, error: contractError } = await supabase
                 .from('contracts')
                 .select('id, rent_amount, start_date, units(name, properties(name))')
                 .eq('tenant_id', filters.tenantId)
                 .eq('status', 'active')
 
+            if (contractError) throw contractError
+
             const contract = contracts?.[0]
-            const contractInfo = contract ? {
-                unitName: (contract.units as any)?.name || 'N/A',
-                propertyName: (contract.units as any)?.properties?.name || 'N/A',
-                rentAmount: contract.rent_amount || 0,
-                startDate: contract.start_date
-            } : null
+            
+            // Helper to handle potential arrays in joins
+            const getSingle = (val: any) => Array.isArray(val) ? val[0] : val
+
+            let contractInfo = null
+            if (contract) {
+                const unitData = getSingle(contract.units)
+                const propertyData = getSingle(unitData?.properties)
+                
+                contractInfo = {
+                    unitName: unitData?.name || 'N/A',
+                    propertyName: propertyData?.name || 'N/A',
+                    rentAmount: contract.rent_amount || 0,
+                    startDate: contract.start_date
+                }
+            }
 
             // 3. Fetch all payments in range (approved or paid)
-            const { data: payments, error: payError } = await supabase
+            // Optimization: Remove deep joins here as we already have contractInfo.
+            // If a payment is linked to a different contract, we'll still use the current tenant's context or fallback.
+            // 3. Fetch all payments registered IN THE SELECTED RANGE (for the "Movements" table)
+            const { data: rangePayments, error: payError } = await supabase
                 .from('payments')
-                .select('id, date, amount, currency, exchange_rate, concept, payment_method, reference_number, billing_period, status, contracts(units(name, properties(name)))')
+                .select('id, date, amount, currency, exchange_rate, concept, payment_method, reference_number, billing_period, status, contract_id')
                 .eq('tenant_id', filters.tenantId)
                 .in('status', ['approved', 'paid'])
                 .gte('date', startStr)
                 .lte('date', endStr)
                 .order('date', { ascending: true })
-                .order('billing_period', { ascending: true, nullsFirst: false })
 
             if (payError) throw payError
 
-            // 4. Build payment list
-            const statementPayments: StatementPayment[] = (payments || []).map((p: any) => ({
-                date: p.date && isValid(parseISO(p.date)) ? format(parseISO(p.date), 'dd/MM/yyyy') : p.date,
-                concept: p.concept || 'Pago de alquiler',
-                property: p.contracts?.units?.properties?.name || contractInfo?.propertyName || '',
-                unit: p.contracts?.units?.name || contractInfo?.unitName || '',
-                amount: p.currency === 'USD' ? p.amount : (p.exchange_rate ? p.amount / p.exchange_rate : p.amount),
-                method: p.payment_method || '-',
-                reference: p.reference_number || '-',
-                currency: p.currency || 'USD',
-                exchangeRate: p.exchange_rate,
-                amountOriginal: p.amount,
-                billingPeriod: p.billing_period,
-                status: p.status
-            }))
+            // 4. Build payment list for the movements table
+            const statementPayments: StatementPayment[] = (rangePayments || []).map((p: any) => {
+                return {
+                    date: p.date && isValid(parseISO(p.date)) ? format(parseISO(p.date), 'dd/MM/yyyy') : p.date,
+                    concept: p.concept || 'Pago de alquiler',
+                    property: contractInfo?.propertyName || '',
+                    unit: contractInfo?.unitName || '',
+                    amount: p.currency === 'USD' ? p.amount : (p.exchange_rate ? p.amount / p.exchange_rate : p.amount),
+                    method: p.payment_method || '-',
+                    reference: p.reference_number || '-',
+                    currency: p.currency || 'USD',
+                    exchangeRate: p.exchange_rate,
+                    amountOriginal: p.amount,
+                    billingPeriod: p.billing_period,
+                    status: p.status
+                }
+            })
 
             // Sort client-side: primary by payment date, secondary by billing_period (chronological)
             statementPayments.sort((a, b) => {
-                // Compare dates (already in dd/MM/yyyy — convert back for comparison)
-                const [da, ma, ya] = (a.date || '').split('/').map(Number)
-                const [db, mb, yb] = (b.date || '').split('/').map(Number)
-                const dateA = new Date(ya, ma - 1, da).getTime()
-                const dateB = new Date(yb, mb - 1, db).getTime()
+                const parseD = (s: string) => {
+                    const [d, m, y] = (s || '').split('/').map(Number)
+                    return new Date(y, m - 1, d).getTime()
+                }
+                const dateA = parseD(a.date)
+                const dateB = parseD(b.date)
                 if (dateA !== dateB) return dateA - dateB
-                // Same date: sort by billing_period (YYYY-MM) chronologically
-                const bpA = a.billingPeriod || ''
-                const bpB = b.billingPeriod || ''
-                return bpA.localeCompare(bpB)
+                return (a.billingPeriod || '').localeCompare(b.billingPeriod || '')
             })
 
             const totalPaid = statementPayments.reduce((acc, p) => acc + p.amount, 0)
             const totalPaidBs = statementPayments.reduce((acc, p) => acc + (p.amount * (p.exchangeRate || 0)), 0)
             
-            // 5. Calculate pending months — only within the selected date range
+            // 5. Calculate pending months
             const pendingMonths: { month: string, year: number, amount: number }[] = []
             let totalDebt = 0
 
             if (contract && contract.start_date) {
+                // To accurately calculate pending months, we need ALL payments for this contract, 
+                // not just those in the movement range.
+                const { data: allContractPayments, error: allPayError } = await supabase
+                    .from('payments')
+                    .select('date, billing_period')
+                    .eq('contract_id', contract.id)
+                    .in('status', ['approved', 'paid'])
+
+                if (allPayError) throw allPayError
+
                 const contractStartDate = parseISO(contract.start_date)
                 const reportStart = filters.startDate
                 const reportEnd = filters.endDate
@@ -142,26 +166,13 @@ export function useTenantStatement() {
                 const monthsNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
                     "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
 
-                // Fetch payments for this contract within the report range to know which months are covered
-                const { data: rangePayments } = await supabase
-                    .from('payments')
-                    .select('date, billing_period')
-                    .eq('contract_id', contract.id)
-                    .in('status', ['approved', 'paid'])
-                    .gte('date', startStr)
-                    .lte('date', endStr)
-
-                // Build a set of "YYYY-MM" strings that have at least one payment in the range
+                // Build a set of all months covered by any payment ever made for this contract
                 const paidMonthKeys = new Set<string>()
-                ;(rangePayments || []).forEach((p: any) => {
-                    // Prefer billing_period if available, otherwise use payment date
+                ;(allContractPayments || []).forEach((p: any) => {
                     if (p.billing_period) {
-                        // billing_period may be "2025-03" or "2025-03-01"
-                        const key = p.billing_period.substring(0, 7) // "YYYY-MM"
-                        paidMonthKeys.add(key)
+                        paidMonthKeys.add(p.billing_period.substring(0, 7))
                     } else if (p.date) {
-                        const key = p.date.substring(0, 7) // "YYYY-MM"
-                        paidMonthKeys.add(key)
+                        paidMonthKeys.add(p.date.substring(0, 7))
                     }
                 })
 
@@ -214,8 +225,8 @@ export function useTenantStatement() {
             setStatementData(result)
             return result
         } catch (err: any) {
-            console.error('Error generating statement:', err)
-            toast.error('Error al generar el estado de cuenta')
+            console.error('Error generating statement:', err.message || err.details || err)
+            toast.error('Error al generar el estado de cuenta: ' + (err.message || 'Error desconocido'))
             return null
         } finally {
             setLoading(false)

@@ -240,12 +240,30 @@ export function useTenantPayments() {
                 }
             }
 
-            // Sort merged array
+            // Sort merged array: 
+            // 1. Payment Date DESC
+            // 2. Billing Period DESC (Target Month)
+            // 3. Creation Date DESC
             allPayments.sort((a, b) => {
-                const dateA = new Date(a.date).getTime()
-                const dateB = new Date(b.date).getTime()
+                const getTime = (val: any) => {
+                    if (!val) return 0
+                    const t = new Date(val).getTime()
+                    return isNaN(t) ? 0 : t
+                }
+                const dateA = getTime(a.date)
+                const dateB = getTime(b.date)
+                
                 if (dateA !== dateB) return dateB - dateA
-                return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+                
+                // Secondary sort: Billing Period (Month/Year)
+                const periodA = a.billing_period || ''
+                const periodB = b.billing_period || ''
+                if (periodA !== periodB) return periodB.localeCompare(periodA)
+
+                // Tertiary sort: Creation time
+                const createdA = getTime(a.created_at)
+                const createdB = getTime(b.created_at)
+                return createdB - createdA
             })
 
             const count = allPayments.length
@@ -282,6 +300,38 @@ export function useTenantPayments() {
             return { data: [], count: 0, totalPages: 0 }
         } finally {
             setIsLoading(false)
+        }
+    }, [])
+
+    const fetchPaymentById = useCallback(async (id: string) => {
+        try {
+            const { data, error } = await supabase
+                .from('payments')
+                .select(`
+                    *,
+                    tenants(name, doc_id, email),
+                    contracts(
+                        id,
+                        units(
+                            name,
+                            type,
+                            properties(
+                                name,
+                                property_owners(
+                                    owners(name, doc_id, logo_url)
+                                )
+                            )
+                        )
+                    )
+                `)
+                .eq('id', id)
+                .single()
+
+            if (error) throw error
+            return data as PaymentWithDetails
+        } catch (err) {
+            console.error('Error fetching single payment:', err)
+            return null
         }
     }, [])
 
@@ -495,6 +545,7 @@ export function useTenantPayments() {
         history,
         registerPayment,
         fetchPaymentHistory,
+        fetchPaymentById,
         getMonthlyBalance,
         getNextPaymentDate,
         getPaidMonths,

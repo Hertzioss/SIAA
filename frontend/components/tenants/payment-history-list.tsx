@@ -37,7 +37,7 @@ interface PaymentHistoryListProps {
  * Muestra una tabla paginada con los pagos realizados, estado y opciones para imprimir recibos via modal.
  */
 export function PaymentHistoryList({ tenantId }: PaymentHistoryListProps) {
-    const { history, isLoading, fetchPaymentHistory, getMonthlyBalance } = useTenantPayments()
+    const { history, isLoading, fetchPaymentHistory, fetchPaymentById, getMonthlyBalance } = useTenantPayments()
     const [selectedPayment, setSelectedPayment] = useState<PaymentWithDetails | null>(null)
     const [balanceData, setBalanceData] = useState<MonthlyBalance | null>(null)
 
@@ -46,8 +46,18 @@ export function PaymentHistoryList({ tenantId }: PaymentHistoryListProps) {
     const [totalPages, setTotalPages] = useState(1)
     const pageSize = 5
 
-    const generateReceipt = (payment: PaymentWithDetails) => {
-        setSelectedPayment(payment)
+    const generateReceipt = async (payment: PaymentWithDetails) => {
+        toast.promise(fetchPaymentById(payment.id), {
+            loading: 'Preparando recibo...',
+            success: (fullPayment) => {
+                if (fullPayment) {
+                    setSelectedPayment(fullPayment)
+                    return 'Recibo listo para imprimir'
+                }
+                throw new Error('No se pudo cargar la información del recibo')
+            },
+            error: 'Error al generar el recibo'
+        })
     }
 
     const [isExporting, setIsExporting] = useState(false)
