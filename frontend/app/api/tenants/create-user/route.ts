@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { generatePassword } from '@/lib/utils-password'
 import { sendEmail as sendEmailFn } from '@/lib/mail'
+import { generateEmailHtml } from '@/lib/email-templates'
 
 export async function POST(request: Request) {
     try {
@@ -69,20 +70,26 @@ export async function POST(request: Request) {
         // 4. Send Welcome Email (only if explicitly requested)
         if (sendEmail) {
             const loginUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://escritorio.legal'
+            const subject = 'Bienvenido a Escritorio Legal - Tus Credenciales de Acceso'
+            
+            const emailMessage = `
+Se ha creado tu cuenta de acceso al portal de inquilinos.
+
+Estas son tus credenciales:
+- Usuario/Email: ${email}
+- Contraseña: ${password}
+
+Puedes iniciar sesión aquí: ${loginUrl}
+
+Te recomendamos cambiar tu contraseña al entrar.
+            `.trim()
+
+            const html = generateEmailHtml(subject, emailMessage.replace(/\n/g, '<br/>'), name)
+
             await sendEmailFn({
                 to: email,
-                subject: 'Bienvenido a Escritorio Legal - Tus Credenciales de Acceso',
-                html: `
-                <h1>Bienvenido ${name}</h1>
-                <p>Se ha creado tu cuenta de acceso al portal de inquilinos.</p>
-                <p>Estas son tus credenciales:</p>
-                <ul>
-                    <li><strong>Usuario/Email:</strong> ${email}</li>
-                    <li><strong>Contraseña:</strong> ${password}</li>
-                </ul>
-                <p>Puedes iniciar sesión aquí: <a href="${loginUrl}">${loginUrl}</a></p>
-                <p>Te recomendamos cambiar tu contraseña al entrar.</p>
-                `
+                subject,
+                html
             })
         }
 

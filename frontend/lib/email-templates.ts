@@ -21,7 +21,7 @@ export const generateEmailHtml = (title: string, message: string, recipientName:
 <body>
     <div class="container">
         <div class="header">
-            <h1>Escritorio Legal - Comunicado</h1>
+            <h1>Escritorio Legal</h1>
         </div>
         <div class="content">
             <p>Hola <strong>${recipientName}</strong>,</p>

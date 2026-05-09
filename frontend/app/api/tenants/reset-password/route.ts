@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { generatePassword } from '@/lib/utils-password'
 import { sendEmail } from '@/lib/mail'
+import { generateEmailHtml } from '@/lib/email-templates'
 
 export async function POST(request: Request) {
     try {
@@ -53,19 +54,23 @@ export async function POST(request: Request) {
 
         // 4. Send Email
         const loginUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://escritorio.legal'
+        const subject = 'Restablecimiento de Contraseña - Escritorio Legal'
+        const message = `
+${providedPassword ? 'El administrador ha establecido una nueva contraseña para su cuenta.' : 'Se ha solicitado un restablecimiento de sus credenciales.'}
+
+Sus nuevas credenciales son:
+- Usuario: ${email}
+- Contraseña: ${newPassword}
+
+Ingresa aquí: ${loginUrl}
+        `.trim()
+
+        const html = generateEmailHtml(subject, message.replace(/\n/g, '<br/>'))
+
         await sendEmail({
             to: email,
-            subject: 'Restablecimiento de Contraseña - Escritorio Legal',
-            html: `
-            <h1>${providedPassword ? 'Sus Credenciales han sido Actualizadas' : 'Nuevas Credenciales de Acceso'}</h1>
-            <p>Hola,</p>
-            <p>${providedPassword ? 'El administrador ha establecido una nueva contraseña para su cuenta.' : 'Se ha solicitado un restablecimiento de sus credenciales.'}</p>
-            <ul>
-                <li><strong>Usuario:</strong> ${email}</li>
-                <li><strong>Contraseña:</strong> ${newPassword}</li>
-            </ul>
-            <p>Ingresa aquí: <a href="${loginUrl}">${loginUrl}</a></p>
-            `
+            subject,
+            html
         })
 
         return NextResponse.json({ success: true })
