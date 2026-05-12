@@ -84,8 +84,10 @@ export function useTenantPayments() {
             const successfulPayments = results.map(r => r.data?.[0]).filter((p): p is { id: string } => !!p)
 
             if (payments[0]?.sendEmail && payments[0]?.status === 'approved') {
-                await Promise.all(successfulPayments.map(async (payment) => {
-                    if (!payment?.id) return
+                for (let i = 0; i < successfulPayments.length; i++) {
+                    const payment = successfulPayments[i]
+                    if (!payment?.id) continue
+                    
                     try {
                         let pdfBase64 = undefined;
 
@@ -179,10 +181,15 @@ export function useTenantPayments() {
                                 pdfBase64
                             })
                         })
+                        
+                        // Small delay if there are more payments to send
+                        if (i < successfulPayments.length - 1) {
+                            await new Promise(resolve => setTimeout(resolve, 300));
+                        }
                     } catch (e) {
                         console.error("Failed to trigger email for payment", payment.id, e)
                     }
-                }))
+                }
             }
 
             toast.success('Pago(s) registrado(s) exitosamente')

@@ -29,39 +29,57 @@ export async function POST(request: Request) {
             )
         }
 
-        // Parallel processing of emails (be mindful of rate limits)
-        // For MailRelay SMTP, sequential or small batches is safer to avoid connection limits
-        const results = await Promise.allSettled(recipients.map(async (recipient: { email: string, name: string, property?: string }) => {
-            // Replace tags in message and subject
-            const today = new Date().toLocaleDateString('es-VE', { day: '2-digit', month: 'long', year: 'numeric' })
+        // Sequential processing with delay to avoid rate limits
+        // The limit is 5 requests per second, so we add a delay between each send
+        const results = []
+        const today = new Date().toLocaleDateString('es-VE', { day: '2-digit', month: 'long', year: 'numeric' })
+
+        console.log(`Iniciando envío masivo a ${recipients.length} destinatarios...`)
+
+        for (let i = 0; i < recipients.length; i++) {
+            const recipient = recipients[i]
             
-            const replacer = (text: string) => {
-                if (!text) return text
-                return text
-                    .replace(/{inquilino}/g, recipient.name || 'Inquilino')
-                    .replace(/{fecha}/g, today)
-                    .replace(/{email}/g, recipient.email || '')
-                    .replace(/{propiedad}/g, recipient.property || 'su propiedad')
+            try {
+                // Replace tags in message and subject
+                const replacer = (text: string) => {
+                    if (!text) return text
+                    return text
+                        .replace(/{inquilino}/g, recipient.name || 'Inquilino')
+                        .replace(/{fecha}/g, today)
+                        .replace(/{email}/g, recipient.email || '')
+                        .replace(/{propiedad}/g, recipient.property || 'su propiedad')
+                }
+
+                const personalizedSubject = replacer(subject)
+                const personalizedMessage = replacer(message)
+
+                // Generate full HTML
+                const html = generateEmailHtml(personalizedSubject, personalizedMessage, recipient.name)
+
+                const res = await sendEmail({
+                    to: recipient.email,
+                    subject: personalizedSubject,
+                    html
+                })
+                
+                results.push({ status: 'fulfilled', value: res })
+                console.log(`[${i + 1}/${recipients.length}] Email enviado a ${recipient.email}`)
+            } catch (error: any) {
+                console.error(`[${i + 1}/${recipients.length}] Error enviando a ${recipient.email}:`, error.message)
+                results.push({ status: 'rejected', reason: error })
             }
 
-            const personalizedSubject = replacer(subject)
-            const personalizedMessage = replacer(message)
-
-            // Generate full HTML
-            const html = generateEmailHtml(personalizedSubject, personalizedMessage, recipient.name)
-
-            return sendEmail({
-                to: recipient.email,
-                subject: personalizedSubject,
-                html
-            })
-        }))
+            // Delay entre envíos para evitar límites del proveedor (ej. 5 req/seg)
+            // 500ms de delay asegura que nos mantengamos bajo el límite (máx 2 req/seg)
+            if (i < recipients.length - 1) {
+                await new Promise(resolve => setTimeout(resolve, 400))
+            }
+        }
 
         const failed = results.filter(r => r.status === 'rejected')
 
         if (failed.length > 0) {
-            console.warn(`${failed.length} emails failed to send`)
-            // We still return success if at least some worked, but maybe log details
+            console.warn(`${failed.length} correos fallaron al enviarse`)
         }
 
         return NextResponse.json({
