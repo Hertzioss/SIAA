@@ -457,7 +457,7 @@ export default function PropertiesPage() {
                                                                         </TableCell>
                                                                         <TableCell>
                                                                             <Badge variant={unit.status === 'vacant' ? 'secondary' : 'default'} className="capitalize">
-                                                                                {unit.status === 'vacant' ? 'Vacante' : unit.status}
+                                                                                {unit.status === 'vacant' ? 'Vacante' : unit.status === 'occupied' ? 'Ocupada' : unit.status === 'maintenance' ? 'Mantenimiento' : unit.status}
                                                                             </Badge>
                                                                             {unit.isOccupied && unit.tenantName && (
                                                                                 <div className="text-xs text-muted-foreground mt-1 flex items-center gap-1">

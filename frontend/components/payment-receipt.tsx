@@ -163,9 +163,9 @@ export const PaymentReceipt = React.forwardRef<HTMLDivElement, PaymentReceiptPro
                             </div>
                         </div>
                         {payment.metadata?.original_total_amount && (
-                            <div className="flex items-start mb-0.5 mt-1">
+                            <div className="flex items-start mb-0.5">
                                 <div className="w-44 shrink-0 font-bold text-[10px] uppercase pt-0.5 text-gray-600">ORIGEN DEL PAGO:</div>
-                                <div className="flex-1 text-left text-[9px] leading-tight px-3 py-1 bg-yellow-100 text-yellow-800 font-bold uppercase border border-yellow-300">
+                                <div className="flex-1 text-left text-[8px] leading-tight px-3 py-0.5 text-gray-700 font-semibold uppercase italic">
                                     Parte {payment.metadata.split_index} de {payment.metadata.split_total_parts} de un pago original de {payment.metadata.original_total_amount.toLocaleString(payment.metadata.original_currency === 'USD' ? 'en-US' : 'es-VE', { minimumFractionDigits: 2 })} {payment.metadata.original_currency}
                                 </div>
                             </div>
