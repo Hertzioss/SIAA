@@ -93,7 +93,14 @@ export const OwnerFinancialReport = React.forwardRef<HTMLDivElement, OwnerFinanc
                                                             <TableCell className="leading-tight">{p.tenantName}</TableCell>
                                                             <TableCell className="leading-tight">{p.propertyName} / {p.unitName}</TableCell>
                                                             <TableCell className="text-right font-medium">
-                                                                {p.currency === 'VES' ? 'Bs.' : '$'} {Number(p.amountOriginal || p.amount).toLocaleString('es-VE', { minimumFractionDigits: 2 })}
+                                                                <div className="flex flex-col items-end">
+                                                                    <span>{p.currency === 'VES' ? 'Bs.' : '$'} {Number(p.amountOriginal || p.amount).toLocaleString('es-VE', { minimumFractionDigits: 2 })}</span>
+                                                                    {p.metadata?.original_total_amount && (
+                                                                        <span className="text-[8px] bg-yellow-100 border border-yellow-300 text-yellow-800 px-1 mt-0.5 rounded leading-none italic font-semibold">
+                                                                            {p.metadata.split_index} de {p.metadata.split_total_parts} ({p.metadata.original_total_amount.toLocaleString('en-US', { minimumFractionDigits: 2 })})
+                                                                        </span>
+                                                                    )}
+                                                                </div>
                                                             </TableCell>
                                                             <TableCell className="text-right text-gray-500">{p.exchangeRate}</TableCell>
                                                             <TableCell className="text-right font-bold text-gray-900">{formatMoney(p.amount, 'Bs')}</TableCell>

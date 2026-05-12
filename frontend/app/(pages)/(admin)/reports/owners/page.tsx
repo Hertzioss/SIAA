@@ -125,7 +125,7 @@ export default function OwnerReportPage() {
                     "Propietario": owner.ownerName,
                     "Inquilino": p.tenantName,
                     "Unidad": p.unitName,
-                    "Concepto": `Pago - ${p.method}`,
+                    "Concepto": `Pago - ${p.method}${p.metadata?.original_total_amount ? ` (Parte ${p.metadata.split_index} de ${p.metadata.split_total_parts} - Orig: ${p.metadata.original_total_amount} ${p.metadata.original_currency})` : ''}`,
                     "Monto Original": p.amountOriginal,
                     "Moneda Original": p.currency,
                     "Tasa": p.exchangeRate,

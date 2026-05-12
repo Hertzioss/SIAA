@@ -43,6 +43,7 @@ export interface OwnerPaymentDetail {
     tenantName: string;
     unitName: string;
     propertyName: string;
+    metadata?: any;
 }
 
 export interface OwnerReportFilters {
@@ -122,6 +123,7 @@ export function useOwnerReport() {
                     exchange_rate,
                     date,
                     payment_method, 
+                    metadata,
                     contract:contracts!inner(
                         unit:units(
                             name,
@@ -228,7 +230,8 @@ export function useOwnerReport() {
                     method: p.payment_method,
                     tenantName: p.tenant?.name || 'Desconocido',
                     unitName: p.contract?.unit?.name || '',
-                    propertyName: p.contract?.unit?.property?.name || ''
+                    propertyName: p.contract?.unit?.property?.name || '',
+                    metadata: p.metadata
                 };
 
                 // Distribute to Owners

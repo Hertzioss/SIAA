@@ -107,7 +107,7 @@ export default function PaymentsPage() {
                             { header: "Mes Pagado", key: "billing_period", transform: (val: string) => val && isValid(parseISO(val)) ? formatFn(parseISO(val), 'MMMM yyyy', { locale: es }) : "-" },
                             { header: "Inquilino", key: "tenant.name" },
                             { header: "Unidad", key: "unit", transform: (u: Payment['unit']) => u ? `${u.name} (${u.property_name || ''})` : '-' },
-                            { header: "Monto", key: "amount" },
+                            { header: "Monto", key: "amount", transform: (val: any, row: any) => row.metadata?.original_total_amount ? `${val} (Parte ${row.metadata.split_index} de ${row.metadata.split_total_parts} - Orig: ${row.metadata.original_total_amount} ${row.metadata.original_currency})` : val },
                             { header: "Moneda", key: "currency" },
                             { header: "Tasa", key: "exchange_rate" },
                             { header: "Referencia", key: "reference" },
@@ -248,24 +248,34 @@ export default function PaymentsPage() {
                                                         </div>
                                                     </TableCell>
                                                     <TableCell className="text-right">
-                                                        <span className={payment.status === 'rejected' ? "line-through text-muted-foreground" : ""}>
-                                                            {payment.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                                                        </span>
+                                                        <div className="flex flex-col items-end">
+                                                            <span className={payment.status === 'rejected' ? "line-through text-muted-foreground" : ""}>
+                                                                {payment.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                                                            </span>
+                                                            {payment.metadata?.original_total_amount && (
+                                                                <span 
+                                                                    className="text-[9px] bg-yellow-100 text-yellow-800 px-1 rounded-sm border border-yellow-200 mt-0.5 whitespace-nowrap" 
+                                                                    title={`Parte ${payment.metadata.split_index} de ${payment.metadata.split_total_parts} de un pago de ${payment.metadata.original_total_amount} ${payment.metadata.original_currency}`}
+                                                                >
+                                                                    {payment.metadata.split_index} de {payment.metadata.split_total_parts} ({payment.metadata.original_total_amount.toLocaleString('en-US', { minimumFractionDigits: 2 })})
+                                                                </span>
+                                                            )}
+                                                        </div>
                                                     </TableCell>
                                                     <TableCell>
-                                                        <div className="flex items-center gap-1">
+                                                        <div className="flex flex-col items-start gap-1">
                                                             <Badge variant="outline" className={payment.currency === 'USD' ? 'text-green-600 border-green-200' : 'text-blue-600 border-blue-200'}>
                                                                 {payment.currency === 'VES' ? 'Bs.' : (payment.currency || 'USD')}
                                                             </Badge>
                                                             <Badge 
                                                                 variant="outline" 
-                                                                className={`text-[10px] px-1 h-4 leading-none ${
+                                                                className={`text-[9px] px-1.5 h-4 leading-none ${
                                                                     payment.registration_source === 'admin' 
                                                                         ? 'bg-purple-50 text-purple-700 border-purple-200' 
                                                                         : 'bg-orange-50 text-orange-700 border-orange-200'
                                                                 }`}
                                                             >
-                                                                {payment.registration_source === 'admin' ? 'Ad' : 'In'}
+                                                                {payment.registration_source === 'admin' ? 'Admin' : 'Inquilino'}
                                                             </Badge>
                                                         </div>
                                                     </TableCell>

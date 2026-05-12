@@ -13,7 +13,7 @@ interface ExportButtonsProps {
     columns: {
         header: string;
         key: string;
-        transform?: (value: any) => any
+        transform?: (value: any, row?: any) => any
     }[]
     title?: string
     hidePdf?: boolean
@@ -37,7 +37,7 @@ export function ExportButtons({ data, filename = "export", columns, title = "Rep
                 columns.forEach(col => {
                     let value = getNestedValue(item, col.key);
                     if (col.transform) {
-                        value = col.transform(value);
+                        value = col.transform(value, item);
                     }
                     row[col.header] = value;
                 })
@@ -69,7 +69,7 @@ export function ExportButtons({ data, filename = "export", columns, title = "Rep
                 return columns.map(col => {
                     let value = getNestedValue(item, col.key);
                     if (col.transform) {
-                        value = col.transform(value);
+                        value = col.transform(value, item);
                     }
                     return value;
                 })
