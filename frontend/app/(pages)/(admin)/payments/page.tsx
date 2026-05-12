@@ -439,6 +439,7 @@ export default function PaymentsPage() {
                 exchangeRate={payments.find(p => p.id === selectedPaymentId)?.exchange_rate || undefined}
                 registrationDate={payments.find(p => p.id === selectedPaymentId)?.created_at || undefined}
                 concept={payments.find(p => p.id === selectedPaymentId)?.concept || undefined}
+                metadata={payments.find(p => p.id === selectedPaymentId)?.metadata || undefined}
 
                 onConfirm={updatePaymentStatus}
             />

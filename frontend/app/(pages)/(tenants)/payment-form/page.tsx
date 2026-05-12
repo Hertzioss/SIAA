@@ -18,6 +18,7 @@ import { toast } from "sonner"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import { PendingBalanceCard } from "@/components/payments/pending-balance-card"
+import { v4 as uuidv4 } from "uuid"
 
 /**
  * Formulario de registro de pagos para inquilinos.
@@ -200,12 +201,27 @@ export default function PaymentForm() {
 
         let successCount = 0
 
+        // Group by currency + reference to calculate original totals
+        const groupMap: Record<string, { total: number, id: string, count: number, currentIndex: number }> = {}
+        
+        paymentParts.forEach(part => {
+            const key = `${part.currency}-${part.reference || 'no-ref'}`
+            if (!groupMap[key]) {
+                groupMap[key] = { total: 0, id: uuidv4(), count: 0, currentIndex: 1 }
+            }
+            groupMap[key].total += parseFloat(part.amount) || 0
+            groupMap[key].count += 1
+        })
+
         // Prepare bulk insert
         const paymentsToInsert: PaymentInsert[] = paymentParts.map(part => {
             // Construct billing period date (YYYY-MM-01)
             // Ensure month is 0-padded
             const m = part.month.padStart(2, '0')
             const billingPeriod = `${part.year}-${m}-01`
+
+            const key = `${part.currency}-${part.reference || 'no-ref'}`
+            const group = groupMap[key]
 
             return {
                 contract_id: activeContract.id,
@@ -222,7 +238,14 @@ export default function PaymentForm() {
                 billing_period: billingPeriod,
                 metadata: {
                     month: part.month,
-                    year: part.year
+                    year: part.year,
+                    ...(group.count > 1 ? {
+                        transaction_group_id: group.id,
+                        original_total_amount: group.total,
+                        original_currency: part.currency,
+                        split_total_parts: group.count,
+                        split_index: group.currentIndex++
+                    } : {})
                 }
             }
         })

@@ -93,7 +93,8 @@ export function PrintableReceiptHandler({ payment, onClose }: PrintableReceiptHa
                     rate: payment.exchange_rate ?? undefined,
                     amountBs: payment.currency === 'VES' ? payment.amount : (payment.exchange_rate ? payment.amount * payment.exchange_rate : 0),
                     amountUsd: payment.currency === 'USD' ? payment.amount : (payment.exchange_rate ? payment.amount / payment.exchange_rate : 0),
-                    currency: payment.currency || undefined
+                    currency: payment.currency || undefined,
+                    metadata: payment.metadata
                 }}
                 tenant={{
                     name: payment.tenants?.name || "Inquilino",

@@ -22,6 +22,7 @@ import { format } from "date-fns"
 import { Tenant } from "@/types/tenant"
 import { PrintableReceiptHandler } from "@/components/printable-receipt-handler"
 import { PaymentWithDetails } from "@/types/payment"
+import { v4 as uuidv4 } from "uuid"
 import {
     AlertDialog,
     AlertDialogAction,
@@ -293,14 +294,24 @@ export function PaymentForm({ defaultTenant, onSuccess, onCancel, className, isA
 
         const inserts: PaymentInsert[] = []
 
-        // Use the preview, but we need to map it back to the original parts logic if needed? 
-        // No, we can just iterate the preview items and group them or just create inserts directly.
-        // Wait, each split is a payment row.
+        // Generate a transaction group ID for each payment part
+        const partGroupIds = paymentParts.map(() => uuidv4())
+
+        // Calculate total splits per part to store in metadata
+        const splitCounts: Record<number, number> = {}
+        const splitCurrent: Record<number, number> = {}
+        
+        distributionPreview.forEach(item => {
+            const idx = item.partIndex || 0;
+            splitCounts[idx] = (splitCounts[idx] || 0) + 1;
+            splitCurrent[idx] = 1;
+        });
 
         // We need to map `distributionPreview` to `PaymentInsert`
         for (const item of distributionPreview) {
+             const pIndex = item.partIndex || 0;
              // Find original part info for bank accounts etc
-             const originalPart = paymentParts[item.partIndex || 0]
+             const originalPart = paymentParts[pIndex]
 
              // Format YYYY-MM-01
              const billingPeriod = `${item.year}-${String(item.month).padStart(2, '0')}-01`
@@ -328,7 +339,12 @@ export function PaymentForm({ defaultTenant, onSuccess, onCancel, className, isA
                 registration_source: isAdmin ? 'admin' : 'tenant',
                 metadata: {
                     tenant_name: selectedTenant!.name,
-                    tenant_doc_id: selectedTenant!.doc_id
+                    tenant_doc_id: selectedTenant!.doc_id,
+                    transaction_group_id: partGroupIds[pIndex],
+                    original_total_amount: parseFloat(originalPart.amount),
+                    original_currency: originalPart.currency,
+                    split_total_parts: splitCounts[pIndex],
+                    split_index: splitCurrent[pIndex]++
                 }
             }
             inserts.push(paymentData)

@@ -20,6 +20,7 @@ interface PaymentActionDialogProps {
     exchangeRate?: number
     registrationDate?: string
     concept?: string
+    metadata?: any
     onConfirm: (id: string, action: 'approved' | 'rejected', notes: string, sendEmail: boolean) => Promise<void>
 }
 
@@ -29,7 +30,7 @@ interface PaymentActionDialogProps {
  */
 export function PaymentActionDialog({
     open, onOpenChange, action, paymentId, tenantEmail,
-    amount, currency, paymentDate, exchangeRate, registrationDate, concept,
+    amount, currency, paymentDate, exchangeRate, registrationDate, concept, metadata,
     onConfirm
 }: PaymentActionDialogProps) {
     const [loading, setLoading] = useState(false)
@@ -124,6 +125,14 @@ export function PaymentActionDialog({
                                 <span>Tasa:</span>
                                 <span>{exchangeRate || '-'}</span>
                             </div>
+                            {metadata?.original_total_amount && (
+                                <div className="pt-2 mt-2 border-t border-muted">
+                                    <div className="text-xs font-semibold text-muted-foreground">Origen del Pago:</div>
+                                    <div className="text-xs font-medium text-yellow-600 dark:text-yellow-500">
+                                        Parte {metadata.split_index} de {metadata.split_total_parts} de un pago original por {metadata.original_total_amount.toLocaleString(metadata.original_currency === 'USD' ? 'en-US' : 'es-VE', { minimumFractionDigits: 2 })} {metadata.original_currency}
+                                    </div>
+                                </div>
+                            )}
                             {concept && (
                                 <div className="pt-2 mt-2 border-t border-muted">
                                     <div className="text-xs font-semibold text-muted-foreground">Concepto:</div>

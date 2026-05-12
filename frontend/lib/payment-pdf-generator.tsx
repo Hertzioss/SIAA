@@ -56,6 +56,7 @@ export const generatePaymentReceiptPDF = async (data: any): Promise<string> => {
                         rate: data.payment.rate,
                         amountBs: amountBs,
                         amountUsd: amountUsd,
+                        metadata: data.payment.metadata
                     }} 
                     tenant={data.tenant} 
                     company={{ ...data.company, rif: companyRif, name: companyName }} 

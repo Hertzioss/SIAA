@@ -144,7 +144,8 @@ export function useTenantPayments() {
                                     rate: fullPayment.exchange_rate || undefined,
                                     currency: fullPayment.currency || undefined,
                                     amountBs: fullPayment.currency === 'VES' ? fullPayment.amount : (fullPayment.exchange_rate ? fullPayment.amount * fullPayment.exchange_rate : 0),
-                                    amountUsd: fullPayment.currency === 'USD' ? fullPayment.amount : (fullPayment.exchange_rate ? fullPayment.amount / fullPayment.exchange_rate : 0)
+                                    amountUsd: fullPayment.currency === 'USD' ? fullPayment.amount : (fullPayment.exchange_rate ? fullPayment.amount / fullPayment.exchange_rate : 0),
+                                    metadata: fullPayment.metadata
                                 },
                                 tenant: {
                                     name: tenantData?.name || 'Inquilino',
