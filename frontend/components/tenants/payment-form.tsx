@@ -20,6 +20,8 @@ import { supabase } from "@/lib/supabase"
 import { toast } from "sonner"
 import { format } from "date-fns"
 import { Tenant } from "@/types/tenant"
+import { PrintableReceiptHandler } from "@/components/printable-receipt-handler"
+import { PaymentWithDetails } from "@/types/payment"
 import {
     AlertDialog,
     AlertDialogAction,
@@ -61,7 +63,7 @@ interface TargetAccount {
 
 export function PaymentForm({ defaultTenant, onSuccess, onCancel, className, isAdmin = false }: PaymentFormProps) {
     const { tenants } = useTenants() // Fetch all tenants for search
-    const { registerPayment, isLoading: isSubmitting, calculatePaymentDistribution } = useTenantPayments()
+    const { registerPayment, isLoading: isSubmitting, calculatePaymentDistribution, fetchPaymentById } = useTenantPayments()
     const { contracts, isLoading: isLoadingContracts } = useContracts()
 
     // Internal state for selected tenant (either prop or search)
@@ -88,6 +90,8 @@ export function PaymentForm({ defaultTenant, onSuccess, onCancel, className, isA
     const [referenceAmountUSD, setReferenceAmountUSD] = useState('')
     const [autoConciliate, setAutoConciliate] = useState(false)
     const [sendEmail, setSendEmail] = useState(false)
+    const [printReceipt, setPrintReceipt] = useState(false)
+    const [paymentToPrint, setPaymentToPrint] = useState<PaymentWithDetails | null>(null)
 
     // Initialize date on client side
     useEffect(() => {
@@ -330,11 +334,20 @@ export function PaymentForm({ defaultTenant, onSuccess, onCancel, className, isA
             inserts.push(paymentData)
         }
 
-        const success = await registerPayment(inserts) // registerPayment handles arrays now
+        const result = await registerPayment(inserts) // registerPayment handles arrays now
 
         setIsConfirmationOpen(false)
 
-        if (success) {
+        if (result && Array.isArray(result) && result.length > 0) {
+            if (isAdmin && autoConciliate && printReceipt) {
+                const fullPayment = await fetchPaymentById(result[0])
+                if (fullPayment) {
+                    setPaymentToPrint(fullPayment)
+                    return // Delay onSuccess until print dialog closes
+                }
+            }
+            if (onSuccess) onSuccess()
+        } else if (result) {
             if (onSuccess) onSuccess()
         }
     }
@@ -590,8 +603,8 @@ export function PaymentForm({ defaultTenant, onSuccess, onCancel, className, isA
 
                             {/* Admin Rate Helper */}
                             {isAdmin && (
-                                <div className="mt-2 p-3 bg-blue-50 border border-blue-100 rounded-md">
-                                    <Label className="text-xs text-blue-700 font-semibold mb-2 block">Calculadora de Tasa (Admin)</Label>
+                                <div className="mt-2 p-3 bg-blue-50 border border-blue-100 dark:bg-blue-950/30 dark:border-blue-900/50 rounded-md">
+                                    <Label className="text-xs text-blue-700 dark:text-blue-300 font-semibold mb-2 block">Calculadora de Tasa (Admin)</Label>
                                     <div className="flex items-end gap-2">
                                         <div className="space-y-1 flex-1">
                                             <Label htmlFor={`ref-amount-${index}`} className="text-xs">
@@ -652,21 +665,29 @@ export function PaymentForm({ defaultTenant, onSuccess, onCancel, className, isA
                     </Button>
                 </div>
 
-                {/* VES Calculation Preview Total */}
+                {/* Payment Totals Preview */}
                 <div className="text-xs text-muted-foreground text-right mt-1">
-                    Total Eq: <span className="font-medium text-foreground">
+                    Total: <span className="font-medium text-foreground">
                         {(() => {
-                            const totalVES = paymentParts.reduce((acc, part) => {
+                            const totals = paymentParts.reduce((acc, part) => {
                                 const amount = parseFloat(part.amount || '0')
-                                const rate = parseFloat(exchangeRate || '0')
                                 if (part.currency === 'USD') {
-                                    return acc + (amount * rate)
+                                    acc.usd += amount
                                 } else {
-                                    return acc + amount
+                                    acc.ves += amount
                                 }
-                            }, 0)
-                            return totalVES.toLocaleString('es-VE', { minimumFractionDigits: 2 })
-                        })()} VES
+                                return acc
+                            }, { usd: 0, ves: 0 })
+
+                            const out = []
+                            if (totals.usd > 0) out.push(`$ ${totals.usd.toLocaleString('en-US', { minimumFractionDigits: 2 })} USD`)
+                            if (totals.ves > 0) out.push(`${totals.ves.toLocaleString('es-VE', { minimumFractionDigits: 2 })} Bs.`)
+
+                            if (out.length === 0) {
+                                return paymentParts[0]?.currency === 'USD' ? '$ 0.00 USD' : '0,00 Bs.'
+                            }
+                            return out.join(' + ')
+                        })()}
                     </span>
                 </div>
 
@@ -709,7 +730,7 @@ export function PaymentForm({ defaultTenant, onSuccess, onCancel, className, isA
                         </div>
 
                         {selectedFile && (
-                            <div className="flex items-center gap-2 p-2 bg-green-50 border border-green-200 rounded-md text-sm text-green-700">
+                            <div className="flex items-center gap-2 p-2 bg-green-50 border border-green-200 dark:bg-green-950/30 dark:border-green-900/50 rounded-md text-sm text-green-700 dark:text-green-400">
                                 <CloudUpload className="h-4 w-4" />
                                 <span>Archivo cargado exitosamente: <strong>{selectedFile.name}</strong></span>
                             </div>
@@ -733,7 +754,7 @@ export function PaymentForm({ defaultTenant, onSuccess, onCancel, className, isA
             {/* Admin Auto-Conciliate Option */}
             {
                 isAdmin && (
-                    <div className="flex items-center space-x-2 mt-4 bg-yellow-50 border border-yellow-200 p-4 rounded-md">
+                    <div className="flex items-center space-x-2 mt-4 bg-yellow-50 border border-yellow-200 dark:bg-yellow-950/30 dark:border-yellow-900/50 p-4 rounded-md">
                         <Checkbox
                             id="auto-conciliate"
                             checked={autoConciliate}
@@ -742,7 +763,7 @@ export function PaymentForm({ defaultTenant, onSuccess, onCancel, className, isA
                         />
                         <Label
                             htmlFor="auto-conciliate"
-                            className="cursor-pointer font-medium flex-1"
+                            className="cursor-pointer font-medium flex-1 dark:text-yellow-200"
                         >
                             Conciliar Inmediatamente (Marcar como Aprobado)
                         </Label>
@@ -810,24 +831,38 @@ export function PaymentForm({ defaultTenant, onSuccess, onCancel, className, isA
                                         Verifique la distribución antes de continuar.
                                     </div>
                                 )}
-                                
                                 {isAdmin && autoConciliate && !isPreviewMode && (
-                                     <div className="flex items-center space-x-2 mt-4 bg-yellow-50 border border-yellow-200 p-4 rounded-md">
-                                        <Checkbox
-                                            id="confirm-send-email"
-                                            checked={sendEmail}
-                                            onCheckedChange={(checked) => setSendEmail(checked === true)}
-                                            className="h-5 w-5"
-                                        />
-                                        <Label
-                                            htmlFor="confirm-send-email"
-                                            className="cursor-pointer font-medium flex-1"
-                                        >
-                                            Enviar confirmación por correo al inquilino
-                                        </Label>
+                                    <div className="flex flex-col gap-2 mt-4">
+                                        <div className="flex items-center space-x-2 bg-yellow-50 border border-yellow-200 dark:bg-yellow-950/30 dark:border-yellow-900/50 p-4 rounded-md">
+                                            <Checkbox
+                                                id="confirm-send-email"
+                                                checked={sendEmail}
+                                                onCheckedChange={(checked) => setSendEmail(checked === true)}
+                                                className="h-5 w-5"
+                                            />
+                                            <Label
+                                                htmlFor="confirm-send-email"
+                                                className="cursor-pointer font-medium flex-1 dark:text-yellow-200"
+                                            >
+                                                Enviar confirmación por correo al inquilino
+                                            </Label>
+                                        </div>
+                                        <div className="flex items-center space-x-2 bg-blue-50 border border-blue-200 dark:bg-blue-950/30 dark:border-blue-900/50 p-4 rounded-md">
+                                            <Checkbox
+                                                id="confirm-print-receipt"
+                                                checked={printReceipt}
+                                                onCheckedChange={(checked) => setPrintReceipt(checked === true)}
+                                                className="h-5 w-5"
+                                            />
+                                            <Label
+                                                htmlFor="confirm-print-receipt"
+                                                className="cursor-pointer font-medium flex-1 dark:text-blue-200"
+                                            >
+                                                Imprimir recibo tras guardar
+                                            </Label>
+                                        </div>
                                     </div>
                                 )}
-
                             </div>
                         </AlertDialogDescription>
                     </AlertDialogHeader>
@@ -844,6 +879,16 @@ export function PaymentForm({ defaultTenant, onSuccess, onCancel, className, isA
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+
+            {paymentToPrint && (
+                <PrintableReceiptHandler
+                    payment={paymentToPrint}
+                    onClose={() => {
+                        setPaymentToPrint(null)
+                        if (onSuccess) onSuccess()
+                    }}
+                />
+            )}
         </div >
     )
 }

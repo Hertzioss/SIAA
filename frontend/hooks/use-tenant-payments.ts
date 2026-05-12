@@ -142,7 +142,9 @@ export function useTenantPayments() {
                                     status: 'approved',
                                     reference: fullPayment.reference_number || undefined,
                                     rate: fullPayment.exchange_rate || undefined,
-                                    currency: fullPayment.currency || undefined
+                                    currency: fullPayment.currency || undefined,
+                                    amountBs: fullPayment.currency === 'VES' ? fullPayment.amount : (fullPayment.exchange_rate ? fullPayment.amount * fullPayment.exchange_rate : 0),
+                                    amountUsd: fullPayment.currency === 'USD' ? fullPayment.amount : (fullPayment.exchange_rate ? fullPayment.amount / fullPayment.exchange_rate : 0)
                                 },
                                 tenant: {
                                     name: tenantData?.name || 'Inquilino',
@@ -183,7 +185,7 @@ export function useTenantPayments() {
             }
 
             toast.success('Pago(s) registrado(s) exitosamente')
-            return true
+            return successfulPayments.map(p => p.id)
 
         } catch (error) {
             console.error('Error registering payment:', error)
