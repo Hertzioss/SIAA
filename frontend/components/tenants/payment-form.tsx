@@ -92,7 +92,7 @@ export function PaymentForm({ defaultTenant, onSuccess, onCancel, className, isA
     const [autoConciliate, setAutoConciliate] = useState(false)
     const [sendEmail, setSendEmail] = useState(false)
     const [printReceipt, setPrintReceipt] = useState(false)
-    const [paymentToPrint, setPaymentToPrint] = useState<PaymentWithDetails | null>(null)
+    const [paymentsToPrint, setPaymentsToPrint] = useState<PaymentWithDetails[]>([])
 
     // Initialize date on client side
     useEffect(() => {
@@ -356,9 +356,12 @@ export function PaymentForm({ defaultTenant, onSuccess, onCancel, className, isA
 
         if (result && Array.isArray(result) && result.length > 0) {
             if (isAdmin && autoConciliate && printReceipt) {
-                const fullPayment = await fetchPaymentById(result[0])
-                if (fullPayment) {
-                    setPaymentToPrint(fullPayment)
+                const fullPayments = await Promise.all(
+                    result.map(async (id: string) => await fetchPaymentById(id))
+                )
+                const validPayments = fullPayments.filter(Boolean) as PaymentWithDetails[]
+                if (validPayments.length > 0) {
+                    setPaymentsToPrint(validPayments)
                     return // Delay onSuccess until print dialog closes
                 }
             }
@@ -896,11 +899,11 @@ export function PaymentForm({ defaultTenant, onSuccess, onCancel, className, isA
                 </AlertDialogContent>
             </AlertDialog>
 
-            {paymentToPrint && (
+            {paymentsToPrint.length > 0 && (
                 <PrintableReceiptHandler
-                    payment={paymentToPrint}
+                    payments={paymentsToPrint}
                     onClose={() => {
-                        setPaymentToPrint(null)
+                        setPaymentsToPrint([])
                         if (onSuccess) onSuccess()
                     }}
                 />
