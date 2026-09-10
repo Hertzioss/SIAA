@@ -252,7 +252,7 @@ export default function PaymentsPage() {
                                                             <span className={payment.status === 'rejected' ? "line-through text-muted-foreground" : ""}>
                                                                 {payment.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                                                             </span>
-                                                            {payment.metadata?.original_total_amount && (
+                                                            {payment.metadata?.original_total_amount && payment.metadata.split_total_parts > 1 && (
                                                                 <span 
                                                                     className="text-[9px] bg-yellow-100 text-yellow-800 px-1 rounded-sm border border-yellow-200 mt-0.5 whitespace-nowrap" 
                                                                     title={`Parte ${payment.metadata.split_index} de ${payment.metadata.split_total_parts} de un pago de ${payment.metadata.original_total_amount} ${payment.metadata.original_currency}`}
