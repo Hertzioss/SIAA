@@ -10,7 +10,7 @@ interface OwnerFinancialReportProps {
 
 const formatMoney = (amount: number, currency: 'USD' | 'Bs' = 'USD') => {
     if (currency === 'Bs') {
-        return `Bs. ${amount.toLocaleString('es-VE', { minimumFractionDigits: 2 })}`
+        return `Bs. ${amount.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
     }
     return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', currencyDisplay: 'symbol' }).format(amount)
 }
@@ -75,34 +75,36 @@ export const OwnerFinancialReport = React.forwardRef<HTMLDivElement, OwnerFinanc
                                     <div>
                                         <h3 className="text-sm font-bold text-gray-800 uppercase tracking-widest mb-3 bg-gray-100 p-2 rounded">1. Detalle de Ingresos</h3>
                                         <div className="border border-gray-300 rounded overflow-hidden">
-                                            <Table className="text-[10px]">
+                                            <Table className="table-fixed text-[10px]">
                                                 <TableHeader>
                                                     <TableRow className="border-b-2 border-gray-400 bg-gray-50 hover:bg-gray-50">
-                                                        <TableHead className="text-gray-900 font-bold w-[100px]">FECHA</TableHead>
-                                                        <TableHead className="text-gray-900 font-bold w-[150px]">INQUILINO</TableHead>
-                                                        <TableHead className="text-gray-900 font-bold w-[150px]">EDIF / UNIDAD</TableHead>
-                                                        <TableHead className="text-gray-900 font-bold text-right">MONTO ORIG.</TableHead>
-                                                        <TableHead className="text-gray-900 font-bold text-right">TASA (Bs/USD)</TableHead>
-                                                        <TableHead className="text-gray-900 font-bold text-right">MONTO (Bs)</TableHead>
+                                                        <TableHead className="text-gray-900 font-bold w-[8%]">FECHA</TableHead>
+                                                        <TableHead className="text-gray-900 font-bold w-[13%] whitespace-normal break-words">INQUILINO</TableHead>
+                                                        <TableHead className="text-gray-900 font-bold w-[18%] whitespace-normal break-words">EDIF / UNIDAD</TableHead>
+                                                        <TableHead className="text-gray-900 font-bold w-[14%] whitespace-normal break-all">REFERENCIA</TableHead>
+                                                        <TableHead className="text-gray-900 font-bold text-right w-[15%]">MONTO ORIG.</TableHead>
+                                                        <TableHead className="text-gray-900 font-bold text-right w-[10%]">TASA (Bs/USD)</TableHead>
+                                                        <TableHead className="text-gray-900 font-bold text-right w-[22%]">MONTO (Bs)</TableHead>
                                                     </TableRow>
                                                 </TableHeader>
                                                 <TableBody>
                                                     {owner.payments.map((p, idx) => (
                                                         <TableRow key={`pay-${ownerIdx}-${idx}`} className={cn("border-b border-gray-200", idx % 2 === 0 ? "bg-white" : "bg-gray-50/50")}>
                                                             <TableCell className="font-medium text-gray-600">{p.date}</TableCell>
-                                                            <TableCell className="leading-tight">{p.tenantName}</TableCell>
-                                                            <TableCell className="leading-tight">{p.propertyName} / {p.unitName}</TableCell>
+                                                            <TableCell className="leading-tight whitespace-normal break-words">{p.tenantName}</TableCell>
+                                                            <TableCell className="leading-tight whitespace-normal break-words">{p.propertyName} / {p.unitName}</TableCell>
+                                                            <TableCell className="text-gray-600 leading-tight whitespace-normal break-all">{p.reference || '-'}</TableCell>
                                                             <TableCell className="text-right font-medium">
                                                                 <div className="flex flex-col items-end">
-                                                                    <span>{p.currency === 'VES' ? 'Bs.' : '$'} {Number(p.amountOriginal || p.amount).toLocaleString('es-VE', { minimumFractionDigits: 2 })}</span>
-                                                                    {p.metadata?.original_total_amount && (
+                                                                    <span>{p.currency === 'VES' ? 'Bs.' : '$'} {Number(p.amountOriginal || p.amount).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                                                    {p.metadata?.original_total_amount && Number(p.metadata.split_total_parts) > 1 && (
                                                                         <span className="text-[8px] bg-yellow-100 border border-yellow-300 text-yellow-800 px-1 mt-0.5 rounded leading-none italic font-semibold">
-                                                                            {p.metadata.split_index} de {p.metadata.split_total_parts} ({p.metadata.original_total_amount.toLocaleString('en-US', { minimumFractionDigits: 2 })})
+                                                                            {p.metadata.split_index} de {p.metadata.split_total_parts} ({p.metadata.original_total_amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
                                                                         </span>
                                                                     )}
                                                                 </div>
                                                             </TableCell>
-                                                            <TableCell className="text-right text-gray-500">{p.exchangeRate}</TableCell>
+                                                            <TableCell className="text-right text-gray-500">{p.exchangeRate.toFixed(2)}</TableCell>
                                                             <TableCell className="text-right font-bold text-gray-900">{formatMoney(p.amount, 'Bs')}</TableCell>
                                                         </TableRow>
                                                     ))}
@@ -135,9 +137,9 @@ export const OwnerFinancialReport = React.forwardRef<HTMLDivElement, OwnerFinanc
                                                             <TableCell className="w-[20%] whitespace-pre-wrap break-words ">{e.category}</TableCell>
                                                             <TableCell className="whitespace-pre-wrap break-words">{e.description}</TableCell>
                                                             <TableCell className="text-right font-medium">
-                                                                {e.currency === 'VES' ? 'Bs.' : '$'} {Number(e.amountOriginal).toLocaleString('es-VE', { minimumFractionDigits: 2 })}
+                                                                {e.currency === 'VES' ? 'Bs.' : '$'} {Number(e.amountOriginal).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                                             </TableCell>
-                                                            <TableCell className="text-right text-gray-500">{e.exchangeRate}</TableCell>
+                                                            <TableCell className="text-right text-gray-500">{e.exchangeRate.toFixed(2)}</TableCell>
                                                             <TableCell className="text-right font-bold text-gray-900">
                                                                 {formatMoney(e.amount, 'Bs')}
                                                             </TableCell>

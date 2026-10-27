@@ -49,7 +49,11 @@ export function useOwnerExpenses() {
             const { data, error } = await supabase
                 .from('owner_expenses')
                 .insert(expenseData)
-                .select()
+                .select(`
+                    *,
+                    owner:owners(id, name, doc_id),
+                    property:properties(id, name)
+                `)
                 .single();
 
             if (error) throw error;

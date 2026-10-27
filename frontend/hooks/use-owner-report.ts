@@ -40,6 +40,7 @@ export interface OwnerPaymentDetail {
     currency: string;
     exchangeRate: number;
     method: string;
+    reference: string | null;
     tenantName: string;
     unitName: string;
     propertyName: string;
@@ -123,6 +124,7 @@ export function useOwnerReport() {
                     exchange_rate,
                     date,
                     payment_method, 
+                    reference_number,
                     metadata,
                     contract:contracts!inner(
                         unit:units(
@@ -159,7 +161,7 @@ export function useOwnerReport() {
             if (propertyIdsKeys.length > 0) {
                 const { data: propExp, error: propExpError } = await supabase
                     .from('expenses')
-                    .select('amount, property_id, currency, date, category, description, exchange_rate, status, properties(name)')
+                    .select('*, properties(name)')
                     .in('property_id', propertyIdsKeys)
                     .in('status', ['paid', 'approved']) // Also add consistency filter here
                     .gte('date', startStr)
@@ -169,6 +171,24 @@ export function useOwnerReport() {
                     propertyExpenses = propExp;
                 }
             }
+
+            // Property expenses may not carry currency/exchange_rate; fall back to
+            // the closest rate registered on payments or owner expenses.
+            const ratesByDate: Record<string, number> = {};
+            [...(payments || []), ...(ownerExpenses || [])].forEach((item: any) => {
+                const rate = Number(item.exchange_rate);
+                const date = typeof item.date === 'string' ? item.date.split('T')[0] : '';
+                if (date && rate > 0) ratesByDate[date] = rate;
+            });
+
+            const getRateForDate = (date?: string) => {
+                if (!date) return 1;
+                const day = date.split('T')[0];
+                if (ratesByDate[day]) return ratesByDate[day];
+                const monthKey = day.slice(0, 7);
+                const monthly = Object.entries(ratesByDate).find(([key]) => key.slice(0, 7) === monthKey);
+                return monthly ? monthly[1] : 1;
+            };
 
             // --- Aggregation ---
             const ownerStats: Record<string, OwnerReportItem> = {};
@@ -228,6 +248,7 @@ export function useOwnerReport() {
                     currency: currency,
                     exchangeRate: exchangeRate,
                     method: p.payment_method,
+                    reference: p.reference_number || null,
                     tenantName: p.tenant?.name || 'Desconocido',
                     unitName: p.contract?.unit?.name || '',
                     propertyName: p.contract?.unit?.property?.name || '',
@@ -314,7 +335,7 @@ export function useOwnerReport() {
             propertyExpenses?.forEach((e: any) => {
                 const amount = Number(e.amount);
                 const currency = e.currency || 'USD';
-                const exchangeRate = Number(e.exchange_rate) || 1;
+                const exchangeRate = Number(e.exchange_rate) || getRateForDate(e.date);
                 const propertyId = e.property_id;
 
                 if (!propertyId) return;
@@ -424,7 +445,7 @@ export function useOwnerReport() {
 
         try {
             const formatMoney = (amount: number, currency: 'USD' | 'Bs' = 'USD') => {
-                if (currency === 'Bs') return `Bs. ${amount.toLocaleString('es-VE', { minimumFractionDigits: 2 })}`;
+                if (currency === 'Bs') return `Bs. ${amount.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
                 return `$${amount.toFixed(2)}`;
             };
 

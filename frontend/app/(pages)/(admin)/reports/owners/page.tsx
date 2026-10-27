@@ -125,10 +125,11 @@ export default function OwnerReportPage() {
                     "Propietario": owner.ownerName,
                     "Inquilino": p.tenantName,
                     "Unidad": p.unitName,
-                    "Concepto": `Pago - ${p.method}${p.metadata?.original_total_amount ? ` (Parte ${p.metadata.split_index} de ${p.metadata.split_total_parts} - Orig: ${p.metadata.original_total_amount} ${p.metadata.original_currency})` : ''}`,
+                    "Concepto": `Pago - ${p.method}${p.metadata?.original_total_amount && Number(p.metadata.split_total_parts) > 1 ? ` (Parte ${p.metadata.split_index} de ${p.metadata.split_total_parts} - Orig: ${p.metadata.original_total_amount} ${p.metadata.original_currency})` : ''}`,
+                    "Referencia": p.reference || '-',
                     "Monto Original": p.amountOriginal,
                     "Moneda Original": p.currency,
-                    "Tasa": p.exchangeRate,
+                    "Tasa": Number(p.exchangeRate.toFixed(2)),
                     "Monto (Bs)": p.amount
                 }))
             )
@@ -141,9 +142,10 @@ export default function OwnerReportPage() {
                     "Inquilino": "-",
                     "Unidad": "-",
                     "Concepto": e.description || e.category,
+                    "Referencia": '-',
                     "Monto Original": e.amountOriginal,
                     "Moneda Original": e.currency,
-                    "Tasa": e.exchangeRate,
+                    "Tasa": Number(e.exchangeRate.toFixed(2)),
                     "Monto (Bs)": e.amount
                 }))
             )
@@ -352,8 +354,8 @@ export default function OwnerReportPage() {
                     </div>
 
                     {/* Inline Preview */}
-                    <div className="border rounded-md overflow-auto bg-white shadow-sm min-h-[600px]">
-                        <div className="min-w-[800px]">
+                    <div className="border rounded-md overflow-auto print:overflow-visible bg-white shadow-sm min-h-[600px]">
+                        <div className="min-w-[800px] print:min-w-0">
                             <OwnerFinancialReport ref={componentRef} data={reportData} period={periodLabel} />
                         </div>
                     </div>

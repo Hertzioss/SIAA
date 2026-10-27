@@ -708,7 +708,7 @@ export function useReports() {
             // 2. Fetch General Expenses - Remove status filter to match fetchIncomeExpense
             const { data: expenses } = await supabase
                 .from('expenses')
-                .select(`amount, property_id, currency, exchange_rate, date, status`)
+                .select('*')
                 .gte('date', startDate)
                 .lte('date', endDate);
 
@@ -777,7 +777,7 @@ export function useReports() {
                 if (isBs) {
                     return { usd: rate > 0 ? amount / rate : 0, bs: amount };
                 } else {
-                    return { usd: amount, bs: amount * rate };
+                    return { usd: amount, bs: amount * (rate || 1) };
                 }
             };
 

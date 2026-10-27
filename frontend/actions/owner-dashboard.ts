@@ -249,7 +249,7 @@ export async function getOwnerDashboardMetrics(accessToken: string, month: strin
         if (ownerPropertyIds.length > 0) {
             const { data: generalExpenses } = await supabaseAdmin
                 .from('expenses')
-                .select('amount, currency, exchange_rate, date, property_id')
+                .select('*')
                 .in('property_id', ownerPropertyIds)
             
             generalExpenses?.forEach(exp => {

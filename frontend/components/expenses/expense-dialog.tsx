@@ -8,10 +8,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea"
 import { Property } from "@/types/property"
 import { OwnerExpense, OwnerExpenseCategory, OwnerExpenseStatus } from "@/types/owner-expense"
-import { Check, ChevronsUpDown } from "lucide-react"
+import { Check, ChevronsUpDown, Printer } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Checkbox } from "@/components/ui/checkbox"
 
 interface ExpenseDialogProps {
     open: boolean
@@ -20,10 +21,11 @@ interface ExpenseDialogProps {
     expense?: OwnerExpense
     properties: Property[]
     owners: any[]
-    onSubmit: (data: any) => Promise<void>
+    onSubmit: (data: any) => Promise<OwnerExpense | void>
+    onPrint?: (expense: OwnerExpense) => void
 }
 
-export function ExpenseDialog({ open, onOpenChange, mode, expense, properties, owners, onSubmit }: ExpenseDialogProps) {
+export function ExpenseDialog({ open, onOpenChange, mode, expense, properties, owners, onSubmit, onPrint }: ExpenseDialogProps) {
     const [ownerId, setOwnerId] = useState("")
     const [propertyId, setPropertyId] = useState<string | null>(null)
     const [category, setCategory] = useState<OwnerExpenseCategory>("other")
@@ -37,6 +39,7 @@ export function ExpenseDialog({ open, onOpenChange, mode, expense, properties, o
     const [loading, setLoading] = useState(false)
     const [openOwnerSelect, setOpenOwnerSelect] = useState(false)
     const [customCategory, setCustomCategory] = useState("")
+    const [printReceipt, setPrintReceipt] = useState(false)
 
     // Reset or Populate form
     useEffect(() => {
@@ -53,6 +56,7 @@ export function ExpenseDialog({ open, onOpenChange, mode, expense, properties, o
                 setDate(expense.date.split('T')[0])
                 setStatus(expense.status)
                 setReceiptUrl(expense.receipt_url || "")
+                setPrintReceipt(false)
             } else {
                 setOwnerId("")
                 setPropertyId(null)
@@ -68,6 +72,7 @@ export function ExpenseDialog({ open, onOpenChange, mode, expense, properties, o
                 setDate(new Date().toISOString().split('T')[0])
                 setStatus("paid")
                 setReceiptUrl("")
+                setPrintReceipt(false)
             }
         }
     }, [open, mode, expense])
@@ -87,7 +92,10 @@ export function ExpenseDialog({ open, onOpenChange, mode, expense, properties, o
                 status,
                 receipt_url: receiptUrl || null
             }
-            await onSubmit(payload)
+            const result = await onSubmit(payload)
+            if (printReceipt && onPrint && result) {
+                onPrint(result)
+            }
             onOpenChange(false)
         } catch (error) {
             console.error(error)
@@ -243,6 +251,23 @@ export function ExpenseDialog({ open, onOpenChange, mode, expense, properties, o
                             </SelectContent>
                         </Select>
                     </div>
+                    {mode === 'create' && (
+                        <div className="flex items-center space-x-2 bg-blue-50 border border-blue-200 dark:bg-blue-950/30 dark:border-blue-900/50 p-3 rounded-md">
+                            <Checkbox
+                                id="print-receipt"
+                                checked={printReceipt}
+                                onCheckedChange={(checked) => setPrintReceipt(checked === true)}
+                                className="h-4 w-4"
+                            />
+                            <Label
+                                htmlFor="print-receipt"
+                                className="cursor-pointer font-medium text-sm dark:text-blue-200 flex items-center gap-2"
+                            >
+                                <Printer className="h-4 w-4" />
+                                Imprimir comprobante de egreso
+                            </Label>
+                        </div>
+                    )}
                 </div>
                 <DialogFooter>
                     <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>

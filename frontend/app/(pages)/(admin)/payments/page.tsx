@@ -107,7 +107,7 @@ export default function PaymentsPage() {
                             { header: "Mes Pagado", key: "billing_period", transform: (val: string) => val && isValid(parseISO(val)) ? formatFn(parseISO(val), 'MMMM yyyy', { locale: es }) : "-" },
                             { header: "Inquilino", key: "tenant.name" },
                             { header: "Unidad", key: "unit", transform: (u: Payment['unit']) => u ? `${u.name} (${u.property_name || ''})` : '-' },
-                            { header: "Monto", key: "amount", transform: (val: any, row: any) => row.metadata?.original_total_amount ? `${val} (Parte ${row.metadata.split_index} de ${row.metadata.split_total_parts} - Orig: ${row.metadata.original_total_amount} ${row.metadata.original_currency})` : val },
+                            { header: "Monto", key: "amount", transform: (val: any, row: any) => row.metadata?.original_total_amount && Number(row.metadata.split_total_parts) > 1 ? `${val} (Parte ${row.metadata.split_index} de ${row.metadata.split_total_parts} - Orig: ${row.metadata.original_total_amount} ${row.metadata.original_currency})` : val },
                             { header: "Moneda", key: "currency" },
                             { header: "Tasa", key: "exchange_rate" },
                             { header: "Referencia", key: "reference" },

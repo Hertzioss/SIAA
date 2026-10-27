@@ -125,7 +125,7 @@ export function PaymentActionDialog({
                                 <span>Tasa:</span>
                                 <span>{exchangeRate || '-'}</span>
                             </div>
-                            {metadata?.original_total_amount && (
+                            {metadata?.original_total_amount && Number(metadata.split_total_parts) > 1 && (
                                 <div className="pt-2 mt-2 border-t border-muted">
                                     <div className="text-xs font-semibold text-muted-foreground">Origen del Pago:</div>
                                     <div className="text-xs font-medium text-yellow-600 dark:text-yellow-500">

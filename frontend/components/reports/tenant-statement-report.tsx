@@ -8,7 +8,7 @@ interface TenantStatementReportProps {
 
 const formatMoney = (amount: number, currency: 'USD' | 'Bs' = 'USD') => {
     if (currency === 'Bs') {
-        return `Bs. ${amount.toLocaleString('es-VE', { minimumFractionDigits: 2 })}`
+        return `Bs. ${amount.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
     }
     return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', currencyDisplay: 'symbol' }).format(amount)
 }
@@ -96,7 +96,7 @@ export const TenantStatementReport = React.forwardRef<HTMLDivElement, TenantStat
                                                 <TableCell>{p.reference || '-'}</TableCell>
                                                 <TableCell className="text-right font-bold text-gray-900">
                                                     {p.currency === 'VES' ? 'Bs. ' : '$ '}
-                                                    {Number(p.amountOriginal || p.amount).toLocaleString('es-VE', { minimumFractionDigits: 2 })}
+                                                    {Number(p.amountOriginal || p.amount).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                                 </TableCell>
                                                 <TableCell className="text-right text-gray-400 italic">
                                                     {p.exchangeRate ? p.exchangeRate.toFixed(2) : '-'}

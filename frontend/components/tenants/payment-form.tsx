@@ -92,6 +92,7 @@ export function PaymentForm({ defaultTenant, onSuccess, onCancel, className, isA
     const [autoConciliate, setAutoConciliate] = useState(false)
     const [sendEmail, setSendEmail] = useState(false)
     const [printReceipt, setPrintReceipt] = useState(false)
+    const [receiptPrintMode, setReceiptPrintMode] = useState<'single' | 'multiple'>('multiple')
     const [paymentsToPrint, setPaymentsToPrint] = useState<PaymentWithDetails[]>([])
 
     // Initialize date on client side
@@ -361,7 +362,7 @@ export function PaymentForm({ defaultTenant, onSuccess, onCancel, className, isA
                 )
                 const validPayments = fullPayments.filter(Boolean) as PaymentWithDetails[]
                 if (validPayments.length > 0) {
-                    setPaymentsToPrint(validPayments)
+                    setPaymentsToPrint(receiptPrintMode === 'single' ? [validPayments[0]] : validPayments)
                     return // Delay onSuccess until print dialog closes
                 }
             }
@@ -880,6 +881,35 @@ export function PaymentForm({ defaultTenant, onSuccess, onCancel, className, isA
                                                 Imprimir recibo tras guardar
                                             </Label>
                                         </div>
+                                        {printReceipt && distributionPreview.length > 1 && (
+                                            <div className="flex items-center gap-4 bg-blue-50/50 border border-blue-200/50 dark:bg-blue-950/20 dark:border-blue-900/30 p-3 rounded-md ml-7">
+                                                <Label className="text-xs font-medium dark:text-blue-300">Formato de impresión:</Label>
+                                                <div className="flex gap-3">
+                                                    <label className="flex items-center gap-1.5 text-xs cursor-pointer">
+                                                        <input
+                                                            type="radio"
+                                                            name="receiptPrintMode"
+                                                            value="single"
+                                                            checked={receiptPrintMode === 'single'}
+                                                            onChange={() => setReceiptPrintMode('single')}
+                                                            className="accent-blue-600"
+                                                        />
+                                                        Un solo recibo
+                                                    </label>
+                                                    <label className="flex items-center gap-1.5 text-xs cursor-pointer">
+                                                        <input
+                                                            type="radio"
+                                                            name="receiptPrintMode"
+                                                            value="multiple"
+                                                            checked={receiptPrintMode === 'multiple'}
+                                                            onChange={() => setReceiptPrintMode('multiple')}
+                                                            className="accent-blue-600"
+                                                        />
+                                                        Un recibo por mes
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 )}
                             </div>

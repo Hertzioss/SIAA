@@ -248,10 +248,10 @@ export function useTenantStatement() {
                     <td style="padding: 8px; font-size: 13px;">${p.reference}</td>
                     <td style="padding: 8px; font-size: 13px; text-align: right; font-weight: bold;">
                         ${p.currency === 'VES' ? 'Bs' : '$'} 
-                        ${Number(p.amountOriginal || p.amount).toLocaleString('es-VE', { minimumFractionDigits: 2 })}
+                        ${Number(p.amountOriginal || p.amount).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </td>
                     <td style="padding: 8px; font-size: 13px; text-align: right; color: #6b7280; font-style: italic;">${p.exchangeRate ? p.exchangeRate.toFixed(2) : '-'}</td>
-                    <td style="padding: 8px; font-size: 13px; text-align: right;">${p.exchangeRate && p.exchangeRate > 0 ? `Bs. ${(p.amount * p.exchangeRate).toLocaleString('es-VE', { minimumFractionDigits: 2 })}` : '-'}</td>
+                    <td style="padding: 8px; font-size: 13px; text-align: right;">${p.exchangeRate && p.exchangeRate > 0 ? `Bs. ${(p.amount * p.exchangeRate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}</td>
                 </tr>
             `).join('')
 
@@ -288,7 +288,7 @@ export function useTenantStatement() {
                         <tfoot style="background: #f9fafb; font-weight: bold;">
                             <tr>
                                 <td colspan="6" style="padding: 8px; font-size: 13px;">TOTAL PAGADO</td>
-                                <td style="padding: 8px; text-align: right; font-size: 13px;">$${data.totalPaid.toFixed(2)} / Bs. ${data.totalPaidBs.toLocaleString('es-VE', { minimumFractionDigits: 2 })}</td>
+                                <td style="padding: 8px; text-align: right; font-size: 13px;">$${data.totalPaid.toFixed(2)} / Bs. ${data.totalPaidBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                             </tr>
                         </tfoot>
                     </table>

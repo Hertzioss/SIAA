@@ -60,7 +60,7 @@ export function useDashboardData(propertyId: string, ownerId: string = 'all', fi
             // 6. Fetch General Expenses (NEW: Missing in dashboard)
             let generalExpensesQuery = supabase
                 .from('expenses')
-                .select('id, amount, date, property_id, currency, exchange_rate, status');
+                .select('*');
 
             // Execute queries
             const [paymentsRes, contractsRes, unitsRes, maintenanceRes, ownerExpensesRes, generalExpensesRes, allContractsRes] = await Promise.all([

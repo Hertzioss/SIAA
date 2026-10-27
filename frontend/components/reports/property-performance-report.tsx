@@ -164,7 +164,7 @@ export const PropertyPerformanceReport = forwardRef<HTMLDivElement, PropertyPerf
                             </div>
                             <div className="flex justify-end pt-2">
                                 <Badge variant="outline" className="text-xs uppercase font-bold text-slate-700 bg-slate-50 border-slate-200 py-1 px-3">
-                                    Participación Neta: ${group.total.net.toLocaleString('es-VE', { minimumFractionDigits: 2 })}
+                                    Participación Neta: ${group.total.net.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                 </Badge>
                             </div>
                         </div>

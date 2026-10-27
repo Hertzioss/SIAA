@@ -162,7 +162,7 @@ export const PaymentReceipt = React.forwardRef<HTMLDivElement, PaymentReceiptPro
                                 {payment.concept.toUpperCase()}
                             </div>
                         </div>
-                        {payment.metadata?.original_total_amount && (
+                        {payment.metadata?.original_total_amount && Number(payment.metadata.split_total_parts) > 1 && (
                             <div className="flex items-start mb-0.5">
                                 <div className="w-44 shrink-0 font-bold text-[10px] uppercase pt-0.5 text-gray-600">ORIGEN DEL PAGO:</div>
                                 <div className="flex-1 text-left text-[8px] leading-tight px-3 py-0.5 text-gray-700 font-semibold uppercase italic">

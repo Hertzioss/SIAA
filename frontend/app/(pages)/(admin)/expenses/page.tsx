@@ -6,10 +6,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { Search, Plus, Loader2, Edit, Trash, FileSpreadsheet, TrendingDown, Building2, ChevronLeft, ChevronRight } from "lucide-react"
+import { Search, Plus, Loader2, Edit, Trash, FileSpreadsheet, TrendingDown, Building2, ChevronLeft, ChevronRight, Printer } from "lucide-react"
 import { useOwnerExpenses } from "@/hooks/use-owner-expenses"
 import { useProperties } from "@/hooks/use-properties"
 import { ExpenseDialog } from "@/components/expenses/expense-dialog"
+import { ExpensePrintHandler } from "@/components/expense-print-handler"
 import { OwnerExpense } from "@/types/owner-expense"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
@@ -50,6 +51,9 @@ export default function ExpensesPage() {
     // Delete confirmation
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
     const [expenseToDelete, setExpenseToDelete] = useState<OwnerExpense | null>(null)
+
+    // Print
+    const [expenseToPrint, setExpenseToPrint] = useState<OwnerExpense | null>(null)
 
     const filteredExpenses = expenses.filter(expense => {
         const matchesSearch = expense.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -107,9 +111,10 @@ export default function ExpensesPage() {
         setIsDialogOpen(true)
     }
 
-    const handleSubmit = async (data: any) => {
+    const handleSubmit = async (data: any): Promise<OwnerExpense | void> => {
         if (dialogMode === 'create') {
-            await createExpense(data)
+            const created = await createExpense(data)
+            return created
         } else if (selectedExpense) {
             await updateExpense(selectedExpense.id, data)
         }
@@ -126,6 +131,10 @@ export default function ExpensesPage() {
             setIsDeleteDialogOpen(false)
             setExpenseToDelete(null)
         }
+    }
+
+    const handlePrint = (expense: OwnerExpense) => {
+        setExpenseToPrint(expense)
     }
 
     const getStatusVariant = (status: string) => {
@@ -287,6 +296,9 @@ export default function ExpensesPage() {
                                                 </TableCell>
                                                 <TableCell className="text-right">
                                                     <div className="flex justify-end gap-2">
+                                                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handlePrint(expense)} title="Imprimir comprobante">
+                                                            <Printer className="h-4 w-4" />
+                                                        </Button>
                                                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(expense)}>
                                                             <Edit className="h-4 w-4" />
                                                         </Button>
@@ -356,6 +368,7 @@ export default function ExpensesPage() {
                         properties={properties}
                         owners={owners}
                         onSubmit={handleSubmit}
+                        onPrint={handlePrint}
                     />
 
                     <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
@@ -374,6 +387,13 @@ export default function ExpensesPage() {
                             </AlertDialogFooter>
                         </AlertDialogContent>
                     </AlertDialog>
+
+                    {expenseToPrint && (
+                        <ExpensePrintHandler
+                            expense={expenseToPrint}
+                            onClose={() => setExpenseToPrint(null)}
+                        />
+                    )}
                 </TabsContent>
 
                 <TabsContent value="incomes">
