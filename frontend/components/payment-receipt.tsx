@@ -44,8 +44,23 @@ interface PaymentReceiptProps {
 export const PaymentReceipt = React.forwardRef<HTMLDivElement, PaymentReceiptProps>(({ payment, tenant, company, owners, logoSrc, timezone }, ref) => {
     // Helper to parse amount string to number if needed
     const parseAmount = (str: string) => parseFloat(str.replace(/[^0-9.-]+/g, ""))
+    const resolvedLogoSrc = (() => {
+        if (!logoSrc || !process.env.NEXT_PUBLIC_SUPABASE_URL) return logoSrc
 
-    const paymentReceiptProps = { payment, tenant, company, owners, logoSrc, timezone }
+        try {
+            const imageUrl = new URL(logoSrc)
+            const supabaseUrl = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL)
+            if (imageUrl.pathname.includes('/storage/v1/object/public/')) {
+                imageUrl.protocol = supabaseUrl.protocol
+                imageUrl.host = supabaseUrl.host
+            }
+            return imageUrl.toString()
+        } catch {
+            return logoSrc
+        }
+    })()
+
+    const paymentReceiptProps = { payment, tenant, company, owners, logoSrc: resolvedLogoSrc, timezone }
 
     const amountBs = payment.amountBs ?? 0
     const amountUsd = payment.amountUsd ?? 0
