@@ -16,7 +16,7 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: "https",
-        hostname: "data.escritorio.legal",
+        hostname: "data.escritorio.team",
         pathname: "/storage/v1/object/public/**",
       },
       {

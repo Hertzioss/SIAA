@@ -65,7 +65,7 @@ Notas: ${payment.notes || 'Gracias por su pago.'}
 ------------------------------------------------
 
 Puede descargar su recibo en cualquier momento ingresando a su portal de inquilino:
-${process.env.NEXT_PUBLIC_APP_URL || 'https://escritorio.legal'}
+${process.env.NEXT_PUBLIC_APP_URL || 'https://escritorio.team'}
 
 Atentamente,
 Administración

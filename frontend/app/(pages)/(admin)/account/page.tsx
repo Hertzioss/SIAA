@@ -40,7 +40,7 @@ const BANK_ACCOUNTS_DATA = [
     {
         id: "3",
         bank: "Zelle",
-        accountNumber: "pagos@escritorio.legal",
+        accountNumber: "pagos@escritorio.team",
         holder: "Escritorio Legal",
         currency: "USD",
         type: "Digital"

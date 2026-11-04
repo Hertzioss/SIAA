@@ -69,7 +69,7 @@ export async function POST(request: Request) {
 
         // 4. Send Welcome Email (only if explicitly requested)
         if (sendEmail) {
-            const loginUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://escritorio.legal'
+            const loginUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://escritorio.team'
             const subject = 'Bienvenido a Escritorio Legal - Tus Credenciales de Acceso'
             
             const emailMessage = `

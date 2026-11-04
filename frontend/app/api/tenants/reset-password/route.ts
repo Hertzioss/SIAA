@@ -53,7 +53,7 @@ export async function POST(request: Request) {
         }
 
         // 4. Send Email
-        const loginUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://escritorio.legal'
+        const loginUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://escritorio.team'
         const subject = 'Restablecimiento de Contraseña - Escritorio Legal'
         const message = `
 ${providedPassword ? 'El administrador ha establecido una nueva contraseña para su cuenta.' : 'Se ha solicitado un restablecimiento de sus credenciales.'}

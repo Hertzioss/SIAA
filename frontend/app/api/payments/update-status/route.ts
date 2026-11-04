@@ -74,7 +74,7 @@ Notas: ${notes || 'Gracias por su pago.'}
 ------------------------------------------------
 
 Puede descargar su recibo formal en PDF ingresando a su portal de inquilino:
-${process.env.NEXT_PUBLIC_APP_URL || 'https://escritorio.legal'}
+${process.env.NEXT_PUBLIC_APP_URL || 'https://escritorio.team'}
 
 Atentamente,
 Administración
