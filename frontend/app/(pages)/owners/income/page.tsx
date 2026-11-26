@@ -82,7 +82,7 @@ function IncomeReportContent() {
                 </Card>
                 <Card className="border-l-4 border-l-blue-500 shadow-sm">
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium text-muted-foreground">Total Ingresos (VES)</CardTitle>
+                        <CardTitle className="text-sm font-medium text-muted-foreground">Total Ingresos (Bs)</CardTitle>
                     </CardHeader>
                     <CardContent>
                         <div className="text-3xl font-black text-blue-600 dark:text-blue-500">
@@ -102,7 +102,7 @@ function IncomeReportContent() {
                                 <TableHead className="font-bold text-gray-900 dark:text-gray-200">INMUEBLE / UNIDAD</TableHead>
                                 <TableHead className="font-bold text-gray-900 dark:text-gray-200">CONCEPTO</TableHead>
                                 <TableHead className="text-right font-bold text-gray-900 dark:text-gray-200">MONTO (USD)</TableHead>
-                                <TableHead className="text-right font-bold text-gray-900 dark:text-gray-200">MONTO (VES)</TableHead>
+                                <TableHead className="text-right font-bold text-gray-900 dark:text-gray-200">MONTO (Bs)</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>

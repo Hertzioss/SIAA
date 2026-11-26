@@ -1,6 +1,7 @@
 import React from 'react'
 import QRCode from "react-qr-code"
 import { numberToWords } from "@/lib/number-to-words"
+import { formatCurrencyLabel, isBolivares } from "@/lib/utils"
 
 interface ExpenseReceiptProps {
     expense: {
@@ -32,9 +33,10 @@ interface ExpenseReceiptProps {
 export const ExpenseReceipt = React.forwardRef<HTMLDivElement, ExpenseReceiptProps>(
     ({ expense, owner, company, processedBy, authorizedBy, logoSrc, timezone }, ref) => {
         const tz = timezone || 'America/Caracas'
-        const amountUsd = expense.currency === 'USD' ? expense.amount : (expense.exchange_rate ? expense.amount / expense.exchange_rate : 0)
-        const amountBs = expense.currency === 'VES' ? expense.amount : (expense.exchange_rate ? expense.amount * expense.exchange_rate : 0)
-        const displayAmount = expense.currency === 'USD' ? amountUsd : amountBs
+        const isBs = isBolivares(expense.currency)
+        const amountUsd = !isBs ? expense.amount : (expense.exchange_rate ? expense.amount / expense.exchange_rate : 0)
+        const amountBs = isBs ? expense.amount : (expense.exchange_rate ? expense.amount * expense.exchange_rate : 0)
+        const displayAmount = !isBs ? amountUsd : amountBs
 
         return (
             <div ref={ref} className="relative bg-white p-2 mx-auto text-black font-sans text-xs shadow-lg print:shadow-none" style={{ width: '8.5in', minHeight: '5.5in', maxHeight: '5.5in', overflow: 'hidden' }}>
@@ -131,7 +133,7 @@ export const ExpenseReceipt = React.forwardRef<HTMLDivElement, ExpenseReceiptPro
                         <div className="bg-gray-50/80 p-2 mb-2 text-[10px] border-t border-b border-gray-200 space-y-1">
                             <div className="flex items-center">
                                 <div className="w-44 shrink-0 font-bold uppercase text-gray-600">MONEDA:</div>
-                                <div className="font-mono text-[10px]">{expense.currency || 'USD'}</div>
+                                <div className="font-mono text-[10px]">{formatCurrencyLabel(expense.currency)}</div>
                             </div>
                             <div className="flex items-center">
                                 <div className="w-44 shrink-0 font-bold uppercase text-gray-600">TASA:</div>
@@ -140,7 +142,7 @@ export const ExpenseReceipt = React.forwardRef<HTMLDivElement, ExpenseReceiptPro
                             <div className="flex items-center pt-1.5 mt-1.5 border-t border-gray-300">
                                 <div className="w-44 shrink-0 font-bold uppercase text-gray-900 text-[10px]">TOTAL:</div>
                                 <div className="font-mono font-bold text-[10px]">$ {amountUsd.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
-                                {expense.currency === 'VES' && amountBs > 0 && (
+                                {isBs && amountBs > 0 && (
                                     <div className="font-mono font-bold text-[10px] ml-4">Bs. {amountBs.toLocaleString('es-VE', { minimumFractionDigits: 2 })}</div>
                                 )}
                             </div>

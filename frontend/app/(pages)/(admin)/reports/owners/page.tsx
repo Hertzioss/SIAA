@@ -12,7 +12,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { ArrowLeft, FileBarChart, Download, Loader2, Check, ChevronsUpDown, Printer, Mail } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { format } from "date-fns"
-import { cn, parseLocalDate } from "@/lib/utils"
+import { cn, parseLocalDate, formatCurrencyLabel } from "@/lib/utils"
 import * as XLSX from 'xlsx'
 import { toast } from "sonner"
 import { useReactToPrint } from "react-to-print"
@@ -125,10 +125,10 @@ export default function OwnerReportPage() {
                     "Propietario": owner.ownerName,
                     "Inquilino": p.tenantName,
                     "Unidad": p.unitName,
-                    "Concepto": `Pago - ${p.method}${p.metadata?.original_total_amount && Number(p.metadata.split_total_parts) > 1 ? ` (Parte ${p.metadata.split_index} de ${p.metadata.split_total_parts} - Orig: ${p.metadata.original_total_amount} ${p.metadata.original_currency})` : ''}`,
+                    "Concepto": `Pago - ${p.method}${p.metadata?.original_total_amount && Number(p.metadata.split_total_parts) > 1 ? ` (Parte ${p.metadata.split_index} de ${p.metadata.split_total_parts} - Orig: ${p.metadata.original_total_amount} ${formatCurrencyLabel(p.metadata.original_currency)})` : ''}`,
                     "Referencia": p.reference || '-',
                     "Monto Original": p.amountOriginal,
-                    "Moneda Original": p.currency,
+                    "Moneda Original": formatCurrencyLabel(p.currency),
                     "Tasa": Number(p.exchangeRate.toFixed(2)),
                     "Monto (Bs)": p.amount
                 }))
@@ -144,7 +144,7 @@ export default function OwnerReportPage() {
                     "Concepto": e.description || e.category,
                     "Referencia": '-',
                     "Monto Original": e.amountOriginal,
-                    "Moneda Original": e.currency,
+                    "Moneda Original": formatCurrencyLabel(e.currency),
                     "Tasa": Number(e.exchangeRate.toFixed(2)),
                     "Monto (Bs)": e.amount
                 }))

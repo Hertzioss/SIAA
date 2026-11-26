@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { OwnerIncomesView } from "@/components/expenses/owner-incomes-view"
+import { formatCurrencyLabel } from "@/lib/utils"
 
 export default function ExpensesPage() {
     const { expenses, owners, loading, createExpense, updateExpense, deleteExpense } = useOwnerExpenses()
@@ -84,7 +85,7 @@ export default function ExpensesPage() {
                 `"${e.description || ''}"`,
                 getStatusLabel(e.status),
                 e.amount,
-                e.currency || 'USD',
+                formatCurrencyLabel(e.currency),
                 e.exchange_rate || 1
             ].join(","))
         ].join("\n")

@@ -11,6 +11,7 @@ import { useOwnerIncomes } from "@/hooks/use-owner-incomes"
 import { useProperties } from "@/hooks/use-properties"
 import { IncomeDialog } from "./income-dialog"
 import { OwnerIncome } from "@/types/owner-income"
+import { formatCurrencyLabel } from "@/lib/utils"
 import { format } from "date-fns"
 import {
     Select,
@@ -76,7 +77,7 @@ export function OwnerIncomesView() {
                 i.category,
                 `"${i.description || ''}"`,
                 i.amount,
-                i.currency || 'USD',
+                formatCurrencyLabel(i.currency),
                 i.exchange_rate || 1
             ].join(","))
         ].join("\n")

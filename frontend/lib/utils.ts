@@ -5,8 +5,18 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-export const formatCurrency = (amount: number, currency: 'USD' | 'VES' = 'USD') => {
-  if (currency === 'VES') {
+export function isBolivares(currency?: string | null): boolean {
+  const normalized = (currency || '').toUpperCase().trim();
+  return normalized === 'VES' || normalized === 'BS' || normalized === 'BS.';
+}
+
+export function formatCurrencyLabel(currency?: string | null): string {
+  if (!currency) return 'USD';
+  return isBolivares(currency) ? 'Bs' : currency;
+}
+
+export const formatCurrency = (amount: number, currency: 'USD' | 'VES' | 'Bs' | string = 'USD') => {
+  if (isBolivares(currency)) {
     return `Bs. ${amount.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   }
   return new Intl.NumberFormat('en-US', {

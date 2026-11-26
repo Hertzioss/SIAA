@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Property } from "@/types/property"
 import { OwnerIncome, OwnerIncomeCategory } from "@/types/owner-income"
 import { Check, ChevronsUpDown } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { cn, isBolivares } from "@/lib/utils"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 
@@ -45,7 +45,7 @@ export function IncomeDialog({ open, onOpenChange, mode, income, properties, own
                 setCategory(income.category)
                 setDescription(income.description || "")
                 setAmount(income.amount.toString())
-                setCurrency(income.currency || "USD")
+                setCurrency(isBolivares(income.currency) ? "VES" : (income.currency || "USD"))
                 setExchangeRate(income.exchange_rate?.toString() || "")
                 setDate(income.date.split('T')[0])
                 // setStatus(income.status)
@@ -176,8 +176,7 @@ export function IncomeDialog({ open, onOpenChange, mode, income, properties, own
                             </SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="USD">USD ($)</SelectItem>
-                                <SelectItem value="Bs">Bolívares (Bs)</SelectItem>
-                                <SelectItem value="VES">Bolívares (VES)</SelectItem>
+                                <SelectItem value="VES">Bolívares (Bs)</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>

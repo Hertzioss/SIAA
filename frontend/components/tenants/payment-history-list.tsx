@@ -12,7 +12,7 @@ import {
     TableRow,
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { parseLocalDate } from "@/lib/utils"
+import { parseLocalDate, formatCurrencyLabel } from "@/lib/utils"
 import { format, isValid } from "date-fns"
 
 import { Loader2, Printer } from "lucide-react"
@@ -109,7 +109,7 @@ export function PaymentHistoryList({ tenantId }: PaymentHistoryListProps) {
                 "Concepto": p.concept?.replace(/Renta/gi, 'Canon'),
                 "Referencia / Banco": p.reference_number || '-',
                 "Monto": p.amount,
-                "Moneda": p.currency,
+                "Moneda": formatCurrencyLabel(p.currency),
                 "Monto Bs (Ref)": p.currency === 'USD' ? (p.amount * (p.exchange_rate || 1)).toFixed(2) : p.amount.toFixed(2),
                 "Estado": p.status === 'paid' || p.status === 'approved' ? 'Pagado' : p.status === 'pending' ? 'Pendiente' : 'Vencido'
             }))

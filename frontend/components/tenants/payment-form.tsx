@@ -12,7 +12,7 @@ import { useTenantPayments, PaymentInsert } from "@/hooks/use-tenant-payments"
 import { useTenants } from "@/hooks/use-tenants"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { cn } from "@/lib/utils"
+import { cn, formatCurrencyLabel } from "@/lib/utils"
 import { useContracts, Contract } from "@/hooks/use-contracts"
 import { Checkbox } from "@/components/ui/checkbox"
 import { fetchBcvRate } from "@/services/exchange-rate"
@@ -578,7 +578,7 @@ export function PaymentForm({ defaultTenant, onSuccess, onCancel, className, isA
                                                 onClick={() => updatePaymentPart(index, 'currency', 'VES')}
                                                 className="flex-1 text-xs px-2"
                                             >
-                                                BS
+                                                Bs
                                             </Button>
                                         </div>
                                     </div>
@@ -601,7 +601,7 @@ export function PaymentForm({ defaultTenant, onSuccess, onCancel, className, isA
                                             .filter(acc => acc.currency === part.currency)
                                             .map((acc) => (
                                                 <SelectItem key={acc.id} value={acc.id}>
-                                                    {acc.bank_name} - {acc.currency} ({Array.isArray(acc.owners) ? acc.owners[0]?.name : acc.owners?.name})
+                                                    {acc.bank_name} - {formatCurrencyLabel(acc.currency)} ({Array.isArray(acc.owners) ? acc.owners[0]?.name : acc.owners?.name})
                                                 </SelectItem>
                                             ))}
                                     </SelectContent>
@@ -839,7 +839,7 @@ export function PaymentForm({ defaultTenant, onSuccess, onCancel, className, isA
                                                         {item.reference && <div className="text-xs text-muted-foreground">Ref: {item.reference}</div>}
                                                     </div>
                                                     <div className="font-mono font-medium">
-                                                        {item.currency} {item.amount.toLocaleString()}
+                                                        {formatCurrencyLabel(item.currency)} {item.amount.toLocaleString()}
                                                     </div>
                                                 </li>
                                              )

@@ -36,6 +36,7 @@ import { parseISO, format as formatFn, isValid } from "date-fns"
 import { ExportButtons } from "@/components/export-buttons"
 import { PaymentEditDialog } from "@/components/payments/payment-edit-dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { formatCurrencyLabel } from "@/lib/utils"
 
 /**
  * Página para la gestión y conciliación de pagos.
@@ -107,8 +108,8 @@ export default function PaymentsPage() {
                             { header: "Mes Pagado", key: "billing_period", transform: (val: string) => val && isValid(parseISO(val)) ? formatFn(parseISO(val), 'MMMM yyyy', { locale: es }) : "-" },
                             { header: "Inquilino", key: "tenant.name" },
                             { header: "Unidad", key: "unit", transform: (u: Payment['unit']) => u ? `${u.name} (${u.property_name || ''})` : '-' },
-                            { header: "Monto", key: "amount", transform: (val: any, row: any) => row.metadata?.original_total_amount && Number(row.metadata.split_total_parts) > 1 ? `${val} (Parte ${row.metadata.split_index} de ${row.metadata.split_total_parts} - Orig: ${row.metadata.original_total_amount} ${row.metadata.original_currency})` : val },
-                            { header: "Moneda", key: "currency" },
+                            { header: "Monto", key: "amount", transform: (val: any, row: any) => row.metadata?.original_total_amount && Number(row.metadata.split_total_parts) > 1 ? `${val} (Parte ${row.metadata.split_index} de ${row.metadata.split_total_parts} - Orig: ${row.metadata.original_total_amount} ${formatCurrencyLabel(row.metadata.original_currency)})` : val },
+                            { header: "Moneda", key: "currency", transform: (val: string) => formatCurrencyLabel(val) },
                             { header: "Tasa", key: "exchange_rate" },
                             { header: "Referencia", key: "reference" },
                             { header: "Origen", key: "registration_source", transform: (val: string) => val === 'admin' ? 'Administrador' : 'Inquilino' },
@@ -255,7 +256,7 @@ export default function PaymentsPage() {
                                                             {payment.metadata?.original_total_amount && payment.metadata.split_total_parts > 1 && (
                                                                 <span 
                                                                     className="text-[9px] bg-yellow-100 text-yellow-800 px-1 rounded-sm border border-yellow-200 mt-0.5 whitespace-nowrap" 
-                                                                    title={`Parte ${payment.metadata.split_index} de ${payment.metadata.split_total_parts} de un pago de ${payment.metadata.original_total_amount} ${payment.metadata.original_currency}`}
+                                                                    title={`Parte ${payment.metadata.split_index} de ${payment.metadata.split_total_parts} de un pago de ${payment.metadata.original_total_amount} ${formatCurrencyLabel(payment.metadata.original_currency)}`}
                                                                 >
                                                                     {payment.metadata.split_index} de {payment.metadata.split_total_parts} ({payment.metadata.original_total_amount.toLocaleString('en-US', { minimumFractionDigits: 2 })})
                                                                 </span>
@@ -265,7 +266,7 @@ export default function PaymentsPage() {
                                                     <TableCell>
                                                         <div className="flex flex-col items-start gap-1">
                                                             <Badge variant="outline" className={payment.currency === 'USD' ? 'text-green-600 border-green-200' : 'text-blue-600 border-blue-200'}>
-                                                                {payment.currency === 'VES' ? 'Bs.' : (payment.currency || 'USD')}
+                                                                {formatCurrencyLabel(payment.currency)}
                                                             </Badge>
                                                             <Badge 
                                                                 variant="outline" 

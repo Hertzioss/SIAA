@@ -17,7 +17,7 @@ Plataforma integral para la administración de propiedades de alquiler. Gestiona
 | **Propiedades y Unidades** | Registro de edificios/comerciales, unidades (apto, oficina, local, depósito), pisos, áreas, montos de alquiler y estado (disponible/ocupado/mantenimiento) |
 | **Inquilinos** | Registro completo con cédula/RIF, contacto, fecha de nacimiento, estado (solvente/moroso) y vinculación a cuenta de usuario |
 | **Contratos** | Vinculación de unidad con inquilino, fechas de inicio/fin, montos, depósitos, carga de PDF firmado; estado automático (activo/vencido) |
-| **Cobros y Conciliación** | Inquilinos reportan pagos con comprobante; administrador aprueba/rechaza con notificaciones. Soporta transferencia, efectivo, Zelle, PagoMóvil. Doble moneda (USD/VES) con tasa de cambio |
+| **Cobros y Conciliación** | Inquilinos reportan pagos con comprobante; administrador aprueba/rechaza con notificaciones. Soporta transferencia, efectivo, Zelle, PagoMóvil. Doble moneda (USD/Bs) con tasa de cambio |
 | **Recibos de Pago** | Recibos imprimibles tamaño media carta con logo del propietario, datos del inquilino, tipo de propiedad y desglose financiero |
 | **Gastos** | Gastos por propiedad (mantenimiento, servicios, impuestos, otros) con seguimiento de estado |
 | **Propietarios** | Persona natural o empresa con cuentas bancarias (ahorro/corriente/internacional), beneficiarios, logos personalizados |

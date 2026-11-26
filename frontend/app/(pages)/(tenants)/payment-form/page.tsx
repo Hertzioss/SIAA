@@ -454,7 +454,7 @@ export default function PaymentForm() {
                                                             onClick={() => updatePaymentPart(index, 'currency', 'VES')}
                                                             className="px-4 flex-1"
                                                         >
-                                                            BS
+                                                            Bs
                                                         </Button>
                                                     </div>
                                                 </div>
@@ -577,7 +577,7 @@ export default function PaymentForm() {
                             <div className="flex justify-between items-center">
                                 <span className="text-sm text-muted-foreground">Tasa BCV del Día:</span>
                                 <div className="flex items-center gap-2">
-                                    <span className="font-medium">{exchangeRate} VES</span>
+                                    <span className="font-medium">{exchangeRate} Bs</span>
                                     {/* Mock edit for now */}
                                     <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => {
                                         const newRate = prompt('Ingrese nueva tasa:', exchangeRate)
@@ -591,7 +591,7 @@ export default function PaymentForm() {
                             <Separator />
 
                             <div className="bg-blue-50 dark:bg-blue-950/30 p-4 rounded-lg flex justify-between items-center">
-                                <span className="text-sm font-medium text-blue-600 dark:text-blue-400">Total equivalente (VES):</span>
+                                <span className="text-sm font-medium text-blue-600 dark:text-blue-400">Total equivalente (Bs):</span>
                                 <div className="text-right">
                                     <div className="text-lg font-bold text-blue-600 dark:text-blue-400">
                                         {(() => {
@@ -607,7 +607,7 @@ export default function PaymentForm() {
                                             return totalVES.toLocaleString('es-VE', { minimumFractionDigits: 2 })
                                         })()}
                                     </div>
-                                    <div className="text-xs font-bold text-blue-600 dark:text-blue-400">VES</div>
+                                    <div className="text-xs font-bold text-blue-600 dark:text-blue-400">Bs</div>
                                 </div>
                             </div>
                         </CardContent>

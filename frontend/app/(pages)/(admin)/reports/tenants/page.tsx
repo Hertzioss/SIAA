@@ -11,7 +11,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 import { ArrowLeft, FileBarChart, Download, Loader2, Mail, Check, ChevronsUpDown, Printer } from "lucide-react"
 import { format } from "date-fns"
-import { cn, parseLocalDate } from "@/lib/utils"
+import { cn, parseLocalDate, formatCurrencyLabel } from "@/lib/utils"
 import { toast } from "sonner"
 import * as XLSX from 'xlsx'
 import { useReactToPrint } from "react-to-print"
@@ -69,7 +69,7 @@ export default function TenantStatementPage() {
             "Método": p.method,
             "Referencia": p.reference,
             "Monto ($)": p.amount,
-            "Moneda Original": p.currency,
+            "Moneda Original": formatCurrencyLabel(p.currency),
             "Monto Original": p.amountOriginal,
         }))
 

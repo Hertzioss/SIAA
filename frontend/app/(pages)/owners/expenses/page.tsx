@@ -416,7 +416,7 @@ export default function OwnerExpensesPage() {
                                     </SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="USD">USD</SelectItem>
-                                        <SelectItem value="VES">VES</SelectItem>
+                                        <SelectItem value="VES">Bs</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>

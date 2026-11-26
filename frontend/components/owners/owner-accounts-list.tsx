@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Textarea } from "@/components/ui/textarea"
+import { formatCurrencyLabel } from "@/lib/utils"
 
 interface OwnerAccountsListProps {
     ownerId: string
@@ -135,7 +136,7 @@ export function OwnerAccountsList({ ownerId, readOnly = false }: OwnerAccountsLi
                             <div>
                                 <div className="flex items-center gap-2">
                                     <p className="font-medium">{acc.bank_name}</p>
-                                    <Badge variant="secondary" className="text-[10px] h-5">{acc.currency}</Badge>
+                                    <Badge variant="secondary" className="text-[10px] h-5">{formatCurrencyLabel(acc.currency)}</Badge>
                                 </div>
                                 <p className="text-sm text-muted-foreground font-mono">{acc.account_number}</p>
                                 <p className="text-xs text-muted-foreground capitalize">{acc.account_type}</p>

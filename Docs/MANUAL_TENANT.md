@@ -27,7 +27,7 @@ Es obligatorio reportar cada transferencia para mantener su solvencia.
    - **Método de Pago**: Seleccione cómo realizó el pago (Transferencia, Pago Móvil, Zelle, Efectivo).
    - **Referencia**: Ingrese los últimos 4-6 dígitos del número de confirmación bancaria. (Indispensable para conciliación).
    - **Monto**: La cantidad exacta que transfirió.
-   - **Moneda**: Indique si pagó en Divisas (USD) o Bolívares (VES).
+   - **Moneda**: Indique si pagó en Divisas (USD) o Bolívares (Bs).
    - **Tasa (Si aplica)**: Si paga en Bolívares, el sistema puede solicitar la tasa de cambio utilizada.
    - **Comprobante**: Tome una captura de pantalla o foto del recibo bancario y súbala en el campo "Adjuntar Comprobante".
 3. Haga clic en **Enviar Reporte**.

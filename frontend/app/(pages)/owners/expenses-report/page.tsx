@@ -62,7 +62,7 @@ export default function ExpensesReportPage() {
     }
 
     const handleExportCSV = () => {
-        const headers = ["Fecha", "Tipo", "Inmueble", "Concepto", "Monto (USD)", "Monto (VES)"]
+        const headers = ["Fecha", "Tipo", "Inmueble", "Concepto", "Monto (USD)", "Monto (Bs)"]
         const csvContent = [
             headers.join(","),
             ...expenses.map(e => [
@@ -130,7 +130,7 @@ export default function ExpensesReportPage() {
                             </div>
                         </Card>
                         <Card className="p-4 bg-rose-50 border-rose-100 dark:bg-rose-950/20 dark:border-rose-900">
-                            <div className="text-sm font-medium text-rose-800 dark:text-rose-300">Total Egresos (VES)</div>
+                            <div className="text-sm font-medium text-rose-800 dark:text-rose-300">Total Egresos (Bs)</div>
                             <div className="text-2xl font-bold text-rose-900 dark:text-rose-100 mt-1">
                                 Bs. {expenses.reduce((sum, exp) => sum + ((exp.prorated_amount || 0) * (exp.exchange_rate || 1)), 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </div>
@@ -147,7 +147,7 @@ export default function ExpensesReportPage() {
                                         <TableHead className="font-bold text-gray-900 dark:text-gray-200">INMUEBLE</TableHead>
                                         <TableHead className="font-bold text-gray-900 dark:text-gray-200">CONCEPTO</TableHead>
                                         <TableHead className="text-right font-bold text-gray-900 dark:text-gray-200">MONTO (USD)</TableHead>
-                                        <TableHead className="text-right font-bold text-gray-900 dark:text-gray-200">MONTO (VES)</TableHead>
+                                        <TableHead className="text-right font-bold text-gray-900 dark:text-gray-200">MONTO (Bs)</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>

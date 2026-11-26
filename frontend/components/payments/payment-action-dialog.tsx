@@ -5,6 +5,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { useSystemConfig } from "@/hooks/use-system-config"
+import { formatCurrencyLabel } from "@/lib/utils"
 import { AlertCircle, Loader2 } from "lucide-react"
 
 interface PaymentActionDialogProps {
@@ -119,7 +120,7 @@ export function PaymentActionDialog({
                             </div>
                             <div className="flex justify-between">
                                 <span>Monto:</span>
-                                <span className="font-medium">{amount?.toLocaleString('en-US')} {currency}</span>
+                                <span className="font-medium">{amount?.toLocaleString('en-US')} {formatCurrencyLabel(currency)}</span>
                             </div>
                             <div className="flex justify-between">
                                 <span>Tasa:</span>
@@ -129,7 +130,7 @@ export function PaymentActionDialog({
                                 <div className="pt-2 mt-2 border-t border-muted">
                                     <div className="text-xs font-semibold text-muted-foreground">Origen del Pago:</div>
                                     <div className="text-xs font-medium text-yellow-600 dark:text-yellow-500">
-                                        Parte {metadata.split_index} de {metadata.split_total_parts} de un pago original por {metadata.original_total_amount.toLocaleString(metadata.original_currency === 'USD' ? 'en-US' : 'es-VE', { minimumFractionDigits: 2 })} {metadata.original_currency}
+                                        Parte {metadata.split_index} de {metadata.split_total_parts} de un pago original por {metadata.original_total_amount.toLocaleString(metadata.original_currency === 'USD' ? 'en-US' : 'es-VE', { minimumFractionDigits: 2 })} {formatCurrencyLabel(metadata.original_currency)}
                                     </div>
                                 </div>
                             )}

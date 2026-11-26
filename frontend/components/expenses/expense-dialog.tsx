@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Property } from "@/types/property"
 import { OwnerExpense, OwnerExpenseCategory, OwnerExpenseStatus } from "@/types/owner-expense"
 import { Check, ChevronsUpDown, Printer } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { cn, isBolivares } from "@/lib/utils"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -51,7 +51,7 @@ export function ExpenseDialog({ open, onOpenChange, mode, expense, properties, o
                 setCustomCategory("") // Reset
                 setDescription(expense.description || "")
                 setAmount(expense.amount.toString())
-                setCurrency(expense.currency || "USD")
+                setCurrency(isBolivares(expense.currency) ? "VES" : (expense.currency || "USD"))
                 setExchangeRate(expense.exchange_rate?.toString() || "")
                 setDate(expense.date.split('T')[0])
                 setStatus(expense.status)
@@ -190,7 +190,7 @@ export function ExpenseDialog({ open, onOpenChange, mode, expense, properties, o
                             </SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="USD">USD ($)</SelectItem>
-                                <SelectItem value="VES">Bs. (VES)</SelectItem>
+                                <SelectItem value="VES">Bolívares (Bs)</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>

@@ -45,6 +45,7 @@ pnpm exec eslint <paths>  # scoped lint
 ## Domain conventions
 
 - UI, emails, and documentation are in Spanish. Use es-VE formatting for dates and currency.
-- Amounts are dual-currency USD/VES via `currency` and `exchange_rate`. Use helpers in `lib/utils.ts`: `formatCurrency`, `parseLocalDate`, and `formatDateString`.
+- For Bolívares, always display the abbreviation **`Bs`** across UI, labels, badges, receipts, reports, exports, emails, and documentation — **never show `VES`** to the user. Use `formatCurrency`, `formatCurrencyLabel`, and `isBolivares` in `lib/utils.ts` (internal DB storage in `currency` columns may still hold `'VES'` for compatibility with existing rows and the `owner_bank_accounts` CHECK constraint).
+- Amounts are dual-currency USD/Bs via `currency` and `exchange_rate`. Use helpers in `lib/utils.ts`: `formatCurrency`, `formatCurrencyLabel`, `isBolivares`, `parseLocalDate`, and `formatDateString`.
 - Date-only DB fields are `YYYY-MM-DD`. Parse them with `parseLocalDate` rather than `new Date(string)` to avoid timezone shifts.
 - Payment registration, approval, receipts, and reporting carry split/grouped payment details through `payments.metadata`; do not assume one payment maps to exactly one billing month.

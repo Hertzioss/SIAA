@@ -157,7 +157,7 @@ export function PaymentEditDialog({ open, onOpenChange, payment, onSave }: Payme
                                 onValueChange={(val) => handleChange("currency", val)}
                             >
                                 <SelectTrigger>
-                                    <SelectValue placeholder="USD / VES" />
+                                    <SelectValue placeholder="USD / Bs" />
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="USD">USD ($)</SelectItem>

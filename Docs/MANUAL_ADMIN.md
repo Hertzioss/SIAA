@@ -84,7 +84,7 @@ Aquí se procesan los reportes de pago enviados por los inquilinos.
 4. **Revisión**:
    - Observe la columna **Referencia** para verificar en su banco.
    - Si hay comprobante adjunto, haga clic en el icono de archivo para verlo.
-   - Verifique **Monto**, **Moneda** (USD/VES) y **Tasa**.
+   - Verifique **Monto**, **Moneda** (USD/Bs) y **Tasa**.
 5. **Acción**:
    - ✅ **Aprobar**: Si el dinero está en cuenta. Esto registra el ingreso y notifica al inquilino.
    - ❌ **Rechazar**: Si no encuentra el pago o hay error en el monto. Puede agregar una nota explicando el motivo.
