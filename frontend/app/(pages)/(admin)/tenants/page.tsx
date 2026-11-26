@@ -18,6 +18,7 @@ import { useProperties } from "@/hooks/use-properties"
 import { TenantDialog } from "@/components/tenants/tenant-dialog"
 import { PaymentDialog } from "@/components/tenants/payment-dialog"
 import { Tenant } from "@/types/tenant"
+import { formatCurrency } from "@/lib/utils"
 import { useReactToPrint } from "react-to-print"
 import { TenantListReport } from "@/components/reports/tenant-list-report"
 import { useRef } from "react"
@@ -38,7 +39,7 @@ import {
  * Incluye registro directo de pagos.
  */
 export default function TenantsPage() {
-    const { tenants, loading, createTenant, updateTenant, deleteTenant } = useTenants()
+    const { tenants, loading, fetchTenants, createTenant, updateTenant, deleteTenant } = useTenants()
     const { properties } = useProperties()
     const router = useRouter()
 
@@ -151,9 +152,17 @@ export default function TenantsPage() {
         setSortConfig({ key, direction })
     }
 
+    const getPrimaryContract = (tenant: Tenant) =>
+        tenant.contracts?.find(c => c.status === 'active') || tenant.contracts?.[0]
+
     const sortedTenants = [...filteredTenants]
     if (sortConfig) {
         sortedTenants.sort((a, b) => {
+            if (sortConfig.key === 'canon') {
+                const aVal = Number(getPrimaryContract(a)?.rent_amount ?? -1)
+                const bVal = Number(getPrimaryContract(b)?.rent_amount ?? -1)
+                return sortConfig.direction === 'asc' ? aVal - bVal : bVal - aVal
+            }
             // @ts-ignore 
             if (a[sortConfig.key] < b[sortConfig.key]) {
                 return sortConfig.direction === 'asc' ? -1 : 1
@@ -360,6 +369,12 @@ export default function TenantsPage() {
                                             </Button>
                                         </TableHead>
                                         <TableHead>
+                                            <Button variant="ghost" onClick={() => requestSort('canon')} className="hover:bg-transparent px-0 font-bold">
+                                                Canon
+                                                <ArrowUpDown className="ml-2 h-4 w-4" />
+                                            </Button>
+                                        </TableHead>
+                                        <TableHead>
                                             <span className="font-bold text-muted-foreground mr-6">
                                                 Ubicación
                                             </span>
@@ -413,6 +428,15 @@ export default function TenantsPage() {
                                                 <Badge variant={tenant.status === 'delinquent' ? 'destructive' : 'default'} className={tenant.status === 'solvent' ? 'bg-green-500 hover:bg-green-600' : ''}>
                                                     {tenant.status === 'solvent' ? 'Solvente' : 'Moroso'}
                                                 </Badge>
+                                            </TableCell>
+                                            <TableCell className="font-medium whitespace-nowrap">
+                                                {(() => {
+                                                    const contract = getPrimaryContract(tenant)
+                                                    if (contract?.rent_amount != null) {
+                                                        return formatCurrency(Number(contract.rent_amount), 'USD')
+                                                    }
+                                                    return <span className="text-muted-foreground text-xs italic">-</span>
+                                                })()}
                                             </TableCell>
                                             <TableCell>
                                                 {tenant.contracts?.[0]?.unit ? (
@@ -528,6 +552,7 @@ export default function TenantsPage() {
                 tenant={selectedTenant}
                 properties={properties}
                 onSubmit={handleFormSubmit}
+                onContractsUpdated={fetchTenants}
             />
 
             <PaymentDialog

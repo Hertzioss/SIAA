@@ -29,6 +29,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
+import { parseLocalDate } from "@/lib/utils"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import Link from "next/link"
 
@@ -39,13 +40,14 @@ interface TenantDialogProps {
     tenant?: Tenant
     properties: Property[]
     onSubmit?: (tenantData: any, contractData?: any) => Promise<void>
+    onContractsUpdated?: () => void
 }
 
 /**
  * Diálogo principal para la gestión de inquilinos.
  * Maneja información personal, creación de contratos iniciales, contactos y acceso (reset de contraseña).
  */
-export function TenantDialog({ open, onOpenChange, mode, tenant, properties, onSubmit }: TenantDialogProps) {
+export function TenantDialog({ open, onOpenChange, mode, tenant, properties, onSubmit, onContractsUpdated }: TenantDialogProps) {
     const [loading, setLoading] = useState(false)
 
     // Tenant Fields
@@ -72,7 +74,8 @@ export function TenantDialog({ open, onOpenChange, mode, tenant, properties, onS
 
     // Hooks
     const { contacts, createContact, deleteContact, fetchContacts, isLoading: loadingContacts } = useTenantContacts(tenant?.id)
-    const { contracts, fetchTenantContracts, createContract, updateContract } = useContracts()
+    const { contracts, fetchTenantContracts, createContract, updateContract } = useContracts({ autoFetch: false })
+    const tenantContracts = tenant ? contracts.filter(c => c.tenant_id === tenant.id) : []
 
     // Contract Dialog State
     const [isContractDialogOpen, setIsContractDialogOpen] = useState(false)
@@ -292,7 +295,8 @@ export function TenantDialog({ open, onOpenChange, mode, tenant, properties, onS
             } else if (contractDialogMode === 'edit' && selectedContract) {
                 await updateContract(selectedContract.id, data)
             }
-            if (tenant) fetchTenantContracts(tenant.id) // Refresh list
+            if (tenant) await fetchTenantContracts(tenant.id) // Refresh list
+            onContractsUpdated?.()
         } catch (error) {
             console.error("Error saving contract from tenant dialog:", error)
         }
@@ -564,13 +568,13 @@ export function TenantDialog({ open, onOpenChange, mode, tenant, properties, onS
                                 </Button>
                             </div>
 
-                            {contracts.length === 0 ? (
+                            {tenantContracts.length === 0 ? (
                                 <div className="text-center py-8 text-muted-foreground border rounded-md border-dashed">
                                     No hay contratos registrados.
                                 </div>
                             ) : (
                                 <div className="grid gap-4">
-                                    {contracts.map(contract => (
+                                    {tenantContracts.map(contract => (
                                         <Card key={contract.id}>
                                             <CardHeader className="py-3">
                                                 <div className="flex justify-between items-center">
@@ -584,8 +588,8 @@ export function TenantDialog({ open, onOpenChange, mode, tenant, properties, onS
                                                 </div>
                                             </CardHeader>
                                             <CardContent className="py-3 text-sm grid grid-cols-2 gap-2">
-                                                <div><span className="text-muted-foreground">Inicio:</span> {format(new Date(contract.start_date), 'dd MMM yyyy', { locale: es })}</div>
-                                                <div><span className="text-muted-foreground">Fin:</span> {contract.end_date ? format(new Date(contract.end_date), 'dd MMM yyyy', { locale: es }) : "Indefinido"}</div>
+                                                <div><span className="text-muted-foreground">Inicio:</span> {format(parseLocalDate(contract.start_date), 'dd MMM yyyy', { locale: es })}</div>
+                                                <div><span className="text-muted-foreground">Fin:</span> {contract.end_date ? format(parseLocalDate(contract.end_date), 'dd MMM yyyy', { locale: es }) : "Indefinido"}</div>
                                                 <div className="col-span-2 mt-2 flex gap-2">
                                                     <Link href={`/contracts?view=${contract.id}`} className="flex-1">
                                                         <Button variant="outline" size="sm" className="w-full">Ver Detalles</Button>

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner'
 
@@ -35,8 +35,10 @@ export function useContracts({ autoFetch = true }: { autoFetch?: boolean } = {})
     const [contracts, setContracts] = useState<Contract[]>([])
     const [isLoading, setIsLoading] = useState(autoFetch)
     const [error, setError] = useState<string | null>(null)
+    const activeTenantIdRef = useRef<string | null>(null)
 
     const fetchContracts = useCallback(async () => {
+        activeTenantIdRef.current = null
         setIsLoading(true)
         setError(null)
         try {
@@ -69,9 +71,10 @@ export function useContracts({ autoFetch = true }: { autoFetch?: boolean } = {})
         } finally {
             setIsLoading(false)
         }
-    }, [supabase])
+    }, [])
 
     const fetchTenantContracts = useCallback(async (tenantId: string) => {
+        activeTenantIdRef.current = tenantId
         setIsLoading(true)
         setError(null)
         try {
@@ -166,7 +169,11 @@ export function useContracts({ autoFetch = true }: { autoFetch?: boolean } = {})
 
             setContracts((prev) => [data as Contract, ...prev])
             toast.success('Contrato creado exitosamente')
-            fetchContracts() // Refresh to get joined data/ensure consistency
+            if (activeTenantIdRef.current) {
+                await fetchTenantContracts(activeTenantIdRef.current)
+            } else if (autoFetch) {
+                await fetchContracts()
+            }
             return data
         } catch (err: unknown) {
             console.error('Error creating contract:', err)
@@ -227,7 +234,11 @@ export function useContracts({ autoFetch = true }: { autoFetch?: boolean } = {})
                 prev.map((c) => (c.id === id ? { ...c, ...data } : c))
             )
             toast.success('Contrato actualizado éxitosamente')
-            fetchContracts() // Refresh to get joined data
+            if (activeTenantIdRef.current) {
+                await fetchTenantContracts(activeTenantIdRef.current)
+            } else if (autoFetch) {
+                await fetchContracts()
+            }
             return data
         } catch (err: unknown) {
             console.error('Error updating contract:', err)
