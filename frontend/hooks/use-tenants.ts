@@ -13,7 +13,7 @@ interface DbError {
 export interface ContractData {
     unit_id: string;
     start_date: string;
-    end_date: string;
+    end_date: string | null;
     rent_amount: number;
     type: 'residential' | 'commercial';
 }

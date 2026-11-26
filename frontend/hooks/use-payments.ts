@@ -79,6 +79,7 @@ export function usePayments() {
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(10);
     const [total, setTotal] = useState(0);
+    const [pendingCount, setPendingCount] = useState(0);
     const [statusFilter, setStatusFilter] = useState<PaymentStatusFilter>('pending');
     const [searchTerm, setSearchTerm] = useState("");
     const [sortColumn, setSortColumn] = useState('date');
@@ -94,7 +95,7 @@ export function usePayments() {
                 .select(`
                     id, amount, date, status, currency, method, payment_method, exchange_rate, reference_number, reference, billing_period, notes, contract_id, tenant_id, created_at, proof_url, concept, metadata, registration_source,
                     tenants(name, doc_id, email)
-                `, { count: 'estimated' });
+                `, { count: 'exact' });
 
             if (statusFilter !== 'all') {
                 query = query.eq('status', statusFilter);
@@ -123,12 +124,23 @@ export function usePayments() {
             const from = (page - 1) * pageSize;
             const to = from + pageSize - 1;
 
-            // Sort based on state
-            const { data, count, error } = await query
-                .order(sortColumn, { ascending: sortDirection === 'asc' })
-                .range(from, to);
+            // Sort based on state + fetch exact global pending count in parallel
+            const [listRes, pendingRes] = await Promise.all([
+                query
+                    .order(sortColumn, { ascending: sortDirection === 'asc' })
+                    .range(from, to),
+                supabase
+                    .from('payments')
+                    .select('id', { count: 'exact', head: true })
+                    .eq('status', 'pending')
+            ]);
+
+            const { data, count, error } = listRes;
 
             if (error) throw error;
+            if (!pendingRes.error && typeof pendingRes.count === 'number') {
+                setPendingCount(pendingRes.count);
+            }
 
             // 2. Fetch Contract Details (Batch) to avoid deep join timeout
             const contractIds = data?.map((p: PaymentQueryRow) => p.contract_id).filter(Boolean) || [];
@@ -510,6 +522,7 @@ export function usePayments() {
         payments,
         loading,
         total,
+        pendingCount,
         page,
         setPage,
         pageSize,
