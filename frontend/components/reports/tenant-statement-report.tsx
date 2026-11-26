@@ -1,6 +1,7 @@
 import React from 'react'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { TenantStatementData } from '@/hooks/use-tenant-statement'
+import { formatPaymentConcept } from "@/lib/utils"
 
 interface TenantStatementReportProps {
     data: TenantStatementData
@@ -91,7 +92,7 @@ export const TenantStatementReport = React.forwardRef<HTMLDivElement, TenantStat
                                         {data.payments.map((p, idx) => (
                                             <TableRow key={idx} className={`border-b border-gray-200 ${idx % 2 === 0 ? "bg-white" : "bg-gray-50/50"}`}>
                                                 <TableCell className="font-medium text-gray-600">{p.date}</TableCell>
-                                                <TableCell className="font-medium w-[200px] min-w-[200px] max-w-[200px] whitespace-normal break-words leading-tight">{p.concept}</TableCell>
+                                                <TableCell className="font-medium w-[200px] min-w-[200px] max-w-[200px] whitespace-normal break-words leading-tight">{formatPaymentConcept(p.concept)}</TableCell>
                                                 <TableCell>{p.method}</TableCell>
                                                 <TableCell>{p.reference || '-'}</TableCell>
                                                 <TableCell className="text-right font-bold text-gray-900">

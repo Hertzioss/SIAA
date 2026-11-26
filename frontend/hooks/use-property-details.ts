@@ -1,16 +1,22 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
-import { format, differenceInDays, parseISO } from 'date-fns';
+import { Property, PropertyOwnerReference, PropertyType, UnitStatus, UnitType } from '@/types/property';
+import { format, isValid } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { isBolivares, parseLocalDate } from '@/lib/utils';
 
 export interface UnitSummary {
     id: string;
     name: string;
-    type: string;
-    area: string | number;
-    status: string;
+    type: UnitType | string;
+    area: number | null;
+    floor: string | null;
+    rawStatus: UnitStatus;
+    status: 'Ocupado' | 'Vacante' | 'Vencido' | 'Mantenimiento';
     tenant: string;
     rent: number;
+    defaultRent: number | null;
+    contractId?: string;
 }
 
 export interface ChartDataEntry {
@@ -22,8 +28,12 @@ export interface ChartDataEntry {
 
 export interface PropertyStats {
     totalUnits: number;
+    occupiedUnits: number;
+    vacantUnits: number;
+    expiredUnits: number;
     occupancyRate: number;
     totalRevenue: number;
+    expectedMonthlyRent: number;
     paymentChartData: ChartDataEntry[];
     arrearsChartData: ChartDataEntry[];
 }
@@ -32,91 +42,178 @@ export interface TenantSummary {
     id: string;
     contractId: string;
     name: string;
-    contact: string;
-    email: string;
-    phone: string;
+    email: string | null;
+    phone: string | null;
     unit: string;
-    status: string;
+    status: 'Al día' | 'Moroso' | 'Vencido';
+    contractStatus: string;
     leaseEnd: string;
+    rawEndDate: string | null;
+    rentAmount: number;
+}
+
+interface RawPropertyOwnerRow {
+    percentage: number;
+    owner: { id: string; name: string } | { id: string; name: string }[] | null;
+}
+
+interface RawPropertyRow {
+    id: string;
+    name: string;
+    property_type_id: string;
+    address: string;
+    total_area?: number | null;
+    floors?: number | null;
+    description?: string | null;
+    created_at?: string;
+    property_type?: PropertyType | PropertyType[] | null;
+    property_owners?: RawPropertyOwnerRow[] | null;
+}
+
+interface RawUnitRow {
+    id: string;
+    property_id: string;
+    name: string;
+    type: UnitType | string;
+    floor?: string | null;
+    area?: number | null;
+    default_rent_amount?: number | null;
+    status: UnitStatus;
+}
+
+interface RawContractRow {
+    id: string;
+    unit_id: string | null;
+    tenant_id: string | null;
+    status: string;
+    rent_amount: number | null;
+    start_date: string;
+    end_date: string | null;
+    tenant?: {
+        id: string;
+        name: string;
+        email?: string | null;
+        phone?: string | null;
+        status: string;
+    } | null;
+}
+
+interface RawPaymentRow {
+    amount: number;
+    currency?: string | null;
+    exchange_rate?: number | null;
+    status: string;
+    date: string;
+}
+
+function firstOf<T>(val: T | T[] | null | undefined): T | null {
+    if (!val) return null;
+    return Array.isArray(val) ? val[0] ?? null : val;
+}
+
+function toUsdAmount(amount: number, currency?: string | null, exchangeRate?: number | null): number {
+    const numeric = Number(amount) || 0;
+    if (!isBolivares(currency)) return numeric;
+    const rate = Number(exchangeRate) || 0;
+    return rate > 0 ? numeric / rate : 0;
 }
 
 export function usePropertyDetails(propertyId: string) {
     const [loading, setLoading] = useState(true);
-    const [property, setProperty] = useState<any>(null);
+    const [property, setProperty] = useState<Property | null>(null);
     const [units, setUnits] = useState<UnitSummary[]>([]);
     const [tenants, setTenants] = useState<TenantSummary[]>([]);
     const [stats, setStats] = useState<PropertyStats>({
         totalUnits: 0,
+        occupiedUnits: 0,
+        vacantUnits: 0,
+        expiredUnits: 0,
         occupancyRate: 0,
         totalRevenue: 0,
+        expectedMonthlyRent: 0,
         paymentChartData: [],
-        arrearsChartData: []
+        arrearsChartData: [],
     });
     const [refreshTrigger, setRefreshTrigger] = useState(0);
 
-    // Placeholder data for missing tables
-    const maintenance = [] as any[];
-    const expenses = [] as any[];
-
-    const refresh = () => setRefreshTrigger(prev => prev + 1);
+    const refresh = useCallback(() => setRefreshTrigger((prev) => prev + 1), []);
 
     const fetchData = useCallback(async () => {
         if (!propertyId) return;
         setLoading(true);
         try {
-            // 1. Fetch Property Info
             const propertyQuery = supabase
                 .from('properties')
-                .select('*')
+                .select(`
+                    *,
+                    property_type:property_types(*),
+                    property_owners(
+                        percentage,
+                        owner:owners(id, name)
+                    )
+                `)
                 .eq('id', propertyId)
                 .single();
 
-            // 2. Fetch Units
             const unitsQuery = supabase
                 .from('units')
                 .select('*')
-                .eq('property_id', propertyId);
+                .eq('property_id', propertyId)
+                .order('name', { ascending: true });
 
-            // 3. Fetch Active and Expired Contracts
-            // We need to know which unit has which active contract
             const contractsQuery = supabase
                 .from('contracts')
-                .select('*, tenant:tenants(*), unit:units!inner(property_id)') // !inner filters contracts by unit's property_id
+                .select('*, tenant:tenants(*), unit:units!inner(property_id)')
                 .eq('unit.property_id', propertyId)
                 .in('status', ['active', 'expired']);
 
-            // 4. Fetch Payments (via contracts in this property)
-            // We can reuse the contracts above to filter payments, but let's query payments directly linked to those contracts?
-            // Easier to fetch all payments for contracts in this property.
-            // But we can't deep filter payments -> contract -> unit -> property easily in one go without !inner join
             const paymentsQuery = supabase
                 .from('payments')
-                .select('amount, status, date, contract:contracts!inner(unit:units!inner(property_id))')
+                .select('amount, currency, exchange_rate, status, date, contract:contracts!inner(unit:units!inner(property_id))')
                 .eq('contract.unit.property_id', propertyId);
 
             const [propRes, unitsRes, contractsRes, paymentsRes] = await Promise.all([
                 propertyQuery,
                 unitsQuery,
                 contractsQuery,
-                paymentsQuery
+                paymentsQuery,
             ]);
 
             if (propRes.error) throw propRes.error;
             if (unitsRes.error) throw unitsRes.error;
 
-            const propData = propRes.data;
-            const unitsData = unitsRes.data || [];
-            const contractsData = contractsRes.data || [];
-            const paymentsData = paymentsRes.data || [];
+            const rawProp = propRes.data as unknown as RawPropertyRow;
+            const unitsData = (unitsRes.data || []) as RawUnitRow[];
+            const contractsData = (contractsRes.data || []) as RawContractRow[];
+            const paymentsData = (paymentsRes.data || []) as RawPaymentRow[];
 
-            // --- PROCESS DATA ---
+            const owners: PropertyOwnerReference[] = (rawProp.property_owners || [])
+                .map((po) => {
+                    const owner = firstOf(po.owner);
+                    if (!owner) return null;
+                    return {
+                        owner_id: owner.id,
+                        name: owner.name,
+                        participation_percentage: Number(po.percentage) || 0,
+                    };
+                })
+                .filter((o): o is PropertyOwnerReference => o !== null);
 
-            // Map Units with Tenants
-            // Create a map of UnitID -> ActiveContract
-            const unitContractMap = new Map();
-            contractsData.forEach((c: any) => {
-                // If multiple contracts exist (e.g. one active, one expired), prefer Active.
-                // If only expired, show expired.
+            const formattedProperty: Property = {
+                id: rawProp.id,
+                name: rawProp.name,
+                property_type_id: rawProp.property_type_id,
+                property_type: firstOf(rawProp.property_type) || undefined,
+                address: rawProp.address,
+                total_area: rawProp.total_area ?? null,
+                floors: rawProp.floors ?? null,
+                description: rawProp.description ?? null,
+                created_at: rawProp.created_at,
+                owners,
+            };
+
+            const unitContractMap = new Map<string, RawContractRow>();
+            contractsData.forEach((c) => {
                 if (c.unit_id) {
                     const existing = unitContractMap.get(c.unit_id);
                     if (!existing || (existing.status !== 'active' && c.status === 'active')) {
@@ -125,97 +222,123 @@ export function usePropertyDetails(propertyId: string) {
                 }
             });
 
-            const processedUnits = unitsData.map((u: any) => {
+            const processedUnits: UnitSummary[] = unitsData.map((u) => {
                 const contract = unitContractMap.get(u.id);
-                // "Occupied" strictly means ACTIVE contract.
-                // Expired contract means "Vacant" (physically maybe not, but legally/system wise yes for new rental)
-                // BUT user wants to see expired tenants. 
-                // Let's say status is "Vacante" but we show the last tenant info if available?
-                // Or maybe a new status "Contrato Vencido"?
-
-                let unitStatus = "Vacante";
-                if (contract?.status === 'active') unitStatus = "Ocupado";
-                else if (contract?.status === 'expired') unitStatus = "Vencido"; // Custom status for UI
+                let unitStatus: UnitSummary['status'] = 'Vacante';
+                if (contract?.status === 'active') unitStatus = 'Ocupado';
+                else if (contract?.status === 'expired') unitStatus = 'Vencido';
+                else if (u.status === 'maintenance') unitStatus = 'Mantenimiento';
 
                 return {
                     id: u.id,
                     name: u.name,
                     type: u.type,
-                    area: "N/A",
+                    area: u.area ?? null,
+                    floor: u.floor ?? null,
+                    rawStatus: u.status,
                     status: unitStatus,
-                    tenant: contract?.tenant?.name || "-",
-                    rent: contract ? contract.rent_amount : (u.default_rent_amount || 0)
+                    tenant: contract?.tenant?.name || '—',
+                    rent: Number(contract?.rent_amount ?? u.default_rent_amount ?? 0),
+                    defaultRent: u.default_rent_amount ?? null,
+                    contractId: contract?.id,
                 };
             });
 
-            // Map Tenants list
-            const processedTenants = contractsData.map((c: any) => ({
-                id: c.tenant?.id,
-                contractId: c.id,
-                name: c.tenant?.name,
-                contact: c.tenant?.name,
-                email: c.tenant?.email,
-                phone: c.tenant?.phone,
-                unit: unitsData.find((u: any) => u.id === c.unit_id)?.name || "Unidad",
-                status: c.status === 'expired' ? 'Vencido' : (c.tenant?.status === 'solvent' ? 'Al día' : 'Atrasado'),
-                leaseEnd: c.end_date ? format(parseISO(c.end_date), 'yyyy-MM-dd') : '-'
-            }));
+            const processedTenants: TenantSummary[] = contractsData
+                .filter((c) => Boolean(c.tenant))
+                .map((c) => {
+                    const parsedEnd = c.end_date ? parseLocalDate(c.end_date) : null;
+                    const leaseEnd =
+                        parsedEnd && isValid(parsedEnd)
+                            ? format(parsedEnd, 'dd MMM yyyy', { locale: es })
+                            : 'Indefinido';
+                    const status: TenantSummary['status'] =
+                        c.status === 'expired'
+                            ? 'Vencido'
+                            : c.tenant?.status === 'solvent'
+                              ? 'Al día'
+                              : 'Moroso';
 
-            // Stats
+                    return {
+                        id: c.tenant!.id,
+                        contractId: c.id,
+                        name: c.tenant!.name,
+                        email: c.tenant!.email ?? null,
+                        phone: c.tenant!.phone ?? null,
+                        unit: unitsData.find((u) => u.id === c.unit_id)?.name || 'Unidad',
+                        status,
+                        contractStatus: c.status,
+                        leaseEnd,
+                        rawEndDate: c.end_date ?? null,
+                        rentAmount: Number(c.rent_amount || 0),
+                    };
+                });
+
             const totalUnits = unitsData.length;
-            // Occupied count only includes ACTIVE contracts
-            const occupiedCount = contractsData.filter((c: any) => c.status === 'active').length;
-            const occupancyRate = totalUnits > 0 ? Math.round((occupiedCount / totalUnits) * 100) : 0;
+            const occupiedUnits = processedUnits.filter((u) => u.status === 'Ocupado').length;
+            const vacantUnits = processedUnits.filter((u) => u.status === 'Vacante').length;
+            const expiredUnits = processedUnits.filter((u) => u.status === 'Vencido').length;
+            const occupancyRate = totalUnits > 0 ? Math.round((occupiedUnits / totalUnits) * 100) : 0;
 
-            // Revenue (Approved payments in the last month? Or total? Dashboard mock showed total monthly revenue logic?)
-            // The Property Details card says "Ingresos Mensuales". let's sum approved payments of current month.
-            const currentMonth = new Date().getMonth();
-            const currentYear = new Date().getFullYear();
+            const expectedMonthlyRent = contractsData
+                .filter((c) => c.status === 'active')
+                .reduce((sum, c) => sum + Number(c.rent_amount || 0), 0);
 
-            const totalRevenue = paymentsData
-                .filter((p: any) => {
-                    const d = new Date(p.date);
-                    return p.status === 'approved' && d.getMonth() === currentMonth && d.getFullYear() === currentYear;
-                })
-                .reduce((sum: number, p: any) => sum + Number(p.amount), 0);
+            const now = new Date();
+            const currentMonth = now.getMonth();
+            const currentYear = now.getFullYear();
 
-            // Charts Data (Reusing logic)
-            // Pie Chart: Payments status (All time or current month? let's do All time for this view or last 3 months?)
-            // Mock data has 12500 collected.
-            // Let's do current month for the chart too.
-            const monthlyPayments = paymentsData.filter((p: any) => {
-                const d = new Date(p.date);
-                return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+            const monthlyPayments = paymentsData.filter((p) => {
+                if (!p.date) return false;
+                const d = parseLocalDate(p.date);
+                return isValid(d) && d.getMonth() === currentMonth && d.getFullYear() === currentYear;
             });
 
-            const paymentChartData = [
-                { name: "Cobrado", value: monthlyPayments.filter((p: any) => p.status === 'approved').reduce((s: number, x: any) => s + Number(x.amount), 0), color: "#22c55e" },
-                { name: "Por Cobrar", value: monthlyPayments.filter((p: any) => p.status === 'pending').reduce((s: number, x: any) => s + Number(x.amount), 0), color: "#eab308" },
-                { name: "Atrasado", value: 0, color: "#ef4444" } // Logic for overdue pending needed
+            const approvedTotal = monthlyPayments
+                .filter((p) => p.status === 'approved' || p.status === 'paid')
+                .reduce((sum, p) => sum + toUsdAmount(p.amount, p.currency, p.exchange_rate), 0);
+
+            const pendingTotal = monthlyPayments
+                .filter((p) => p.status === 'pending')
+                .reduce((sum, p) => sum + toUsdAmount(p.amount, p.currency, p.exchange_rate), 0);
+
+            const uncollectedEstimate = Math.max(0, expectedMonthlyRent - approvedTotal - pendingTotal);
+
+            const paymentChartData: ChartDataEntry[] = [
+                { name: 'Cobrado', value: Math.round(approvedTotal * 100) / 100, color: '#10b981' },
+                { name: 'Por Conciliar', value: Math.round(pendingTotal * 100) / 100, color: '#f59e0b' },
+                { name: 'Pendiente Mes', value: Math.round(uncollectedEstimate * 100) / 100, color: '#f43f5e' },
             ];
 
-            // Arrears Chart (Mocked for now as we don't have aging logic)
-            const arrearsChartData = [
-                { name: "0 Meses", value: 100, count: processedTenants.length },
-                { name: "1 Mes", value: 0, count: 0 },
-                { name: "2 Meses", value: 0, count: 0 },
-                { name: "3+ Meses", value: 0, count: 0 },
+            const totalTenants = processedTenants.length;
+            const solventCount = processedTenants.filter((t) => t.status === 'Al día').length;
+            const delinquentCount = processedTenants.filter((t) => t.status === 'Moroso').length;
+            const expiredCount = processedTenants.filter((t) => t.status === 'Vencido').length;
+
+            const pct = (count: number) => (totalTenants > 0 ? Math.round((count / totalTenants) * 100) : 0);
+
+            const arrearsChartData: ChartDataEntry[] = [
+                { name: 'Al día', value: pct(solventCount), count: solventCount, color: '#10b981' },
+                { name: 'Moroso', value: pct(delinquentCount), count: delinquentCount, color: '#f59e0b' },
+                { name: 'Vencido', value: pct(expiredCount), count: expiredCount, color: '#f43f5e' },
             ];
 
-
-            setProperty(propData);
+            setProperty(formattedProperty);
             setUnits(processedUnits);
             setTenants(processedTenants);
             setStats({
                 totalUnits,
+                occupiedUnits,
+                vacantUnits,
+                expiredUnits,
                 occupancyRate,
-                totalRevenue,
+                totalRevenue: approvedTotal,
+                expectedMonthlyRent,
                 paymentChartData,
-                arrearsChartData
+                arrearsChartData,
             });
-
         } catch (err) {
-            console.error("Error fetching property details:", err);
+            console.error('Error fetching property details:', err);
         } finally {
             setLoading(false);
         }
@@ -231,8 +354,6 @@ export function usePropertyDetails(propertyId: string) {
         units,
         tenants,
         stats,
-        maintenance,
-        expenses,
-        refresh
+        refresh,
     };
 }

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { sendEmail } from '@/lib/mail'
 import { generateEmailHtml } from '@/lib/email-templates'
+import { formatPaymentConcept } from '@/lib/utils'
 
 export async function POST(request: Request) {
     try {
@@ -68,7 +69,7 @@ Detalles de la Transacción:
 ------------------------------------------------
 Fecha: ${payment.date}
 Monto: ${payment.currency === 'VES' ? 'Bs. ' : '$'}${payment.amount}
-Concepto: ${payment.concept}
+Concepto: ${formatPaymentConcept(payment.concept)}
 Referencia: ${payment.reference_number || 'N/A'}
 Notas: ${notes || 'Gracias por su pago.'}
 ------------------------------------------------

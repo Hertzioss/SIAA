@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import { toast } from 'sonner'
 import { format, parseISO, isValid } from 'date-fns'
+import { formatPaymentConcept } from '@/lib/utils'
 
 // Types based on the components requirements
 export interface IncomeExpenseData {
@@ -59,7 +60,7 @@ export function useReports() {
             let paymentsQuery = supabase
                 .from('payments')
                 .select(`
-                    id, amount, date, status, currency, concept, exchange_rate, contract_id, tenant_id,
+                    id, amount, date, status, currency, concept, exchange_rate, contract_id, tenant_id, metadata,
                     tenants(name)
                 `)
                 .gte('date', startDate)
@@ -186,8 +187,8 @@ export function useReports() {
                     const rate = p.exchange_rate || getRate(d)
                     return {
                         date: d,
-                        tenantName: (Array.isArray(p.tenants) ? p.tenants[0]?.name : p.tenants?.name) || 'Inquilino',
-                        concept: p.concept,
+                        tenantName: (p.metadata?.tenant_name as string) || (Array.isArray(p.tenants) ? p.tenants[0]?.name : p.tenants?.name) || 'Inquilino',
+                        concept: formatPaymentConcept(p.concept),
                         credit: p.amount,
                         debit: 0,
                         balance: p.amount,
@@ -217,8 +218,8 @@ export function useReports() {
                     const incomeUsd = rate > 0 ? (p.amount / rate) : 0
                     return {
                         date: p.date && isValid(parseISO(p.date)) ? format(parseISO(p.date), 'dd/MM/yyyy') : p.date,
-                        tenantName: (Array.isArray(p.tenants) ? p.tenants[0]?.name : p.tenants?.name) || 'Inquilino',
-                        concept: p.concept,
+                        tenantName: (p.metadata?.tenant_name as string) || (Array.isArray(p.tenants) ? p.tenants[0]?.name : p.tenants?.name) || 'Inquilino',
+                        concept: formatPaymentConcept(p.concept),
                         credit: p.amount,
                         debit: 0,
                         balance: p.amount,

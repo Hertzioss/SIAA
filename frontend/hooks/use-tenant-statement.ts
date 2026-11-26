@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { format, parseISO, isValid } from 'date-fns'
 import { startOfMonth, endOfMonth } from 'date-fns'
 import { toast } from 'sonner'
+import { formatPaymentConcept } from '@/lib/utils'
 
 export interface StatementPayment {
     date: string
@@ -115,7 +116,7 @@ export function useTenantStatement() {
             const statementPayments: StatementPayment[] = (rangePayments || []).map((p: any) => {
                 return {
                     date: p.date && isValid(parseISO(p.date)) ? format(parseISO(p.date), 'dd/MM/yyyy') : p.date,
-                    concept: p.concept || 'Pago de alquiler',
+                    concept: formatPaymentConcept(p.concept) || 'Pago de alquiler',
                     property: contractInfo?.propertyName || '',
                     unit: contractInfo?.unitName || '',
                     amount: p.currency === 'USD' ? p.amount : (p.exchange_rate ? p.amount / p.exchange_rate : p.amount),

@@ -17,7 +17,7 @@ import { format, addMonths, isValid } from "date-fns"
 import { es } from "date-fns/locale"
 import { PrintableReceiptHandler } from "@/components/printable-receipt-handler"
 import { PendingBalanceCard } from "@/components/payments/pending-balance-card"
-import { parseLocalDate } from "@/lib/utils"
+import { parseLocalDate, formatPaymentConcept } from "@/lib/utils"
 
 /**
  * Página de historial de pagos del inquilino.
@@ -182,7 +182,7 @@ export default function PaymentHistoryPage() {
                                     {history.map((payment) => (
                                         <TableRow key={payment.id}>
                                             <TableCell>{payment.date && isValid(parseLocalDate(payment.date)) ? format(parseLocalDate(payment.date), 'dd-MM-yyyy') : payment.date || '-'}</TableCell>
-                                            <TableCell>{payment.concept?.replace(/Renta/gi, 'Canon')}</TableCell>
+                                            <TableCell>{formatPaymentConcept(payment.concept)}</TableCell>
                                             <TableCell>{payment.payment_method}</TableCell>
                                             <TableCell>{payment.reference_number || '-'}</TableCell>
                                             <TableCell className="text-right font-medium">

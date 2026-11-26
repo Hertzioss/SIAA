@@ -1,18 +1,18 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useMemo } from "react"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { CloudUpload, Loader2, DollarSign, Search, User, Check, Building2, FileText, Calculator, Plus, X, ExternalLink } from "lucide-react"
+import { CloudUpload, Loader2, DollarSign, Search, User, Check, Building2, FileText, Calculator, Plus, X, ExternalLink, AlertTriangle } from "lucide-react"
 import { useTenantPayments, PaymentInsert } from "@/hooks/use-tenant-payments"
 import { useTenants } from "@/hooks/use-tenants"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { cn, formatCurrency, formatCurrencyLabel } from "@/lib/utils"
+import { cn, formatCurrency, formatCurrencyLabel, isBolivares, formatPaymentConcept } from "@/lib/utils"
 import { useContracts, Contract } from "@/hooks/use-contracts"
 import { Checkbox } from "@/components/ui/checkbox"
 import { fetchBcvRate } from "@/services/exchange-rate"
@@ -60,6 +60,31 @@ interface TargetAccount {
     currency: string
     account_type: string
     owners: { name: string } | { name: string }[] | null
+}
+
+interface ExistingContractPayment {
+    id: string
+    amount: number
+    currency: string | null
+    exchange_rate: number | null
+    status: string
+    billing_period: string | null
+    date: string | null
+    reference_number: string | null
+}
+
+interface PeriodPaymentStatus {
+    count: number
+    approvedUsd: number
+    pendingUsd: number
+    totalUsd: number
+    isFullyPaid: boolean
+    references: string[]
+}
+
+const MONTH_MAP: Record<string, number> = {
+    'enero': 1, 'febrero': 2, 'marzo': 3, 'abril': 4, 'mayo': 5, 'junio': 6,
+    'julio': 7, 'agosto': 8, 'septiembre': 9, 'octubre': 10, 'noviembre': 11, 'diciembre': 12
 }
 
 export function PaymentForm({ defaultTenant, onSuccess, onCancel, className, isAdmin = false }: PaymentFormProps) {
@@ -110,6 +135,7 @@ export function PaymentForm({ defaultTenant, onSuccess, onCancel, className, isA
     const [exchangeRate, setExchangeRate] = useState('0.00')
     const [notes, setNotes] = useState('')
     const [targetAccounts, setTargetAccounts] = useState<TargetAccount[]>([])
+    const [contractPayments, setContractPayments] = useState<ExistingContractPayment[]>([])
 
     // Update internal tenant when prop changes
     useEffect(() => {
@@ -130,6 +156,92 @@ export function PaymentForm({ defaultTenant, onSuccess, onCancel, className, isA
             setActiveContract(null)
         }
     }, [selectedTenant, contracts])
+
+    // Fetch existing non-rejected payments for the active contract to warn about already-paid months
+    useEffect(() => {
+        let cancelled = false
+        const fetchExistingPayments = async () => {
+            if (!activeContract?.id) {
+                setContractPayments([])
+                return
+            }
+            try {
+                const { data, error } = await supabase
+                    .from('payments')
+                    .select('id, amount, currency, exchange_rate, status, billing_period, date, reference_number')
+                    .eq('contract_id', activeContract.id)
+                    .in('status', ['approved', 'paid', 'pending'])
+
+                if (error) throw error
+                if (!cancelled) {
+                    setContractPayments((data as ExistingContractPayment[]) || [])
+                }
+            } catch (err) {
+                console.error("Error checking existing contract payments:", err)
+                if (!cancelled) setContractPayments([])
+            }
+        }
+
+        fetchExistingPayments()
+        return () => {
+            cancelled = true
+        }
+    }, [activeContract])
+
+    const periodStatusMap = useMemo(() => {
+        const map = new Map<string, PeriodPaymentStatus>()
+        const rent = Number(activeContract?.rent_amount || 0)
+
+        for (const p of contractPayments) {
+            const periodKey = p.billing_period
+                ? p.billing_period.slice(0, 7)
+                : p.date
+                  ? p.date.slice(0, 7)
+                  : null
+            if (!periodKey) continue
+
+            const numericAmount = Number(p.amount) || 0
+            const amountUsd = isBolivares(p.currency)
+                ? p.exchange_rate && Number(p.exchange_rate) > 0
+                    ? numericAmount / Number(p.exchange_rate)
+                    : 0
+                : numericAmount
+
+            const current = map.get(periodKey) || {
+                count: 0,
+                approvedUsd: 0,
+                pendingUsd: 0,
+                totalUsd: 0,
+                isFullyPaid: false,
+                references: [],
+            }
+
+            current.count += 1
+            if (p.status === 'pending') {
+                current.pendingUsd += amountUsd
+            } else {
+                current.approvedUsd += amountUsd
+            }
+            current.totalUsd = current.approvedUsd + current.pendingUsd
+            current.isFullyPaid = rent > 0 && current.approvedUsd >= rent - 0.01
+            if (p.reference_number && !current.references.includes(p.reference_number)) {
+                current.references.push(p.reference_number)
+            }
+
+            map.set(periodKey, current)
+        }
+
+        return map
+    }, [contractPayments, activeContract])
+
+    const selectedPeriodKey = useMemo(() => {
+        const monthNum = MONTH_MAP[month.toLowerCase()]
+        const parsedYear = parseInt(year, 10)
+        if (!monthNum || !Number.isFinite(parsedYear) || year.trim().length !== 4) return null
+        return `${parsedYear}-${String(monthNum).padStart(2, '0')}`
+    }, [month, year])
+
+    const selectedPeriodStatus = selectedPeriodKey ? periodStatusMap.get(selectedPeriodKey) ?? null : null
 
     // Fetch Owner Accounts based on Active Contract
     useEffect(() => {
@@ -318,9 +430,9 @@ export function PaymentForm({ defaultTenant, onSuccess, onCancel, className, isA
              // Format YYYY-MM-01
              const billingPeriod = `${item.year}-${String(item.month).padStart(2, '0')}-01`
              
-             // Concept
+             // Concept: full payments omit suffix, partial payments use a discreet "*"
              const monthName = Object.keys(monthMap).find(key => monthMap[key] === item.month)
-             const concept = `Canon ${monthName?.charAt(0).toUpperCase()}${monthName?.slice(1)} ${item.year} (${item.isFull ? 'Completo' : 'Parcial'})`
+             const concept = `Canon ${monthName?.charAt(0).toUpperCase()}${monthName?.slice(1)} ${item.year}${item.isFull ? '' : ' *'}`
 
              const paymentData: PaymentInsert = {
                 contract_id: activeContract.id,
@@ -363,7 +475,67 @@ export function PaymentForm({ defaultTenant, onSuccess, onCancel, className, isA
                 )
                 const validPayments = fullPayments.filter(Boolean) as PaymentWithDetails[]
                 if (validPayments.length > 0) {
-                    setPaymentsToPrint(receiptPrintMode === 'single' ? [validPayments[0]] : validPayments)
+                    if (receiptPrintMode === 'single' && validPayments.length > 1) {
+                        const first = validPayments[0]
+                        const allVes = validPayments.every((p) => isBolivares(p.currency))
+                        let totalBs = 0
+                        let totalUsd = 0
+                        const uniqueReferences: string[] = []
+                        const conceptParts: string[] = []
+
+                        for (const p of validPayments) {
+                            const amt = Number(p.amount) || 0
+                            const rate = Number(p.exchange_rate) || 0
+                            if (isBolivares(p.currency)) {
+                                totalBs += amt
+                                totalUsd += rate > 0 ? amt / rate : 0
+                            } else {
+                                totalUsd += amt
+                                totalBs += rate > 0 ? amt * rate : 0
+                            }
+
+                            if (p.reference_number && !uniqueReferences.includes(p.reference_number)) {
+                                uniqueReferences.push(p.reference_number)
+                            }
+
+                            const cleaned = formatPaymentConcept(p.concept)
+                            const stripped = cleaned.replace(/^Canon\s+/i, '').trim()
+                            if (stripped && !conceptParts.includes(stripped)) {
+                                conceptParts.push(stripped)
+                            }
+                        }
+
+                        const consolidatedConcept =
+                            conceptParts.length > 0
+                                ? `Canon ${conceptParts.join(', ')}`
+                                : formatPaymentConcept(first.concept)
+
+                        const baseMetadata = { ...(first.metadata || {}) }
+                        delete baseMetadata.split_total_parts
+                        delete baseMetadata.split_index
+                        delete baseMetadata.original_total_amount
+                        delete baseMetadata.original_currency
+
+                        const consolidatedPayment: PaymentWithDetails = {
+                            ...first,
+                            amount: allVes ? totalBs : totalUsd,
+                            currency: allVes ? 'VES' : 'USD',
+                            concept: consolidatedConcept,
+                            reference_number:
+                                uniqueReferences.length > 0
+                                    ? uniqueReferences.join(' / ')
+                                    : first.reference_number,
+                            metadata: {
+                                ...baseMetadata,
+                                consolidated_amount_bs: totalBs,
+                                consolidated_amount_usd: totalUsd,
+                            },
+                        }
+
+                        setPaymentsToPrint([consolidatedPayment])
+                    } else {
+                        setPaymentsToPrint(validPayments)
+                    }
                     return // Delay onSuccess until print dialog closes
                 }
             }
@@ -638,6 +810,72 @@ export function PaymentForm({ defaultTenant, onSuccess, onCancel, className, isA
                             </div>
                         </div>
                     </div>
+
+                    {/* Non-blocking alert if selected month already has recorded payment(s) */}
+                    {activeContract && selectedPeriodStatus && (
+                        <div
+                            className={cn(
+                                "flex items-start gap-2.5 rounded-lg border px-3 py-2 text-xs",
+                                selectedPeriodStatus.isFullyPaid
+                                    ? "bg-amber-500/10 border-amber-500/30 text-amber-900 dark:text-amber-200"
+                                    : "bg-blue-500/10 border-blue-500/30 text-blue-900 dark:text-blue-200"
+                            )}
+                        >
+                            <AlertTriangle
+                                className={cn(
+                                    "h-4 w-4 shrink-0 mt-0.5",
+                                    selectedPeriodStatus.isFullyPaid
+                                        ? "text-amber-600 dark:text-amber-400"
+                                        : "text-blue-600 dark:text-blue-400"
+                                )}
+                            />
+                            <div className="min-w-0 leading-snug">
+                                <span className="font-semibold capitalize">
+                                    {month} {year}
+                                </span>{" "}
+                                {selectedPeriodStatus.isFullyPaid ? (
+                                    <>
+                                        ya aparece <strong>cancelado</strong> (
+                                        {selectedPeriodStatus.count}{" "}
+                                        {selectedPeriodStatus.count === 1 ? "pago registrado" : "pagos registrados"}{" "}
+                                        por{" "}
+                                        <span className="font-semibold tabular-nums">
+                                            {formatCurrency(selectedPeriodStatus.approvedUsd, 'USD')}
+                                        </span>
+                                        {selectedPeriodStatus.references.length > 0 && (
+                                            <> · Ref. {selectedPeriodStatus.references.slice(0, 2).join(", ")}</>
+                                        )}
+                                        ). Puedes continuar si deseas registrar un pago adicional.
+                                    </>
+                                ) : (
+                                    <>
+                                        ya tiene{" "}
+                                        <strong>
+                                            {selectedPeriodStatus.count}{" "}
+                                            {selectedPeriodStatus.count === 1 ? "pago registrado" : "pagos registrados"}
+                                        </strong>
+                                        {selectedPeriodStatus.approvedUsd > 0 && (
+                                            <>
+                                                {" "}· Conciliado:{" "}
+                                                <span className="font-semibold tabular-nums">
+                                                    {formatCurrency(selectedPeriodStatus.approvedUsd, 'USD')}
+                                                </span>
+                                            </>
+                                        )}
+                                        {selectedPeriodStatus.pendingUsd > 0 && (
+                                            <>
+                                                {" "}· Por conciliar:{" "}
+                                                <span className="font-semibold tabular-nums">
+                                                    {formatCurrency(selectedPeriodStatus.pendingUsd, 'USD')}
+                                                </span>
+                                            </>
+                                        )}
+                                        . Puedes continuar con el registro.
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                    )}
 
                     {/* Payment Parts Section */}
                     <div className="space-y-2">
@@ -1009,14 +1247,24 @@ export function PaymentForm({ defaultTenant, onSuccess, onCancel, className, isA
                                     <ul className="space-y-2 text-sm">
                                         {distributionPreview.map((item, i) => {
                                              const monthName = Object.keys(monthMap).find(key => monthMap[key] === item.month)
+                                             const itemPeriodKey = `${item.year}-${String(item.month).padStart(2, '0')}`
+                                             const existingForItem = periodStatusMap.get(itemPeriodKey)
                                              return (
-                                                <li key={i} className="flex justify-between items-center border-b pb-1 last:border-0 last:pb-0">
+                                                <li key={i} className="flex justify-between items-center border-b pb-1 last:border-0 last:pb-0 gap-2">
                                                     <div>
-                                                        <span className="font-semibold capitalize">{monthName} {item.year}</span>
-                                                        <span className="text-xs text-muted-foreground ml-2">({item.isFull ? 'Completo' : 'Parcial'})</span>
+                                                        <div className="flex items-center flex-wrap gap-1.5">
+                                                            <span className="font-semibold capitalize">{monthName} {item.year}</span>
+                                                            <span className="text-xs text-muted-foreground">({item.isFull ? 'Completo' : 'Parcial'})</span>
+                                                            {existingForItem && (
+                                                                <span className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium bg-amber-500/15 text-amber-800 dark:text-amber-300 border border-amber-500/30">
+                                                                    <AlertTriangle className="h-2.5 w-2.5" />
+                                                                    {existingForItem.isFullyPaid ? 'Ya cancelado' : 'Con pago previo'}
+                                                                </span>
+                                                            )}
+                                                        </div>
                                                         {item.reference && <div className="text-xs text-muted-foreground">Ref: {item.reference}</div>}
                                                     </div>
-                                                    <div className="font-mono font-medium">
+                                                    <div className="font-mono font-medium shrink-0">
                                                         {formatCurrencyLabel(item.currency)} {item.amount.toLocaleString()}
                                                     </div>
                                                 </li>

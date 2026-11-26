@@ -230,13 +230,15 @@ export default function PaymentForm() {
                 amount: parseFloat(part.amount),
                 currency: part.currency,
                 exchange_rate: part.currency === 'VES' ? parseFloat(exchangeRate) : undefined,
-                concept: `Canon ${part.month}/${part.year}` + (paymentParts.length > 1 ? ` (Parte)` : ''),
+                concept: `Canon ${part.month}/${part.year}` + (paymentParts.length > 1 ? ` *` : ''),
                 payment_method: 'Transferencia',
                 reference_number: part.reference,
                 notes: notes,
                 proof_file: selectedFile || undefined,
                 billing_period: billingPeriod,
                 metadata: {
+                    tenant_name: activeContract.tenants?.name || currentTenant?.name || '',
+                    tenant_doc_id: currentTenant?.doc_id || '',
                     month: part.month,
                     year: part.year,
                     ...(group.count > 1 ? {

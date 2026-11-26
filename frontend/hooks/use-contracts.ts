@@ -109,6 +109,27 @@ export function useContracts({ autoFetch = true }: { autoFetch?: boolean } = {})
         }
     }, [])
 
+    const syncUnitOccupancy = async (unitId: string, rentAmount?: number | null) => {
+        const { count } = await supabase
+            .from('contracts')
+            .select('id', { count: 'exact', head: true })
+            .eq('unit_id', unitId)
+            .eq('status', 'active')
+
+        const hasActive = (count || 0) > 0
+        const unitUpdate: { status: 'occupied' | 'vacant'; default_rent_amount?: number } = {
+            status: hasActive ? 'occupied' : 'vacant'
+        }
+        if (hasActive && rentAmount != null) {
+            unitUpdate.default_rent_amount = rentAmount
+        }
+
+        await supabase
+            .from('units')
+            .update(unitUpdate)
+            .eq('id', unitId)
+    }
+
     const createContract = async (contract: ContractInsert & { file?: File | null }) => {
         try {
             // Validate availability
@@ -167,11 +188,8 @@ export function useContracts({ autoFetch = true }: { autoFetch?: boolean } = {})
 
             if (error) throw error
 
-            if (data?.unit_id && data?.status === 'active' && data?.rent_amount != null) {
-                await supabase
-                    .from('units')
-                    .update({ default_rent_amount: data.rent_amount })
-                    .eq('id', data.unit_id)
+            if (data?.unit_id) {
+                await syncUnitOccupancy(data.unit_id, data.status === 'active' ? data.rent_amount : null)
             }
 
             setContracts((prev) => [data as Contract, ...prev])
@@ -192,6 +210,37 @@ export function useContracts({ autoFetch = true }: { autoFetch?: boolean } = {})
 
     const updateContract = async (id: string, updates: ContractUpdate & { file?: File }) => {
         try {
+            // Fetch existing contract to prevent changing tenant/unit when payments exist
+            const { data: existingContract } = await supabase
+                .from('contracts')
+                .select('unit_id, tenant_id')
+                .eq('id', id)
+                .single()
+
+            const isChangingTenant =
+                updates.tenant_id !== undefined &&
+                existingContract?.tenant_id &&
+                updates.tenant_id !== existingContract.tenant_id
+            const isChangingUnit =
+                updates.unit_id !== undefined &&
+                existingContract?.unit_id &&
+                updates.unit_id !== existingContract.unit_id
+
+            if (isChangingTenant || isChangingUnit) {
+                const { count: paymentCount } = await supabase
+                    .from('payments')
+                    .select('id', { count: 'exact', head: true })
+                    .eq('contract_id', id)
+
+                if ((paymentCount || 0) > 0) {
+                    toast.error('No se puede cambiar el inquilino o la unidad de un contrato con pagos', {
+                        description: 'Para relevar un inquilino conservando el historial, finaliza este contrato y crea uno nuevo.',
+                        duration: 6000,
+                    })
+                    throw new Error('Cannot reassign tenant or unit on contract with existing payments')
+                }
+            }
+
             const payload = { ...updates };
 
             // Handle File Upload if present
@@ -237,11 +286,8 @@ export function useContracts({ autoFetch = true }: { autoFetch?: boolean } = {})
                 throw error;
             }
 
-            if (data?.unit_id && data?.status === 'active' && data?.rent_amount != null) {
-                await supabase
-                    .from('units')
-                    .update({ default_rent_amount: data.rent_amount })
-                    .eq('id', data.unit_id)
+            if (data?.unit_id) {
+                await syncUnitOccupancy(data.unit_id, data.status === 'active' ? data.rent_amount : null)
             }
 
             setContracts((prev) =>
@@ -363,6 +409,28 @@ export function useContracts({ autoFetch = true }: { autoFetch?: boolean } = {})
 
     const deleteContract = async (id: string) => {
         try {
+            // Protect historical payment records from ON DELETE CASCADE
+            const { count: paymentCount, error: countError } = await supabase
+                .from('payments')
+                .select('id', { count: 'exact', head: true })
+                .eq('contract_id', id)
+
+            if (countError) throw countError
+
+            if ((paymentCount || 0) > 0) {
+                toast.error('No se puede eliminar este contrato', {
+                    description: `Tiene ${paymentCount} pago(s) registrado(s). Finaliza el contrato en su lugar para liberar la unidad y conservar el historial.`,
+                    duration: 7000,
+                })
+                return false
+            }
+
+            const { data: existingContract } = await supabase
+                .from('contracts')
+                .select('unit_id')
+                .eq('id', id)
+                .single()
+
             const { error } = await supabase
                 .from('contracts')
                 .delete()
@@ -370,8 +438,13 @@ export function useContracts({ autoFetch = true }: { autoFetch?: boolean } = {})
 
             if (error) throw error
 
+            if (existingContract?.unit_id) {
+                await syncUnitOccupancy(existingContract.unit_id)
+            }
+
             setContracts((prev) => prev.filter((c) => c.id !== id))
-            toast.success('Contrato eliminado éxitosamente')
+            toast.success('Contrato eliminado exitosamente')
+            return true
         } catch (err: unknown) {
             console.error('Error deleting contract:', err)
             toast.error('Error al eliminar el contrato')

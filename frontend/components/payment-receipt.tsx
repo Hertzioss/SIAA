@@ -1,6 +1,6 @@
 import React from 'react'
 import QRCode from "react-qr-code"
-import { formatCurrencyLabel } from "@/lib/utils"
+import { formatCurrencyLabel, formatPaymentConcept } from "@/lib/utils"
 
 interface PaymentReceiptProps {
     payment: {
@@ -175,7 +175,7 @@ export const PaymentReceipt = React.forwardRef<HTMLDivElement, PaymentReceiptPro
                         <div className="flex items-start mb-0.5">
                             <div className="w-44 shrink-0 font-bold text-[10px] uppercase pt-0.5 text-gray-600">OBSERVACION:</div>
                             <div className="flex-1 text-left font-bold uppercase text-[10px] leading-tight bg-gray-100 px-3 py-0.5">
-                                {payment.concept.toUpperCase()}
+                                {formatPaymentConcept(payment.concept).toUpperCase()}
                             </div>
                         </div>
                         {payment.metadata?.original_total_amount && Number(payment.metadata.split_total_parts) > 1 && (

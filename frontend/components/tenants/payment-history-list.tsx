@@ -19,7 +19,7 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { parseLocalDate, formatCurrency, formatCurrencyLabel, isBolivares } from "@/lib/utils"
+import { parseLocalDate, formatCurrency, formatCurrencyLabel, isBolivares, formatPaymentConcept } from "@/lib/utils"
 import { format, isValid } from "date-fns"
 import { Loader2, Printer, ChevronLeft, ChevronRight, FileDown, Receipt } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -153,7 +153,7 @@ export function PaymentHistoryList({ tenantId }: PaymentHistoryListProps) {
 
             const exportData = allPayments.map((p) => ({
                 Fecha: p.date ? format(parseLocalDate(p.date), "dd-MM-yyyy") : "-",
-                Concepto: p.concept?.replace(/Renta/gi, "Canon") || "-",
+                Concepto: formatPaymentConcept(p.concept) || "-",
                 "Referencia / Banco": p.reference_number || "-",
                 Monto: p.amount,
                 Moneda: formatCurrencyLabel(p.currency),
@@ -285,7 +285,7 @@ export function PaymentHistoryList({ tenantId }: PaymentHistoryListProps) {
                                     ? payment.amount
                                     : payment.amount * (payment.exchange_rate || 0)
                                 const conceptLabel =
-                                    payment.concept?.replace(/Renta/gi, "Canon") || "-"
+                                    formatPaymentConcept(payment.concept) || "-"
                                 const formattedDate =
                                     payment.date && isValid(parseLocalDate(payment.date))
                                         ? format(parseLocalDate(payment.date), "dd/MM/yyyy")

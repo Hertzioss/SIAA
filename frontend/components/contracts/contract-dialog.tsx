@@ -20,7 +20,7 @@ import {
     SelectValue,
 } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { FileText, User, Calendar, DollarSign, Building, RefreshCw } from "lucide-react"
+import { FileText, User, Calendar, DollarSign, Building, RefreshCw, ShieldAlert } from "lucide-react"
 import { toast } from "sonner"
 import { Checkbox } from "@/components/ui/checkbox"
 import { parseLocalDate } from "@/lib/utils"
@@ -55,6 +55,7 @@ export function ContractDialog({
     onSubmit?: (data: any) => Promise<void>
 }) {
     const isView = mode === "view"
+    const isEdit = mode === "edit"
     const isRenew = mode === "renew"
     const title =
         mode === "create"
@@ -162,8 +163,8 @@ export function ContractDialog({
         }
 
         const dataToSave = {
-            unit_id: formData.unit_id,
-            tenant_id: formData.tenant_id,
+            unit_id: isEdit && contract?.unit_id ? contract.unit_id : formData.unit_id,
+            tenant_id: isEdit && contract?.tenant_id ? contract.tenant_id : formData.tenant_id,
             start_date: formData.start_date,
             end_date: formData.isIndefinite ? null : formData.end_date,
             rent_amount: parseFloat(formData.amount),
@@ -248,12 +249,20 @@ export function ContractDialog({
                                 </div>
                             </div>
                         )}
+                        {isEdit && (
+                            <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+                                <ShieldAlert className="h-4 w-4 mt-0.5 shrink-0" />
+                                <div>
+                                    Para preservar los pagos e historial del inquilino, la <strong>unidad</strong> y el <strong>inquilino</strong> no se pueden cambiar en un contrato existente. Para relevar un inquilino, finaliza este contrato y crea uno nuevo.
+                                </div>
+                            </div>
+                        )}
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <Label htmlFor="property">Inmueble (Unidad)</Label>
                                 <Select
                                     value={formData.unit_id}
-                                    disabled={isRenew}
+                                    disabled={isRenew || isEdit}
                                     onValueChange={(val) => {
                                         const unit = units.find(u => u.id === val);
                                         setFormData((prev: any) => ({
@@ -290,7 +299,7 @@ export function ContractDialog({
                                 <Select
                                     value={formData.tenant_id}
                                     onValueChange={(val) => setFormData((prev: any) => ({ ...prev, tenant_id: val }))}
-                                    disabled={tenants.length === 1 || isRenew}
+                                    disabled={tenants.length === 1 || isRenew || isEdit}
                                 >
                                     <SelectTrigger id="tenant">
                                         <SelectValue placeholder="Seleccionar Inquilino" />

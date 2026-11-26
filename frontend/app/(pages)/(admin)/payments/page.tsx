@@ -20,6 +20,8 @@ import {
     ChevronLeft,
     ChevronRight,
     ArrowUpDown,
+    ArrowUp,
+    ArrowDown,
     Printer as PrinterIcon,
     Pencil,
     ArrowLeftRight,
@@ -82,8 +84,18 @@ export default function PaymentsPage() {
             setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
         } else {
             setSortColumn(column)
-            setSortDirection('asc')
+            setSortDirection(column === 'date' || column === 'billing_period' ? 'desc' : 'asc')
         }
+        setPage(1)
+    }
+
+    const renderSortIcon = (column: string) => {
+        if (sortColumn !== column) {
+            return <ArrowUpDown className="h-3 w-3 opacity-50" />
+        }
+        return sortDirection === 'asc'
+            ? <ArrowUp className="h-3 w-3 text-foreground" />
+            : <ArrowDown className="h-3 w-3 text-foreground" />
     }
 
     const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -259,12 +271,31 @@ export default function PaymentsPage() {
                         <Table>
                             <TableHeader>
                                 <TableRow className="bg-muted/30 hover:bg-muted/30">
-                                    <TableHead
-                                        className="cursor-pointer hover:text-foreground transition-colors whitespace-nowrap"
-                                        onClick={() => handleSort('date')}
-                                    >
-                                        <div className="flex items-center gap-1">
-                                            Período / Fecha <ArrowUpDown className="h-3 w-3" />
+                                    <TableHead className="whitespace-nowrap">
+                                        <div className="flex items-center gap-1.5">
+                                            <button
+                                                type="button"
+                                                onClick={() => handleSort('billing_period')}
+                                                className={cn(
+                                                    "inline-flex items-center gap-1 hover:text-foreground transition-colors",
+                                                    sortColumn === 'billing_period' && "text-foreground font-semibold"
+                                                )}
+                                                title="Ordenar por mes pagado (período)"
+                                            >
+                                                Período {renderSortIcon('billing_period')}
+                                            </button>
+                                            <span className="text-muted-foreground/50">/</span>
+                                            <button
+                                                type="button"
+                                                onClick={() => handleSort('date')}
+                                                className={cn(
+                                                    "inline-flex items-center gap-1 hover:text-foreground transition-colors",
+                                                    sortColumn === 'date' && "text-foreground font-semibold"
+                                                )}
+                                                title="Ordenar por fecha del pago"
+                                            >
+                                                Fecha {renderSortIcon('date')}
+                                            </button>
                                         </div>
                                     </TableHead>
                                     <TableHead>Inquilino / Inmueble</TableHead>
@@ -273,7 +304,7 @@ export default function PaymentsPage() {
                                         onClick={() => handleSort('amount')}
                                     >
                                         <div className="flex items-center justify-end gap-1">
-                                            Monto / Tasa <ArrowUpDown className="h-3 w-3" />
+                                            Monto / Tasa {renderSortIcon('amount')}
                                         </div>
                                     </TableHead>
                                     <TableHead
@@ -281,7 +312,7 @@ export default function PaymentsPage() {
                                         onClick={() => handleSort('reference_number')}
                                     >
                                         <div className="flex items-center gap-1">
-                                            Referencia <ArrowUpDown className="h-3 w-3" />
+                                            Referencia {renderSortIcon('reference_number')}
                                         </div>
                                     </TableHead>
                                     <TableHead
@@ -289,7 +320,7 @@ export default function PaymentsPage() {
                                         onClick={() => handleSort('status')}
                                     >
                                         <div className="flex items-center gap-1">
-                                            Estado <ArrowUpDown className="h-3 w-3" />
+                                            Estado {renderSortIcon('status')}
                                         </div>
                                     </TableHead>
                                     <TableHead className="text-right">Acciones</TableHead>

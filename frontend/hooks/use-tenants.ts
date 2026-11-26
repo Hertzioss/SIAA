@@ -299,39 +299,60 @@ export function useTenants() {
                 // though it might mean we miss deleting the user.
             }
 
-            // 1. Get all contracts to delete their payments ensuring no orphans
+            // 1. Get all contracts of this tenant
             const { data: tenantContracts } = await supabase
                 .from('contracts')
-                .select('id')
+                .select('id, unit_id')
                 .eq('tenant_id', id);
 
             const contractIds = tenantContracts?.map(c => c.id) || [];
 
-            // 2. Delete all payments associated with these contracts
-            if (contractIds.length > 0) {
-                const { error: paymentsContractError } = await supabase
-                    .from('payments')
-                    .delete()
-                    .in('contract_id', contractIds);
+            // 1.5 Protect historical accounting data: do not allow deleting a tenant with payments
+            const { count: directPaymentsCount, error: directCountError } = await supabase
+                .from('payments')
+                .select('id', { count: 'exact', head: true })
+                .eq('tenant_id', id);
+            if (directCountError) throw directCountError;
 
-                if (paymentsContractError) throw paymentsContractError;
+            let contractPaymentsCount = 0;
+            if (contractIds.length > 0) {
+                const { count, error: contractCountError } = await supabase
+                    .from('payments')
+                    .select('id', { count: 'exact', head: true })
+                    .in('contract_id', contractIds);
+                if (contractCountError) throw contractCountError;
+                contractPaymentsCount = count || 0;
             }
 
-            // 3. Delete any remaining payments directly linked to the tenant
-            const { error: paymentsError } = await supabase
-                .from('payments')
-                .delete()
-                .eq('tenant_id', id);
+            const totalPayments = Math.max(directPaymentsCount || 0, contractPaymentsCount);
+            if (totalPayments > 0) {
+                toast.error('No se puede eliminar este inquilino', {
+                    description: `Tiene ${totalPayments} pago(s) registrado(s). Para cambiar de inquilino en una propiedad, finaliza su contrato para conservar todo su historial.`,
+                    duration: 7000,
+                });
+                return false;
+            }
 
-            if (paymentsError) throw paymentsError;
-
-            // 4. Delete associated contracts
+            // 2. Delete associated contracts (safe since 0 payments exist)
             const { error: contractsError } = await supabase
                 .from('contracts')
                 .delete()
                 .eq('tenant_id', id);
 
             if (contractsError) throw contractsError;
+
+            // Free any units that were only linked to these contracts
+            const affectedUnitIds = Array.from(new Set(tenantContracts?.map(c => c.unit_id).filter(Boolean) || []));
+            for (const unitId of affectedUnitIds) {
+                const { count: remainingActive } = await supabase
+                    .from('contracts')
+                    .select('id', { count: 'exact', head: true })
+                    .eq('unit_id', unitId)
+                    .eq('status', 'active');
+                if ((remainingActive || 0) === 0) {
+                    await supabase.from('units').update({ status: 'vacant' }).eq('id', unitId);
+                }
+            }
 
             // 5. Delete the tenant
             const { error } = await supabase

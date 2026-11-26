@@ -1,5 +1,6 @@
 import React from 'react'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { formatPaymentConcept } from "@/lib/utils"
 
 interface Movement {
     date: string
@@ -172,7 +173,7 @@ export const IncomeExpenseReport = React.forwardRef<HTMLDivElement, IncomeExpens
                                                 {row.tenantName ? row.tenantName : '-'}
                                             </TableCell>
                                             <TableCell className="whitespace-pre-wrap break-words">
-                                                {row.concept}
+                                                {formatPaymentConcept(row.concept)}
                                             </TableCell>
                                             <TableCell className="text-center font-medium text-slate-500">
                                                 {(row.rate ?? 0) > 0 ? row.rate?.toFixed(2) : '-'}

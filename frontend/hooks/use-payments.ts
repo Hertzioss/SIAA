@@ -124,11 +124,27 @@ export function usePayments() {
             const from = (page - 1) * pageSize;
             const to = from + pageSize - 1;
 
+            // Build deterministic ordering (NULLs always last + stable tie-breakers)
+            const ascending = sortDirection === 'asc';
+            let orderedQuery = query.order(sortColumn, { ascending, nullsFirst: false });
+
+            if (sortColumn === 'billing_period') {
+                orderedQuery = orderedQuery
+                    .order('date', { ascending, nullsFirst: false })
+                    .order('created_at', { ascending });
+            } else if (sortColumn === 'date') {
+                orderedQuery = orderedQuery
+                    .order('billing_period', { ascending, nullsFirst: false })
+                    .order('created_at', { ascending });
+            } else {
+                orderedQuery = orderedQuery
+                    .order('date', { ascending: false })
+                    .order('created_at', { ascending: false });
+            }
+
             // Sort based on state + fetch exact global pending count in parallel
             const [listRes, pendingRes] = await Promise.all([
-                query
-                    .order(sortColumn, { ascending: sortDirection === 'asc' })
-                    .range(from, to),
+                orderedQuery.range(from, to),
                 supabase
                     .from('payments')
                     .select('id', { count: 'exact', head: true })

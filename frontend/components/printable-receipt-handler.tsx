@@ -20,10 +20,17 @@ interface PrintableReceiptHandlerProps {
  */
 export function PrintableReceiptHandler({ payment, payments, onClose }: PrintableReceiptHandlerProps) {
     const printRef = useRef<HTMLDivElement>(null)
+    const onCloseRef = useRef(onClose)
+    const hasPrintedRef = useRef(false)
     const { config, loading } = useSystemConfig() // Get system config
+
+    useEffect(() => {
+        onCloseRef.current = onClose
+    }, [onClose])
 
     const paymentsList = payments || (payment ? [payment] : [])
     const firstPayment = paymentsList[0]
+    const printKey = paymentsList.map((p) => `${p.id}:${p.amount}:${p.concept ?? ''}`).join('|')
 
     const documentDate = firstPayment?.date && isValid(parseLocalDate(firstPayment?.date)) 
         ? format(parseLocalDate(firstPayment.date), 'dd-MM-yyyy') 
@@ -33,20 +40,32 @@ export function PrintableReceiptHandler({ payment, payments, onClose }: Printabl
     const handlePrint = useReactToPrint({
         contentRef: printRef,
         documentTitle: `Recibo ${tenantName} ${documentDate}`,
-        onAfterPrint: onClose,
+        onAfterPrint: () => onCloseRef.current(),
     })
+
+    const handlePrintRef = useRef(handlePrint)
+    useEffect(() => {
+        handlePrintRef.current = handlePrint
+    }, [handlePrint])
+
+    useEffect(() => {
+        hasPrintedRef.current = false
+    }, [printKey])
 
     useEffect(() => {
         // Wait for config to finish loading before triggering print
-        if (loading) return
+        if (loading || hasPrintedRef.current) return
         if (printRef.current && paymentsList.length > 0) {
             // Small delay to ensure image loading if any
             const timer = setTimeout(() => {
-                handlePrint()
+                if (!hasPrintedRef.current) {
+                    hasPrintedRef.current = true
+                    handlePrintRef.current()
+                }
             }, 500)
             return () => clearTimeout(timer)
         }
-    }, [handlePrint, config, loading, paymentsList.length]) // Add loading dependency to wait for config
+    }, [loading, printKey, paymentsList.length])
 
     if (paymentsList.length === 0) return null
 
@@ -63,16 +82,17 @@ export function PrintableReceiptHandler({ payment, payments, onClose }: Printabl
                     // Logic to determine logo:
                     // 1. Owner Logo (priority if exists in property owners)
                     // 2. System Config Logo (fallback)
+                    type PropertyOwnerJoin = { owners?: { name?: string; doc_id?: string; logo_url?: string | null } | null }
                     let ownerLogo: string | null = null;
                     if (Array.isArray(propertyOwners)) {
-                        ownerLogo = propertyOwners.find((po: any) => po.owners?.logo_url)?.owners?.logo_url || null;
+                        ownerLogo = (propertyOwners as PropertyOwnerJoin[]).find((po) => po.owners?.logo_url)?.owners?.logo_url || null;
                     }
 
                     const finalLogo = ownerLogo || config?.logo_url || null
 
                     // Helper: first owner's RIF (doc_id)
                     const firstOwnerDocId = (Array.isArray(propertyOwners) && propertyOwners.length > 0) 
-                        ? propertyOwners[0]?.owners?.doc_id 
+                        ? (propertyOwners as PropertyOwnerJoin[])[0]?.owners?.doc_id || ""
                         : "";
 
                     // Company info for the receipt
@@ -81,10 +101,10 @@ export function PrintableReceiptHandler({ payment, payments, onClose }: Printabl
 
                     // Map owners for the component
                     const ownersList = Array.isArray(propertyOwners) 
-                        ? propertyOwners.map((po: any) => ({
-                            name: po.owners?.name,
-                            docId: po.owners?.doc_id
-                        })).filter(o => o.name)
+                        ? (propertyOwners as PropertyOwnerJoin[]).map((po) => ({
+                            name: po.owners?.name || '',
+                            docId: po.owners?.doc_id || ''
+                        })).filter((o) => Boolean(o.name))
                         : [];
 
                     return (
@@ -98,8 +118,22 @@ export function PrintableReceiptHandler({ payment, payments, onClose }: Printabl
                                     status: p.status,
                                     reference: p.reference_number ?? undefined,
                                     rate: p.exchange_rate ?? undefined,
-                                    amountBs: p.currency === 'VES' ? p.amount : (p.exchange_rate ? p.amount * p.exchange_rate : 0),
-                                    amountUsd: p.currency === 'USD' ? p.amount : (p.exchange_rate ? p.amount / p.exchange_rate : 0),
+                                    amountBs:
+                                        typeof p.metadata?.consolidated_amount_bs === 'number'
+                                            ? p.metadata.consolidated_amount_bs
+                                            : p.currency === 'VES'
+                                              ? p.amount
+                                              : p.exchange_rate
+                                                ? p.amount * p.exchange_rate
+                                                : 0,
+                                    amountUsd:
+                                        typeof p.metadata?.consolidated_amount_usd === 'number'
+                                            ? p.metadata.consolidated_amount_usd
+                                            : p.currency === 'USD'
+                                              ? p.amount
+                                              : p.exchange_rate
+                                                ? p.amount / p.exchange_rate
+                                                : 0,
                                     currency: p.currency || undefined,
                                     metadata: p.metadata
                                 }}

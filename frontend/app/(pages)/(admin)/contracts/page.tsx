@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { FileText, Download, Mail, Plus, Search, Edit, Trash, ChevronLeft, ChevronRight, AlertCircle, CheckCircle2, Clock, ArrowUpDown, RefreshCw } from "lucide-react"
+import { FileText, Download, Mail, Plus, Search, Edit, Trash, ChevronLeft, ChevronRight, AlertCircle, CheckCircle2, Clock, ArrowUpDown, RefreshCw, Ban } from "lucide-react"
 import { toast } from "sonner"
 import { ContractDialog } from "@/components/contracts/contract-dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -283,6 +283,8 @@ function ContractsContent() {
         }
     }
 
+    const [contractToTerminate, setContractToTerminate] = useState<ContractRow | null>(null)
+
     const confirmDelete = (contract: ContractRow) => {
         setContractToDelete(contract)
         setIsDeleteDialogOpen(true)
@@ -291,8 +293,27 @@ function ContractsContent() {
     const handleDelete = async () => {
         if (contractToDelete) {
             await deleteContract(contractToDelete.id)
+            await fetchProperties()
             setIsDeleteDialogOpen(false)
             setContractToDelete(null)
+        }
+    }
+
+    const handleTerminate = async () => {
+        if (!contractToTerminate) return
+        try {
+            await updateContract(contractToTerminate.id, {
+                status: 'terminated',
+                end_date: new Date().toLocaleDateString('en-CA'),
+            })
+            await fetchProperties()
+            toast.success('Contrato finalizado', {
+                description: 'El historial del inquilino se conservó y la unidad quedó disponible.'
+            })
+        } catch (error) {
+            console.error("Error terminating contract:", error)
+        } finally {
+            setContractToTerminate(null)
         }
     }
 
@@ -463,9 +484,19 @@ function ContractsContent() {
                                                     <Edit className="h-4 w-4" />
                                                 </Button>
                                                 {(contract.statusRaw === 'active' || contract.statusRaw === 'expired') && (
-                                                    <Button variant="ghost" size="icon" onClick={() => handleRenew(contract)} title="Renovar contrato">
-                                                        <RefreshCw className="h-4 w-4 text-blue-600" />
-                                                    </Button>
+                                                    <>
+                                                        <Button variant="ghost" size="icon" onClick={() => handleRenew(contract)} title="Renovar contrato">
+                                                            <RefreshCw className="h-4 w-4 text-blue-600" />
+                                                        </Button>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            onClick={() => setContractToTerminate(contract)}
+                                                            title="Finalizar contrato (liberar unidad conservando historial)"
+                                                        >
+                                                            <Ban className="h-4 w-4 text-amber-600" />
+                                                        </Button>
+                                                    </>
                                                 )}
                                                 <Button variant="ghost" size="icon" onClick={() => handleDownload(contract)}>
                                                     <Download className="h-4 w-4" />
@@ -559,16 +590,39 @@ function ContractsContent() {
             <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                        <AlertDialogTitle>¿Está seguro?</AlertDialogTitle>
+                        <AlertDialogTitle>¿Eliminar contrato?</AlertDialogTitle>
                         <AlertDialogDescription>
-                            Esta acción no se puede deshacer. Esto eliminará permanentemente el contrato
-                            <strong> {contractToDelete?.id}</strong>.
+                            Solo se pueden eliminar contratos sin pagos registrados. Si este contrato ya tiene historial de pagos, utiliza <strong>Finalizar contrato</strong> para liberar la unidad sin perder datos.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel>Cancelar</AlertDialogCancel>
                         <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
                             Eliminar
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            <AlertDialog
+                open={Boolean(contractToTerminate)}
+                onOpenChange={(open) => {
+                    if (!open) setContractToTerminate(null)
+                }}
+            >
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>¿Finalizar contrato?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            El contrato de <strong>{contractToTerminate?.tenant}</strong> en{" "}
+                            <strong>{contractToTerminate?.property}</strong> pasará a estado{" "}
+                            <strong>Finalizado</strong>. Todos los pagos y datos históricos del inquilino se conservarán intactos y la unidad quedará vacante disponible para asignar un nuevo inquilino.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleTerminate}>
+                            Finalizar contrato
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

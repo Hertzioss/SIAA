@@ -40,3 +40,19 @@ export function formatDateString(dateString: string): string {
   const [year, month, day] = parts;
   return `${day}-${month}-${year}`;
 }
+
+/**
+ * Formatea el concepto de pago para recibos, correos y reportes:
+ * - Reemplaza "Renta" por "Canon".
+ * - Oculta "(Completo)" para mostrar un concepto limpio.
+ * - Sustituye "(Parcial)" o "(Parte)" por un asterisco "*" discreto.
+ */
+export function formatPaymentConcept(concept?: string | null): string {
+  if (!concept) return "";
+  return concept
+    .replace(/Renta/gi, "Canon")
+    .replace(/\s*\(\s*completo\s*\)/gi, "")
+    .replace(/\s*\(\s*(?:parcial|parte)\s*\)/gi, " *")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
