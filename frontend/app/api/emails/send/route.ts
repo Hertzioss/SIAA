@@ -29,15 +29,43 @@ export async function POST(request: Request) {
             )
         }
 
+        // Sanitize and deduplicate recipients by normalized email before sending
+        interface EmailRecipient {
+            email: string
+            name?: string
+            property?: string
+        }
+        const seenEmails = new Set<string>()
+        const validRecipients: EmailRecipient[] = []
+        for (const raw of recipients as EmailRecipient[]) {
+            const cleanedEmail = typeof raw?.email === 'string' ? raw.email.trim() : ''
+            if (!cleanedEmail || !cleanedEmail.includes('@')) continue
+            const key = cleanedEmail.toLowerCase()
+            if (seenEmails.has(key)) continue
+            seenEmails.add(key)
+            validRecipients.push({
+                email: cleanedEmail,
+                name: raw.name,
+                property: raw.property,
+            })
+        }
+
+        if (validRecipients.length === 0) {
+            return NextResponse.json(
+                { error: 'No valid recipient emails provided' },
+                { status: 400 }
+            )
+        }
+
         // Sequential processing with delay to avoid rate limits
         // The limit is 5 requests per second, so we add a delay between each send
         const results = []
         const today = new Date().toLocaleDateString('es-VE', { day: '2-digit', month: 'long', year: 'numeric' })
 
-        console.log(`Iniciando envío masivo a ${recipients.length} destinatarios...`)
+        console.log(`Iniciando envío a ${validRecipients.length} destinatario(s)...`)
 
-        for (let i = 0; i < recipients.length; i++) {
-            const recipient = recipients[i]
+        for (let i = 0; i < validRecipients.length; i++) {
+            const recipient = validRecipients[i]
             
             try {
                 // Replace tags in message and subject
@@ -63,15 +91,16 @@ export async function POST(request: Request) {
                 })
                 
                 results.push({ status: 'fulfilled', value: res })
-                console.log(`[${i + 1}/${recipients.length}] Email enviado a ${recipient.email}`)
-            } catch (error: any) {
-                console.error(`[${i + 1}/${recipients.length}] Error enviando a ${recipient.email}:`, error.message)
+                console.log(`[${i + 1}/${validRecipients.length}] Email enviado a ${recipient.email}`)
+            } catch (error: unknown) {
+                const errMsg = error instanceof Error ? error.message : String(error)
+                console.error(`[${i + 1}/${validRecipients.length}] Error enviando a ${recipient.email}:`, errMsg)
                 results.push({ status: 'rejected', reason: error })
             }
 
             // Delay entre envíos para evitar límites del proveedor (ej. 5 req/seg)
-            // 500ms de delay asegura que nos mantengamos bajo el límite (máx 2 req/seg)
-            if (i < recipients.length - 1) {
+            // 400ms de delay asegura que nos mantengamos bajo el límite
+            if (i < validRecipients.length - 1) {
                 await new Promise(resolve => setTimeout(resolve, 400))
             }
         }
@@ -87,10 +116,11 @@ export async function POST(request: Request) {
             sent: results.length - failed.length,
             failed: failed.length
         })
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('API Error sending email:', error)
+        const details = error instanceof Error ? error.message : String(error)
         return NextResponse.json(
-            { error: 'Failed to send email', details: error.message },
+            { error: 'Failed to send email', details },
             { status: 500 }
         )
     }

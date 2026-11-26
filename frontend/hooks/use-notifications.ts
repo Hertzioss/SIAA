@@ -122,10 +122,24 @@ export function useNotifications() {
             const { title, message, type, target, recipientType } = data;
             const baseNotification = { title, message, type, user_id: null };
 
-            const recipientsData: { email: string, name: string, property?: string }[] = [];
+            const recipientsData: { email: string; name: string; property?: string }[] = [];
+            const seenEmails = new Set<string>();
+
+            const pushUniqueRecipient = (
+                rawEmail: string | null | undefined,
+                name: string,
+                property?: string
+            ) => {
+                const email = rawEmail?.trim();
+                if (!email || !email.includes('@')) return;
+                const key = email.toLowerCase();
+                if (seenEmails.has(key)) return;
+                seenEmails.add(key);
+                recipientsData.push({ email, name, property });
+            };
 
             if (target.type === 'tenant') {
-                if (!target.id) throw new Error("Tenant ID required for single tenant notification");
+                if (!target.id) throw new Error("Debe seleccionar un inquilino válido");
 
                 // Fetch email, name, user_id, and property info
                 const { data: tenant } = await supabase
@@ -143,14 +157,20 @@ export function useNotifications() {
                     .eq('id', target.id)
                     .single();
 
-                if (!tenant) throw new Error("Tenant not found");
+                if (!tenant) throw new Error("Inquilino no encontrado");
 
-                const activeContract = Array.isArray(tenant.contracts) 
-                    ? tenant.contracts.find((c: any) => c.status === 'active')
-                    : (tenant.contracts as any)?.status === 'active' ? tenant.contracts : null;
-                
-                const unit: any = Array.isArray(activeContract?.units) ? activeContract.units[0] : activeContract?.units;
-                const propertyName = Array.isArray(unit?.properties) ? unit.properties[0]?.name : unit?.properties?.name;
+                const activeContract = Array.isArray(tenant.contracts)
+                    ? tenant.contracts.find((c: { status?: string }) => c.status === 'active')
+                    : (tenant.contracts as { status?: string } | null)?.status === 'active'
+                      ? tenant.contracts
+                      : null;
+
+                const unit: any = Array.isArray(activeContract?.units)
+                    ? activeContract.units[0]
+                    : activeContract?.units;
+                const propertyName = Array.isArray(unit?.properties)
+                    ? unit.properties[0]?.name
+                    : unit?.properties?.name;
 
                 notificationsToInsert.push({
                     ...baseNotification,
@@ -159,26 +179,18 @@ export function useNotifications() {
                 });
 
                 if (recipientType === 'tenant' || recipientType === 'both') {
-                    if (tenant.email) recipientsData.push({ 
-                        email: tenant.email, 
-                        name: tenant.name,
-                        property: propertyName
-                    });
+                    pushUniqueRecipient(tenant.email, tenant.name, propertyName);
                 }
 
                 if (recipientType === 'contacts' || recipientType === 'both') {
                     const contacts = tenant.tenant_contacts || [];
                     contacts.forEach((c: any) => {
-                        if (c.email) recipientsData.push({ 
-                            email: c.email, 
-                            name: c.name,
-                            property: propertyName
-                        });
+                        pushUniqueRecipient(c.email, c.name, propertyName);
                     });
                 }
             }
             else if (target.type === 'property') {
-                if (!target.id) throw new Error("Property ID required for property notification");
+                if (!target.id) throw new Error("Debe seleccionar un inmueble válido");
 
                 // Fetch active contracts with tenant emails, contacts and property name
                 const { data: contracts, error: fetchError } = await supabase
@@ -218,74 +230,60 @@ export function useNotifications() {
                     const propertyName = Array.isArray(unit?.properties) ? unit.properties[0]?.name : unit?.properties?.name;
 
                     if (recipientType === 'tenant' || recipientType === 'both') {
-                        if (t.email) recipientsData.push({ 
-                            email: t.email, 
-                            name: t.name,
-                            property: propertyName
-                        });
+                        pushUniqueRecipient(t.email, t.name, propertyName);
                     }
                     if (recipientType === 'contacts' || recipientType === 'both') {
                         const contacts = t.tenant_contacts || [];
                         contacts.forEach((contact: any) => {
-                            if (contact.email) recipientsData.push({ 
-                                email: contact.email, 
-                                name: contact.name,
-                                property: propertyName
-                            });
+                            pushUniqueRecipient(contact.email, contact.name, propertyName);
                         });
                     }
                 });
             }
             else if (target.type === 'all') {
-                const { data: tenants, error: fetchError } = await supabase
-                    .from('tenants')
+                // Target ONLY tenants with an active contract (both solvent and delinquent, never ex-tenants)
+                const { data: activeContracts, error: fetchError } = await supabase
+                    .from('contracts')
                     .select(`
-                        id, email, name, user_id, 
-                        tenant_contacts(email, name),
-                        contracts(
-                            status,
-                            units(
-                                properties(name)
-                            )
-                        )
+                        tenant_id,
+                        tenant:tenants(id, email, name, user_id, tenant_contacts(email, name)),
+                        unit:units(properties(name))
                     `)
-                    .eq('status', 'solvent');
+                    .eq('status', 'active');
 
                 if (fetchError) throw fetchError;
-                if (!tenants || tenants.length === 0) {
-                    toast.warning("No hay inquilinos registrados");
+                if (!activeContracts || activeContracts.length === 0) {
+                    toast.warning("No hay inquilinos con contrato activo");
                     return;
                 }
 
-                notificationsToInsert = tenants.map(t => {
-                    const n: any = { ...baseNotification, tenant_id: t.id };
-                    if (t.user_id) n.user_id = t.user_id;
-                    return n;
+                const uniqueContracts = Array.from(
+                    new Map(activeContracts.filter(c => Boolean(c.tenant_id)).map(c => [c.tenant_id, c])).values()
+                );
+
+                notificationsToInsert = uniqueContracts.map(c => {
+                    const t = c.tenant as any;
+                    return {
+                        ...baseNotification,
+                        tenant_id: c.tenant_id,
+                        user_id: t?.user_id || null
+                    };
                 });
 
-                tenants.forEach(t => {
-                    const activeContract = Array.isArray(t.contracts) 
-                        ? t.contracts.find((c: any) => c.status === 'active')
-                        : (t.contracts as any)?.status === 'active' ? t.contracts : null;
-                    
-                    const unit: any = Array.isArray(activeContract?.units) ? activeContract.units[0] : activeContract?.units;
+                uniqueContracts.forEach(c => {
+                    const t = c.tenant as any;
+                    if (!t) return;
+
+                    const unit: any = Array.isArray(c.unit) ? c.unit[0] : c.unit;
                     const propertyName = Array.isArray(unit?.properties) ? unit.properties[0]?.name : unit?.properties?.name;
 
                     if (recipientType === 'tenant' || recipientType === 'both') {
-                        if (t.email) recipientsData.push({ 
-                            email: t.email, 
-                            name: t.name,
-                            property: propertyName
-                        });
+                        pushUniqueRecipient(t.email, t.name, propertyName);
                     }
                     if (recipientType === 'contacts' || recipientType === 'both') {
                         const contacts = t.tenant_contacts || [];
                         contacts.forEach((contact: any) => {
-                            if (contact.email) recipientsData.push({ 
-                                email: contact.email, 
-                                name: contact.name,
-                                property: propertyName
-                            });
+                            pushUniqueRecipient(contact.email, contact.name, propertyName);
                         });
                     }
                 });
