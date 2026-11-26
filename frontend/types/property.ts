@@ -43,4 +43,5 @@ export interface Unit {
     // Computed fields
     isOccupied?: boolean;
     tenantName?: string;
+    activeRentAmount?: number | null;
 }

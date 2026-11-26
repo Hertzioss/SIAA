@@ -12,8 +12,10 @@ export const ContractDetailReport = React.forwardRef<HTMLDivElement, ContractDet
 
     const startDate = contract.start_date ? format(new Date(contract.start_date), 'dd/MM/yyyy', { locale: es }) : 'N/A'
     const endDate = contract.end_date ? format(new Date(contract.end_date), 'dd/MM/yyyy', { locale: es }) : 'Indefinido'
-    const statusText = contract.status === 'active' || contract.status === 'Activo' ? 'Activo' : 
-                       contract.status === 'expired' || contract.status === 'Vencido' ? 'Vencido' : contract.status;
+    const statusText = contract.status === 'active' || contract.status === 'Activo' ? 'Activo' :
+                       contract.status === 'expired' || contract.status === 'Vencido' ? 'Vencido' :
+                       contract.status === 'terminated' || contract.status === 'Finalizado' ? 'Finalizado' :
+                       contract.status === 'cancelled' || contract.status === 'Cancelado' ? 'Cancelado' : contract.status;
 
     return (
         <div ref={ref} className="p-10 bg-white text-black font-sans max-w-[800px] mx-auto shadow-sm border border-gray-100 rounded-sm">

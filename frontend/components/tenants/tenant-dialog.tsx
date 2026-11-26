@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Loader2, User, Mail, Phone, Plus, Trash2, FileText, Calendar } from "lucide-react"
+import { Loader2, User, Mail, Phone, Plus, Trash2, FileText, Calendar, RefreshCw } from "lucide-react"
 import { toast } from "sonner"
 import { Tenant, TenantStatus } from "@/types/tenant"
 import { Property } from "@/types/property"
@@ -29,7 +29,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
-import { parseLocalDate } from "@/lib/utils"
+import { parseLocalDate, formatCurrency } from "@/lib/utils"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import Link from "next/link"
 
@@ -74,12 +74,12 @@ export function TenantDialog({ open, onOpenChange, mode, tenant, properties, onS
 
     // Hooks
     const { contacts, createContact, deleteContact, fetchContacts, isLoading: loadingContacts } = useTenantContacts(tenant?.id)
-    const { contracts, fetchTenantContracts, createContract, updateContract } = useContracts({ autoFetch: false })
+    const { contracts, fetchTenantContracts, createContract, updateContract, renewContract } = useContracts({ autoFetch: false })
     const tenantContracts = tenant ? contracts.filter(c => c.tenant_id === tenant.id) : []
 
     // Contract Dialog State
     const [isContractDialogOpen, setIsContractDialogOpen] = useState(false)
-    const [contractDialogMode, setContractDialogMode] = useState<"create" | "edit" | "view">("create")
+    const [contractDialogMode, setContractDialogMode] = useState<"create" | "edit" | "view" | "renew">("create")
     const [selectedContract, setSelectedContract] = useState<any>(undefined)
 
     // New Contact Form State
@@ -291,6 +291,11 @@ export function TenantDialog({ open, onOpenChange, mode, tenant, properties, onS
                 await createContract({
                     ...data,
                     tenant_id: tenant.id // Force tenant ID
+                })
+            } else if (contractDialogMode === 'renew' && selectedContract && tenant) {
+                await renewContract(selectedContract.id, {
+                    ...data,
+                    tenant_id: tenant.id
                 })
             } else if (contractDialogMode === 'edit' && selectedContract) {
                 await updateContract(selectedContract.id, data)
@@ -582,18 +587,39 @@ export function TenantDialog({ open, onOpenChange, mode, tenant, properties, onS
                                                         <FileText className="h-4 w-4" />
                                                         {contract.units?.properties?.name} - {contract.units?.name}
                                                     </CardTitle>
-                                                    <Badge variant={contract.status === 'active' ? 'default' : 'secondary'}>
-                                                        {contract.status === 'active' ? 'Vigente' : 'Finalizado'}
+                                                    <Badge variant={contract.status === 'active' ? 'default' : contract.status === 'expired' ? 'destructive' : 'secondary'}>
+                                                        {contract.status === 'active'
+                                                            ? 'Vigente'
+                                                            : contract.status === 'expired'
+                                                                ? 'Vencido'
+                                                                : contract.status === 'cancelled'
+                                                                    ? 'Cancelado'
+                                                                    : 'Finalizado'}
                                                     </Badge>
                                                 </div>
                                             </CardHeader>
-                                            <CardContent className="py-3 text-sm grid grid-cols-2 gap-2">
+                                            <CardContent className="py-3 text-sm grid grid-cols-1 sm:grid-cols-3 gap-2">
                                                 <div><span className="text-muted-foreground">Inicio:</span> {format(parseLocalDate(contract.start_date), 'dd MMM yyyy', { locale: es })}</div>
                                                 <div><span className="text-muted-foreground">Fin:</span> {contract.end_date ? format(parseLocalDate(contract.end_date), 'dd MMM yyyy', { locale: es }) : "Indefinido"}</div>
-                                                <div className="col-span-2 mt-2 flex gap-2">
+                                                <div><span className="text-muted-foreground">Canon:</span> <span className="font-semibold">{contract.rent_amount != null ? formatCurrency(Number(contract.rent_amount), 'USD') : '-'}</span></div>
+                                                <div className="sm:col-span-3 mt-2 flex gap-2">
                                                     <Link href={`/contracts?view=${contract.id}`} className="flex-1">
                                                         <Button variant="outline" size="sm" className="w-full">Ver Detalles</Button>
                                                     </Link>
+                                                    {(contract.status === 'active' || contract.status === 'expired') && (
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            onClick={() => {
+                                                                setSelectedContract(contract)
+                                                                setContractDialogMode("renew")
+                                                                setIsContractDialogOpen(true)
+                                                            }}
+                                                        >
+                                                            <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+                                                            Renovar
+                                                        </Button>
+                                                    )}
                                                     <Button variant="secondary" size="sm" onClick={() => {
                                                         setSelectedContract(contract)
                                                         setContractDialogMode("edit")

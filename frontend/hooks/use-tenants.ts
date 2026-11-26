@@ -112,10 +112,10 @@ export function useTenants() {
                     // Consider whether to rollback tenant creation here, 
                     // but for now we'll just notify the user.
                 } else {
-                    // Update unit status to occupied
+                    // Update unit status to occupied and sync default rent amount
                     await supabase
                         .from('units')
-                        .update({ status: 'occupied' })
+                        .update({ status: 'occupied', default_rent_amount: contractData.rent_amount })
                         .eq('id', contractData.unit_id);
 
                     // Fetch unit name for the notification

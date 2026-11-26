@@ -27,7 +27,8 @@ export const formatCurrency = (amount: number, currency: 'USD' | 'VES' | 'Bs' | 
 
 export function parseLocalDate(dateString: string): Date {
   if (!dateString) return new Date();
-  const [year, month, day] = dateString.split('-').map(Number);
+  const datePart = dateString.split('T')[0].split(' ')[0];
+  const [year, month, day] = datePart.split('-').map(Number);
   return new Date(year, month - 1, day);
 }
 

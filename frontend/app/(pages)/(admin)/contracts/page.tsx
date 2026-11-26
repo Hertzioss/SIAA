@@ -6,10 +6,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { FileText, Download, Mail, Plus, Search, Edit, Trash, ChevronLeft, ChevronRight, AlertCircle, CheckCircle2, Clock, ArrowUpDown } from "lucide-react"
+import { FileText, Download, Mail, Plus, Search, Edit, Trash, ChevronLeft, ChevronRight, AlertCircle, CheckCircle2, Clock, ArrowUpDown, RefreshCw } from "lucide-react"
 import { toast } from "sonner"
 import { ContractDialog } from "@/components/contracts/contract-dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { parseLocalDate } from "@/lib/utils"
 
 import { useProperties } from "@/hooks/use-properties"
 import { useTenants } from "@/hooks/use-tenants"
@@ -49,13 +50,13 @@ type ContractRow = Omit<Contract, 'status'> & {
  * Lista contratos con filtrado por estado y búsqueda.
  */
 function ContractsContent() {
-    const { contracts, isLoading, createContract, updateContract, deleteContract } = useContracts()
-    const { properties } = useProperties()
+    const { contracts, isLoading, createContract, updateContract, renewContract, deleteContract } = useContracts()
+    const { properties, fetchProperties } = useProperties()
     const { tenants } = useTenants()
     const searchParams = useSearchParams()
 
     const [isDialogOpen, setIsDialogOpen] = useState(false)
-    const [dialogMode, setDialogMode] = useState<"create" | "view" | "edit">("create")
+    const [dialogMode, setDialogMode] = useState<"create" | "view" | "edit" | "renew">("create")
     const [selectedContract, setSelectedContract] = useState<ContractRow | null>(null)
     const [searchTerm, setSearchTerm] = useState(searchParams.get("q") || "")
     const [statusFilter, setStatusFilter] = useState("all")
@@ -86,33 +87,45 @@ function ContractsContent() {
         setSortConfig({ key, direction })
     }
 
+    const now = new Date()
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    const thirtyDaysFromNow = new Date(today)
+    thirtyDaysFromNow.setDate(today.getDate() + 30)
+
     // Helper to format contract for display
     const formatContractData = (c: Contract): ContractRow => {
         const propertyName = c.units?.properties?.name || "Propiedad Desconocida"
         const unitName = c.units?.name || "Unidad"
         const tenantName = c.tenants?.name || "Inquilino Desconocido"
+        const rawStatus = (c.status || '').toLowerCase().trim()
 
         // Calculate duration approx
         let duration = "Indefinido"
-        let calculatedStatus = c.status === 'active' ? 'Activo' : String(c.status)
+        let calculatedStatus =
+            rawStatus === 'active'
+                ? 'Activo'
+                : rawStatus === 'terminated'
+                    ? 'Finalizado'
+                    : rawStatus === 'cancelled'
+                        ? 'Cancelado'
+                        : rawStatus === 'expired'
+                            ? 'Vencido'
+                            : String(c.status)
 
-        if (c.end_date) {
-            const start = new Date(c.start_date)
-            const end = new Date(c.end_date)
+        const start = parseLocalDate(c.start_date)
+        const end = c.end_date ? parseLocalDate(c.end_date) : null
+
+        if (end && !Number.isNaN(end.getTime())) {
             const diffMonths = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth())
             duration = `${diffMonths} Meses`
 
-            const now = new Date()
-            const thirtyDaysFromNow = new Date()
-            thirtyDaysFromNow.setDate(now.getDate() + 30)
-            const endDate = new Date(c.end_date)
-
-            if (c.status === 'expired' || endDate < now) {
-                calculatedStatus = "Vencido"
-            } else if (c.status === 'active' && endDate <= thirtyDaysFromNow) {
-                calculatedStatus = "Por Vencer"
+            if (rawStatus !== 'terminated' && rawStatus !== 'cancelled') {
+                if (rawStatus === 'expired' || end < today) {
+                    calculatedStatus = "Vencido"
+                } else if (rawStatus === 'active' && end <= thirtyDaysFromNow) {
+                    calculatedStatus = "Por Vencer"
+                }
             }
-            // If active and not expiring, it remains 'Activo'
         }
 
         return {
@@ -125,8 +138,8 @@ function ContractsContent() {
             duration: duration,
             amount: c.rent_amount,
             type: c.type,
-            displayStartDate: new Date(c.start_date).toLocaleDateString('es-VE', { day: '2-digit', month: '2-digit', year: 'numeric' }),
-            displayEndDate: c.end_date ? new Date(c.end_date).toLocaleDateString('es-VE', { day: '2-digit', month: '2-digit', year: 'numeric' }) : "Indefinido",
+            displayStartDate: start.toLocaleDateString('es-VE', { day: '2-digit', month: '2-digit', year: 'numeric' }),
+            displayEndDate: end && !Number.isNaN(end.getTime()) ? end.toLocaleDateString('es-VE', { day: '2-digit', month: '2-digit', year: 'numeric' }) : "Indefinido",
             statusRaw: c.status
         }
     }
@@ -167,30 +180,11 @@ function ContractsContent() {
         currentPage * itemsPerPage
     )
 
-    // Stats
-    const totalContracts = contracts.length
-    const now = new Date()
-    const thirtyDaysFromNow = new Date()
-    thirtyDaysFromNow.setDate(now.getDate() + 30)
-
-    const expiringContracts = contracts.filter(c => {
-        if (c.status !== 'active' || !c.end_date) return false
-        const end = new Date(c.end_date)
-        return end >= now && end <= thirtyDaysFromNow
-    }).length
-
-    const expiredContracts = contracts.filter(c => {
-        if (!c.end_date) return c.status === 'expired' // Should generally not happen for indefinite unless manual
-        const end = new Date(c.end_date)
-        return c.status === 'expired' || end < now
-    }).length
-
-    const activeContracts = contracts.filter(c => {
-        if (c.status !== 'active') return false
-        if (!c.end_date) return true // Indefinite active
-        const end = new Date(c.end_date)
-        return end > now
-    }).length
+    // Stats — computed from displayedContracts so KPI cards always match the filter 1-to-1
+    const totalContracts = displayedContracts.length
+    const activeContracts = displayedContracts.filter(c => c.status === "Activo").length
+    const expiringContracts = displayedContracts.filter(c => c.status === "Por Vencer").length
+    const expiredContracts = displayedContracts.filter(c => c.status === "Vencido").length
 
     const handleDownload = (contract: ContractRow) => {
         if (contract.file_url) {
@@ -259,26 +253,28 @@ function ContractsContent() {
         setIsDialogOpen(true)
     }
 
+    const handleRenew = (contract: ContractRow) => {
+        setDialogMode("renew")
+        setSelectedContract(contract)
+        setIsDialogOpen(true)
+    }
+
     const handleSaveContract = async (data: ContractInsert & { file?: File | null }) => {
         try {
             if (dialogMode === "create") {
                 await createContract(data)
+                await fetchProperties()
+            } else if (dialogMode === "renew" && selectedContract) {
+                await renewContract(selectedContract.id, data)
+                await fetchProperties()
             } else if (dialogMode === "edit" && selectedContract) {
-                // Ensure data satisfies ContractUpdate which is Partial<ContractInsert>
-                // Need to strip off fields that might not be in ContractUpdate if any?
-                // But ContractInsert IS assignable to ContractUpdate (Partial<ContractInsert>)
-                // Only potential issue is if updateContract expects `file: File`, and data has `file: File | null`.
-                // Check useContracts line 178: updateContract(id, updates: ContractUpdate & { file?: File })
-                // data.file can be null. updateContract expects file (optional) to be File.
-                // It is defined as `{ file?: File }`. If `data.file` is `undefined`, it's fine. If `data.file` is `null`, it's potentially an issue if explicit undefined check is used.
-                // However, let's cast or adjust for safety if needed.
-                
                 const updateData: ContractUpdate & { file?: File } = {
                     ...data,
                     file: data.file || undefined // convert null to undefined
                 }
                 
                 await updateContract(selectedContract.id, updateData)
+                await fetchProperties()
             }
             setIsDialogOpen(false)
         } catch (error) {
@@ -320,7 +316,10 @@ function ContractsContent() {
 
             {/* Summary Cards */}
             <div className="grid gap-4 md:grid-cols-4">
-                <Card>
+                <Card
+                    className={`cursor-pointer transition-colors hover:border-primary/50 ${statusFilter === 'all' ? 'ring-2 ring-primary/30' : ''}`}
+                    onClick={() => { setStatusFilter('all'); setCurrentPage(1); }}
+                >
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Total Contratos</CardTitle>
                         <FileText className="h-4 w-4 text-muted-foreground" />
@@ -330,7 +329,10 @@ function ContractsContent() {
                         <p className="text-xs text-muted-foreground">Registrados en el sistema</p>
                     </CardContent>
                 </Card>
-                <Card>
+                <Card
+                    className={`cursor-pointer transition-colors hover:border-green-500/50 ${statusFilter === 'Activo' ? 'ring-2 ring-green-500/40' : ''}`}
+                    onClick={() => { setStatusFilter('Activo'); setCurrentPage(1); }}
+                >
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Vigentes</CardTitle>
                         <CheckCircle2 className="h-4 w-4 text-green-600" />
@@ -340,7 +342,10 @@ function ContractsContent() {
                         <p className="text-xs text-muted-foreground">Contratos activos</p>
                     </CardContent>
                 </Card>
-                <Card>
+                <Card
+                    className={`cursor-pointer transition-colors hover:border-yellow-500/50 ${statusFilter === 'Por Vencer' ? 'ring-2 ring-yellow-500/40' : ''}`}
+                    onClick={() => { setStatusFilter('Por Vencer'); setCurrentPage(1); }}
+                >
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Por Vencer</CardTitle>
                         <Clock className="h-4 w-4 text-yellow-600" />
@@ -350,7 +355,10 @@ function ContractsContent() {
                         <p className="text-xs text-muted-foreground">Vencen en &lt; 30 días</p>
                     </CardContent>
                 </Card>
-                <Card>
+                <Card
+                    className={`cursor-pointer transition-colors hover:border-red-500/50 ${statusFilter === 'Vencido' ? 'ring-2 ring-red-500/40' : ''}`}
+                    onClick={() => { setStatusFilter('Vencido'); setCurrentPage(1); }}
+                >
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Vencidos</CardTitle>
                         <AlertCircle className="h-4 w-4 text-red-600" />
@@ -379,6 +387,7 @@ function ContractsContent() {
                                     <SelectItem value="Activo">Activos</SelectItem>
                                     <SelectItem value="Por Vencer">Por Vencer</SelectItem>
                                     <SelectItem value="Vencido">Vencidos</SelectItem>
+                                    <SelectItem value="Finalizado">Finalizados</SelectItem>
                                 </SelectContent>
                             </Select>
                             <div className="relative w-full md:w-64">
@@ -450,9 +459,14 @@ function ContractsContent() {
                                                 <Button variant="ghost" size="icon" onClick={() => handleViewDetail(contract)}>
                                                     <FileText className="h-4 w-4" />
                                                 </Button>
-                                                <Button variant="ghost" size="icon" onClick={() => handleEdit(contract)}>
+                                                <Button variant="ghost" size="icon" onClick={() => handleEdit(contract)} title="Editar contrato">
                                                     <Edit className="h-4 w-4" />
                                                 </Button>
+                                                {(contract.statusRaw === 'active' || contract.statusRaw === 'expired') && (
+                                                    <Button variant="ghost" size="icon" onClick={() => handleRenew(contract)} title="Renovar contrato">
+                                                        <RefreshCw className="h-4 w-4 text-blue-600" />
+                                                    </Button>
+                                                )}
                                                 <Button variant="ghost" size="icon" onClick={() => handleDownload(contract)}>
                                                     <Download className="h-4 w-4" />
                                                 </Button>

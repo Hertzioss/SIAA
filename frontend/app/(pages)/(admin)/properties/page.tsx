@@ -27,6 +27,7 @@ import {
 import { ExportButtons } from "@/components/export-buttons"
 import { useProperties } from "@/hooks/use-properties"
 import { Property, Unit } from "@/types/property"
+import { formatCurrency } from "@/lib/utils"
 
 /**
  * Página principal de administración de inmuebles.
@@ -166,7 +167,7 @@ export default function PropertiesPage() {
         setUnitName(unit.name)
         setUnitType(unit.type)
         setUnitStatus(unit.status)
-        setUnitRent(unit.default_rent_amount?.toString() || "")
+        setUnitRent((unit.activeRentAmount ?? unit.default_rent_amount)?.toString() || "")
         setUnitArea(unit.area?.toString() || "")
         setUnitFloor(unit.floor || "")
 
@@ -311,8 +312,8 @@ export default function PropertiesPage() {
 
                                     // Handle numeric comparison for rent
                                     if (unitSortConfig.key === 'default_rent_amount') {
-                                        aVal = Number(aVal || 0)
-                                        bVal = Number(bVal || 0)
+                                        aVal = Number(a.activeRentAmount ?? a.default_rent_amount ?? 0)
+                                        bVal = Number(b.activeRentAmount ?? b.default_rent_amount ?? 0)
                                     }
 
                                     if (aVal < bVal) return unitSortConfig.direction === 'asc' ? -1 : 1
@@ -469,7 +470,10 @@ export default function PropertiesPage() {
                                                                             )}
                                                                         </TableCell>
                                                                         <TableCell className="text-right">
-                                                                            {unit.default_rent_amount ? `$${unit.default_rent_amount}` : '-'}
+                                                                            {(() => {
+                                                                                const displayRent = unit.activeRentAmount ?? unit.default_rent_amount
+                                                                                return displayRent != null ? formatCurrency(Number(displayRent), 'USD') : '-'
+                                                                            })()}
                                                                         </TableCell>
                                                                         <TableCell className="text-right">
                                                                             <div className="flex justify-end gap-2">

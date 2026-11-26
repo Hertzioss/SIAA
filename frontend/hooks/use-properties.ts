@@ -34,6 +34,7 @@ export function useProperties() {
                     *,
                     contracts(
                       status,
+                      rent_amount,
                       tenant:tenants(name)
                     )
                   ),
@@ -55,7 +56,8 @@ export function useProperties() {
                         ...u,
                         status: activeContract ? 'occupied' : u.status,
                         isOccupied: !!activeContract,
-                        tenantName: activeContract?.tenant?.name
+                        tenantName: activeContract?.tenant?.name,
+                        activeRentAmount: activeContract?.rent_amount ?? null
                     };
                 }),
                 owners: p.property_owners?.map((po: any) => ({

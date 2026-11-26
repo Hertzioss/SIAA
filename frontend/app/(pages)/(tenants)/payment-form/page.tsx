@@ -327,50 +327,58 @@ export default function PaymentForm() {
                 </div>
             )}
 
-            <div className="grid gap-6 lg:grid-cols-3">
+            <div className="grid gap-4 lg:grid-cols-3 items-start">
                 {/* Left Column - Form */}
-                <div className="lg:col-span-2 space-y-6">
+                <div className="lg:col-span-2">
                     <Card>
-                        <CardHeader>
-                            <CardTitle>Detalles del Pago</CardTitle>
+                        <CardHeader className="py-3.5 pb-2">
+                            <CardTitle className="text-base">Detalles del Pago</CardTitle>
                         </CardHeader>
-                        <CardContent className="space-y-6">
-
-                            <div className="space-y-2">
-                                <Label>Propiedad / Unidad</Label>
-                                <div className="relative">
-                                    <Building2 className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                                    <Input
-                                        value={propertyLabel}
-                                        className="pl-9 bg-muted/50"
-                                        readOnly />
+                        <CardContent className="space-y-3.5 pt-1">
+                            {/* Property + Payment Date on 1 row */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                <div className="space-y-1">
+                                    <Label className="text-xs text-muted-foreground">Propiedad / Unidad</Label>
+                                    <div className="relative">
+                                        <Building2 className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                                        <Input
+                                            value={propertyLabel}
+                                            className="h-9 pl-9 bg-muted/50"
+                                            readOnly />
+                                    </div>
                                 </div>
-                            </div>
-
-                            <div className="hidden">
-                                {/* Hidden Logic: Global selectors removed, specific selectors moved to rows */}
-                            </div>
-
-                            <div className="space-y-4">
-                                <div className="space-y-2">
-                                    <Label className={isSubmitted && !date ? "text-red-500" : ""}>Fecha del Pago *</Label>
+                                <div className="space-y-1">
+                                    <Label className={isSubmitted && !date ? "text-xs text-red-500" : "text-xs text-muted-foreground"}>Fecha del Pago *</Label>
                                     <div className="relative">
                                         <CalendarIcon className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                                         <Input
                                             type="date"
                                             value={date}
                                             onChange={(e) => setDate(e.target.value)}
-                                            className={isSubmitted && !date ? "pl-9 border-red-500" : "pl-9"} />
+                                            className={isSubmitted && !date ? "h-9 pl-9 border-red-500" : "h-9 pl-9"} />
                                     </div>
                                 </div>
+                            </div>
 
-                                <Separator />
+                            <div className="space-y-2.5">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-xs font-semibold">Medios de pago</span>
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={addPaymentPart}
+                                        className="h-7 px-2 text-xs text-primary hover:text-primary"
+                                    >
+                                        + Agregar otra forma de pago
+                                    </Button>
+                                </div>
 
                                 {paymentParts.map((part, index) => (
-                                    <div key={index} className="space-y-4 p-4 border rounded-lg bg-muted/20 relative animate-in fade-in slide-in-from-top-2">
-                                        <div className="flex justify-between items-center mb-2">
-                                            <Label className="text-sm font-semibold text-muted-foreground">Opción de Pago #{index + 1}</Label>
-                                            {paymentParts.length > 1 && (
+                                    <div key={index} className="space-y-2.5 p-3 border rounded-lg bg-muted/20 relative">
+                                        {paymentParts.length > 1 && (
+                                            <div className="flex justify-between items-center">
+                                                <Label className="text-xs font-semibold text-muted-foreground">Opción de Pago #{index + 1}</Label>
                                                 <Button
                                                     variant="ghost"
                                                     size="sm"
@@ -379,18 +387,18 @@ export default function PaymentForm() {
                                                 >
                                                     ✕
                                                 </Button>
-                                            )}
-                                        </div>
+                                            </div>
+                                        )}
 
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            <div className="space-y-2 col-span-2 md:col-span-2">
-                                                <Label>Periodo a Pagar</Label>
-                                                <div className="flex gap-2">
+                                        <div className="grid grid-cols-1 md:grid-cols-12 gap-2.5">
+                                            <div className="space-y-1 md:col-span-4">
+                                                <Label className="text-xs text-muted-foreground">Período</Label>
+                                                <div className="flex gap-1.5">
                                                     <Select
                                                         value={part.month}
                                                         onValueChange={(val) => updatePaymentPart(index, 'month', val)}
                                                     >
-                                                        <SelectTrigger className="flex-1">
+                                                        <SelectTrigger className="h-9 flex-1">
                                                             <SelectValue placeholder="Mes" />
                                                         </SelectTrigger>
                                                         <SelectContent>
@@ -405,7 +413,7 @@ export default function PaymentForm() {
                                                         value={part.year}
                                                         onValueChange={(val) => updatePaymentPart(index, 'year', val)}
                                                     >
-                                                        <SelectTrigger className="w-[100px]">
+                                                        <SelectTrigger className="h-9 w-[82px]">
                                                             <SelectValue placeholder="Año" />
                                                         </SelectTrigger>
                                                         <SelectContent>
@@ -418,109 +426,95 @@ export default function PaymentForm() {
                                                 </div>
                                             </div>
 
-                                            <div className="space-y-2">
-                                                <Label className={isSubmitted && part.currency === 'VES' && !part.reference ? "text-red-500" : ""}>
-                                                    Ref. Bancaria {part.currency === 'VES' && '*'}
-                                                </Label>
-                                                <Input
-                                                    value={part.reference}
-                                                    onChange={(e) => updatePaymentPart(index, 'reference', e.target.value)}
-                                                    placeholder={part.currency === 'VES' ? "Ej: 0123456789" : "Opcional para USD"}
-                                                    className={isSubmitted && part.currency === 'VES' && !part.reference ? "border-red-500" : ""}
-                                                />
-                                            </div>
-
-                                            <div className="space-y-2">
-                                                <Label className={isSubmitted && !part.amount ? "text-red-500" : ""}>Monto y Moneda *</Label>
-                                                <div className="flex gap-2">
+                                            <div className="space-y-1 md:col-span-5">
+                                                <Label className={isSubmitted && !part.amount ? "text-xs text-red-500" : "text-xs text-muted-foreground"}>Monto y Moneda *</Label>
+                                                <div className="flex gap-1.5">
                                                     <Input
                                                         type="number"
                                                         value={part.amount}
                                                         onChange={(e) => updatePaymentPart(index, 'amount', e.target.value)}
                                                         placeholder="0.00"
-                                                        className={isSubmitted && !part.amount ? "w-[140px] border-red-500" : "w-[140px]"} />
-                                                    <div className="flex rounded-md border bg-muted p-1 flex-1 justify-center">
+                                                        className={isSubmitted && !part.amount ? "h-9 flex-1 border-red-500" : "h-9 flex-1"} />
+                                                    <div className="flex rounded-md border bg-muted p-0.5 shrink-0">
                                                         <Button
+                                                            type="button"
                                                             variant={part.currency === 'USD' ? 'default' : 'ghost'}
                                                             size="sm"
                                                             onClick={() => updatePaymentPart(index, 'currency', 'USD')}
-                                                            className="px-4 flex-1"
+                                                            className="h-7 px-2.5 text-xs"
                                                         >
                                                             USD
                                                         </Button>
                                                         <Button
+                                                            type="button"
                                                             variant={part.currency === 'VES' ? 'default' : 'ghost'}
                                                             size="sm"
                                                             onClick={() => updatePaymentPart(index, 'currency', 'VES')}
-                                                            className="px-4 flex-1"
+                                                            className="h-7 px-2.5 text-xs"
                                                         >
                                                             Bs
                                                         </Button>
                                                     </div>
                                                 </div>
                                             </div>
+
+                                            <div className="space-y-1 md:col-span-3">
+                                                <Label className={isSubmitted && part.currency === 'VES' && !part.reference ? "text-xs text-red-500" : "text-xs text-muted-foreground"}>
+                                                    Ref. Bancaria {part.currency === 'VES' && '*'}
+                                                </Label>
+                                                <Input
+                                                    value={part.reference}
+                                                    onChange={(e) => updatePaymentPart(index, 'reference', e.target.value)}
+                                                    placeholder={part.currency === 'VES' ? "0123456789" : "Opcional"}
+                                                    className={isSubmitted && part.currency === 'VES' && !part.reference ? "h-9 border-red-500" : "h-9"}
+                                                />
+                                            </div>
                                         </div>
                                     </div>
                                 ))}
-
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={addPaymentPart}
-                                    className="w-full border-dashed"
-                                >
-                                    + Agregar otra forma de pago
-                                </Button>
                             </div>
 
-                            <div className="space-y-2">
-                                <Label>Comprobante de Pago (Opcional)</Label>
-                                <div
-                                    onClick={() => fileInputRef.current?.click()}
-                                    className="border-2 border-dashed rounded-lg p-8 text-center hover:bg-muted/50 transition-colors cursor-pointer"
-                                >
-                                    <div className="flex flex-col items-center gap-2">
-                                        <CloudUpload className="h-8 w-8 text-muted-foreground" />
-                                        <p className="text-sm font-medium">
-                                            {selectedFile ? selectedFile.name : (
-                                                <>Haga clic para cargar <span className="text-muted-foreground font-normal">o arrastre y suelte</span></>
-                                            )}
-                                        </p>
-                                        <p className="text-xs text-muted-foreground">PNG, JPG o PDF (MAX. 5MB)</p>
-                                    </div>
-
-                                    {previewUrl && (
-                                        <div className="mt-4 relative w-full h-48 bg-muted rounded-lg overflow-hidden border flex items-center justify-center pointer-events-none">
+                            {/* Compact Proof + Notes side by side */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                <div className="space-y-1">
+                                    <Label className="text-xs text-muted-foreground">Comprobante de Pago (Opcional)</Label>
+                                    <div
+                                        onClick={() => fileInputRef.current?.click()}
+                                        className="border-2 border-dashed rounded-lg px-3 py-2.5 hover:bg-muted/50 transition-colors cursor-pointer flex items-center gap-3 min-h-[64px]"
+                                    >
+                                        {previewUrl ? (
                                             <img
                                                 src={previewUrl}
                                                 alt="Vista previa del comprobante"
-                                                className="max-w-full max-h-full object-contain"
+                                                className="h-11 w-11 rounded object-cover border shrink-0"
                                             />
+                                        ) : (
+                                            <CloudUpload className="h-5 w-5 text-muted-foreground shrink-0" />
+                                        )}
+                                        <div className="min-w-0 text-left">
+                                            <p className="text-xs font-medium truncate">
+                                                {selectedFile ? selectedFile.name : "Haga clic para cargar comprobante"}
+                                            </p>
+                                            <p className="text-[11px] text-muted-foreground">PNG, JPG o PDF (MAX. 5MB)</p>
                                         </div>
-                                    )}
-
-                                    {selectedFile && !previewUrl && (
-                                        <div className="mt-4 p-3 bg-blue-50 text-blue-700 rounded-md text-sm border border-blue-200">
-                                            Archivo listo para subir
-                                        </div>
-                                    )}
-                                    <input
-                                        type="file"
-                                        ref={fileInputRef}
-                                        className="hidden"
-                                        accept="image/png, image/jpeg, application/pdf"
-                                        onChange={handleFileChange} />
+                                        <input
+                                            type="file"
+                                            ref={fileInputRef}
+                                            className="hidden"
+                                            accept="image/png, image/jpeg, application/pdf"
+                                            onChange={handleFileChange} />
+                                    </div>
                                 </div>
-                            </div>
 
-                            <div className="space-y-2">
-                                <Label>Notas / Comentarios</Label>
-                                <Textarea
-                                    value={notes}
-                                    onChange={(e) => setNotes(e.target.value)}
-                                    placeholder="Abono parcial correspondiente a julio."
-                                    className="resize-none"
-                                    rows={4} />
+                                <div className="space-y-1">
+                                    <Label className="text-xs text-muted-foreground">Notas / Comentarios</Label>
+                                    <Textarea
+                                        value={notes}
+                                        onChange={(e) => setNotes(e.target.value)}
+                                        placeholder="Abono parcial correspondiente al mes..."
+                                        className="resize-none min-h-[64px] text-sm"
+                                        rows={2} />
+                                </div>
                             </div>
 
                         </CardContent>

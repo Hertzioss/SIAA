@@ -20,19 +20,21 @@ import {
     SelectValue,
 } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { FileText, User, Calendar, DollarSign, Building } from "lucide-react"
+import { FileText, User, Calendar, DollarSign, Building, RefreshCw } from "lucide-react"
 import { toast } from "sonner"
 import { Checkbox } from "@/components/ui/checkbox"
+import { parseLocalDate } from "@/lib/utils"
+import { addDays, addMonths, addYears, differenceInCalendarMonths, format } from "date-fns"
 
 interface ContractDialogProps {
     open: boolean
     onOpenChange: (open: boolean) => void
-    mode?: "create" | "view" | "edit"
+    mode?: "create" | "view" | "edit" | "renew"
     contract?: any // Replace with proper type
 }
 
 /**
- * Diálogo para la gestión de contratos (Crear, Editar, Ver).
+ * Diálogo para la gestión de contratos (Crear, Editar, Ver, Renovar).
  * Permite asociar unidades e inquilinos, definir montos y vigencia.
  */
 export function ContractDialog({
@@ -46,23 +48,28 @@ export function ContractDialog({
 }: {
     open: boolean
     onOpenChange: (open: boolean) => void
-    mode?: "create" | "view" | "edit"
+    mode?: "create" | "view" | "edit" | "renew"
     contract?: any
     properties?: any[]
     tenants?: any[]
     onSubmit?: (data: any) => Promise<void>
 }) {
     const isView = mode === "view"
+    const isRenew = mode === "renew"
     const title =
         mode === "create"
             ? "Crear Nuevo Contrato"
-            : mode === "edit"
-                ? "Editar Contrato"
-                : "Detalle del Contrato"
+            : mode === "renew"
+                ? "Renovar Contrato"
+                : mode === "edit"
+                    ? "Editar Contrato"
+                    : "Detalle del Contrato"
     const description =
         mode === "create"
             ? "Complete los detalles para generar un nuevo contrato de arrendamiento."
-            : "Información detallada del contrato."
+            : mode === "renew"
+                ? "Registre una renovación para el mismo inquilino e inmueble conservando el contrato anterior en el historial."
+                : "Información detallada del contrato."
 
     const [formData, setFormData] = useState({
         unit_id: "",
@@ -77,13 +84,38 @@ export function ContractDialog({
 
     // Update form data when contract changes
     useEffect(() => {
-        if (contract) {
+        setSelectedFile(null)
+
+        if (contract && mode === "renew") {
+            const prevEnd = contract.end_date ? parseLocalDate(contract.end_date) : null
+            const prevStart = contract.start_date ? parseLocalDate(contract.start_date) : null
+            const suggestedStart = prevEnd ? addDays(prevEnd, 1) : new Date()
+
+            let suggestedEnd = ""
+            if (prevEnd) {
+                const durationMonths = prevStart ? differenceInCalendarMonths(prevEnd, prevStart) : 12
+                const endObj = durationMonths > 0
+                    ? addMonths(suggestedStart, durationMonths)
+                    : addYears(suggestedStart, 1)
+                suggestedEnd = format(endObj, "yyyy-MM-dd")
+            }
+
+            setFormData({
+                unit_id: contract.unit_id || "",
+                tenant_id: contract.tenant_id || "",
+                start_date: format(suggestedStart, "yyyy-MM-dd"),
+                end_date: suggestedEnd,
+                amount: contract.rent_amount != null ? String(contract.rent_amount) : "",
+                type: contract.type || "residential",
+                isIndefinite: !contract.end_date
+            })
+        } else if (contract) {
             setFormData({
                 unit_id: contract.unit_id || "",
                 tenant_id: contract.tenant_id || "",
                 start_date: contract.start_date || "",
                 end_date: contract.end_date || "",
-                amount: contract.rent_amount || "",
+                amount: contract.rent_amount != null ? String(contract.rent_amount) : "",
                 type: contract.type || "residential",
                 isIndefinite: !contract.end_date
             })
@@ -98,7 +130,7 @@ export function ContractDialog({
                 isIndefinite: false
             })
         }
-    }, [contract, open, tenants])
+    }, [contract, open, tenants, mode])
 
     // Flatten units for selection
     const units = properties.flatMap(p =>
@@ -136,7 +168,7 @@ export function ContractDialog({
             end_date: formData.isIndefinite ? null : formData.end_date,
             rent_amount: parseFloat(formData.amount),
             type: formData.type,
-            status: contract?.statusRaw ?? contract?.status ?? 'active',
+            status: isRenew ? 'active' : (contract?.statusRaw ?? contract?.status ?? 'active'),
             file: selectedFile // Pass file to parent
         }
 
@@ -208,11 +240,20 @@ export function ContractDialog({
                     </Tabs>
                 ) : (
                     <div className="grid gap-4 py-4">
+                        {isRenew && (
+                            <div className="flex items-start gap-2 rounded-md border border-blue-200 bg-blue-50 p-3 text-xs text-blue-800 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-300">
+                                <RefreshCw className="h-4 w-4 mt-0.5 shrink-0" />
+                                <div>
+                                    Al registrar esta renovación, el contrato anterior pasará al historial como <strong>Finalizado</strong> y este nuevo contrato quedará <strong>Vigente</strong> para la misma unidad e inquilino.
+                                </div>
+                            </div>
+                        )}
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <Label htmlFor="property">Inmueble (Unidad)</Label>
                                 <Select
                                     value={formData.unit_id}
+                                    disabled={isRenew}
                                     onValueChange={(val) => {
                                         const unit = units.find(u => u.id === val);
                                         setFormData((prev: any) => ({
@@ -249,7 +290,7 @@ export function ContractDialog({
                                 <Select
                                     value={formData.tenant_id}
                                     onValueChange={(val) => setFormData((prev: any) => ({ ...prev, tenant_id: val }))}
-                                    disabled={tenants.length === 1}
+                                    disabled={tenants.length === 1 || isRenew}
                                 >
                                     <SelectTrigger id="tenant">
                                         <SelectValue placeholder="Seleccionar Inquilino" />
@@ -314,7 +355,7 @@ export function ContractDialog({
                                 accept="application/pdf,image/*"
                                 onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
                             />
-                            {contract?.file_url && (
+                            {contract?.file_url && !isRenew && (
                                 <a href={contract.file_url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline">
                                     Ver Contrato Actual
                                 </a>
@@ -361,7 +402,7 @@ export function ContractDialog({
                                 Cancelar
                             </Button>
                             <Button onClick={handleSubmit}>
-                                {mode === "create" ? "Generar Contrato" : "Guardar Cambios"}
+                                {mode === "renew" ? "Registrar Renovación" : mode === "create" ? "Generar Contrato" : "Guardar Cambios"}
                             </Button>
                         </>
                     )}

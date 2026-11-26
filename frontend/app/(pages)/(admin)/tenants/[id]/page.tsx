@@ -359,14 +359,22 @@ export default function TenantDetailPage() {
                                 <TableBody>
                                     {tenant.contracts && tenant.contracts.length > 0 ? (
                                         tenant.contracts.map((contract, index) => (
-                                            <TableRow key={index} className={contract.status === 'expired' ? 'opacity-60' : ''}>
+                                            <TableRow key={index} className={contract.status !== 'active' ? 'opacity-60' : ''}>
                                                 <TableCell className="font-medium">{contract.contract_number || `CNT-${contract.id.slice(0, 8)}`}</TableCell>
                                                 <TableCell>{contract.units?.properties?.name || contract.unit_id}</TableCell>
                                                 <TableCell>{new Date(contract.start_date).toLocaleDateString()}</TableCell>
                                                 <TableCell>{contract.end_date ? new Date(contract.end_date).toLocaleDateString() : 'Indefinido'}</TableCell>
                                                 <TableCell>
                                                     <Badge variant={contract.status === 'active' ? 'default' : 'outline'}>
-                                                        {contract.status === 'active' ? 'Vigente' : contract.status === 'expired' ? 'Vencido' : contract.status}
+                                                        {contract.status === 'active'
+                                                            ? 'Vigente'
+                                                            : contract.status === 'expired'
+                                                                ? 'Vencido'
+                                                                : contract.status === 'terminated'
+                                                                    ? 'Finalizado'
+                                                                    : contract.status === 'cancelled'
+                                                                        ? 'Cancelado'
+                                                                        : contract.status}
                                                     </Badge>
                                                 </TableCell>
                                                 <TableCell className="text-right">

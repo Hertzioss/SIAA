@@ -225,7 +225,7 @@ export default function TenantsPage() {
         }
     }
     const exportData = filteredTenants.map(tenant => {
-        const contract = tenant.contracts?.[0];
+        const contract = getPrimaryContract(tenant);
         const propertyId = contract?.unit?.property?.id;
         const fullProperty = propertyId ? properties.find(p => p.id === propertyId) : null;
         const ownerName = fullProperty?.owners?.[0]?.name || "-";
@@ -439,35 +439,32 @@ export default function TenantsPage() {
                                                 })()}
                                             </TableCell>
                                             <TableCell>
-                                                {tenant.contracts?.[0]?.unit ? (
-                                                    <div className="flex flex-col text-xs gap-1">
-                                                        <span className="flex items-center gap-1 font-medium text-foreground">
-                                                            <Building className="h-3 w-3 text-muted-foreground" />
-                                                            {tenant.contracts[0].unit.property?.name}
-                                                        </span>
-                                                        <span className="flex items-center gap-1 text-muted-foreground pl-4">
-                                                            Unidad : {tenant.contracts[0].unit.name}
-                                                        </span>
-                                                        {(() => {
-                                                            const propertyId = tenant.contracts?.[0]?.unit?.property?.id;
-                                                            if (!propertyId) return null;
-                                                            const fullProperty = properties.find(p => p.id === propertyId);
-                                                            const ownerName = fullProperty?.owners?.[0]?.name;
-
-                                                            if (ownerName) {
-                                                                return (
-                                                                    <span className="flex items-center gap-1 text-muted-foreground pl-4">
-                                                                        <User className="h-3 w-3 text-muted-foreground" />
-                                                                        {ownerName}
-                                                                    </span>
-                                                                )
-                                                            }
-                                                            return null;
-                                                        })()}
-                                                    </div>
-                                                ) : (
-                                                    <span className="text-muted-foreground text-xs italic">-</span>
-                                                )}
+                                                {(() => {
+                                                    const primaryContract = getPrimaryContract(tenant);
+                                                    if (!primaryContract?.unit) {
+                                                        return <span className="text-muted-foreground text-xs italic">-</span>;
+                                                    }
+                                                    const propertyId = primaryContract.unit.property?.id;
+                                                    const fullProperty = propertyId ? properties.find(p => p.id === propertyId) : null;
+                                                    const ownerName = fullProperty?.owners?.[0]?.name;
+                                                    return (
+                                                        <div className="flex flex-col text-xs gap-1">
+                                                            <span className="flex items-center gap-1 font-medium text-foreground">
+                                                                <Building className="h-3 w-3 text-muted-foreground" />
+                                                                {primaryContract.unit.property?.name}
+                                                            </span>
+                                                            <span className="flex items-center gap-1 text-muted-foreground pl-4">
+                                                                Unidad : {primaryContract.unit.name}
+                                                            </span>
+                                                            {ownerName && (
+                                                                <span className="flex items-center gap-1 text-muted-foreground pl-4">
+                                                                    <User className="h-3 w-3 text-muted-foreground" />
+                                                                    {ownerName}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                })()}
                                             </TableCell>
 
                                             <TableCell className="text-right">

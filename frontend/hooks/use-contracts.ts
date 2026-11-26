@@ -11,7 +11,7 @@ export type Contract = {
     end_date: string | null
     rent_amount: number
     deposit_amount: number | null
-    status: 'active' | 'expired' | 'cancelled'
+    status: 'active' | 'expired' | 'cancelled' | 'terminated'
     type: 'residential' | 'commercial' | null
     file_url: string | null
     // Joins
@@ -167,6 +167,13 @@ export function useContracts({ autoFetch = true }: { autoFetch?: boolean } = {})
 
             if (error) throw error
 
+            if (data?.unit_id && data?.status === 'active' && data?.rent_amount != null) {
+                await supabase
+                    .from('units')
+                    .update({ default_rent_amount: data.rent_amount })
+                    .eq('id', data.unit_id)
+            }
+
             setContracts((prev) => [data as Contract, ...prev])
             toast.success('Contrato creado exitosamente')
             if (activeTenantIdRef.current) {
@@ -230,6 +237,13 @@ export function useContracts({ autoFetch = true }: { autoFetch?: boolean } = {})
                 throw error;
             }
 
+            if (data?.unit_id && data?.status === 'active' && data?.rent_amount != null) {
+                await supabase
+                    .from('units')
+                    .update({ default_rent_amount: data.rent_amount })
+                    .eq('id', data.unit_id)
+            }
+
             setContracts((prev) =>
                 prev.map((c) => (c.id === id ? { ...c, ...data } : c))
             )
@@ -247,6 +261,102 @@ export function useContracts({ autoFetch = true }: { autoFetch?: boolean } = {})
                 console.error('Error properties:', JSON.stringify(err, null, 2));
             }
             toast.error('Error al actualizar el contrato')
+            throw err
+        }
+    }
+
+    const renewContract = async (previousContractId: string, newContract: ContractInsert & { file?: File | null }) => {
+        let previousStatus: Contract['status'] = 'active'
+        try {
+            // 1. Fetch previous contract status for safe rollback if insert fails
+            const { data: prevData, error: prevFetchError } = await supabase
+                .from('contracts')
+                .select('status')
+                .eq('id', previousContractId)
+                .single()
+
+            if (prevFetchError) throw prevFetchError
+            previousStatus = (prevData?.status as Contract['status']) || 'active'
+
+            // 2. Upload new PDF/image if provided
+            let fileUrl = null
+            if (newContract.file) {
+                const file: File = newContract.file
+                const fileExt = file.name.split('.').pop()
+                const fileName = `${Math.random()}.${fileExt}`
+                const filePath = `${fileName}`
+
+                const { error: uploadError } = await supabase.storage
+                    .from('contracts')
+                    .upload(filePath, file)
+
+                if (uploadError) {
+                    console.error('Error uploading renewal contract file:', uploadError)
+                    toast.warning('Contrato renovado, pero falló la carga del archivo.')
+                } else {
+                    const { data: { publicUrl } } = supabase.storage
+                        .from('contracts')
+                        .getPublicUrl(filePath)
+                    fileUrl = publicUrl
+                }
+            }
+
+            // 3. Mark previous contract as terminated (preserved in history)
+            const { error: terminateError } = await supabase
+                .from('contracts')
+                .update({ status: 'terminated' })
+                .eq('id', previousContractId)
+
+            if (terminateError) throw terminateError
+
+            // 4. Insert the renewed contract as active
+            const payload = {
+                ...newContract,
+                status: 'active' as const,
+                file_url: fileUrl,
+            }
+            if ('file' in payload) {
+                delete (payload as { file?: File | null }).file
+            }
+
+            const { data, error: insertError } = await supabase
+                .from('contracts')
+                .insert(payload)
+                .select()
+                .single()
+
+            if (insertError) {
+                // Rollback previous contract status if creating the renewal fails
+                await supabase
+                    .from('contracts')
+                    .update({ status: previousStatus })
+                    .eq('id', previousContractId)
+                throw insertError
+            }
+
+            // 5. Sync unit status and rent amount
+            if (data?.unit_id && data?.rent_amount != null) {
+                await supabase
+                    .from('units')
+                    .update({ status: 'occupied', default_rent_amount: data.rent_amount })
+                    .eq('id', data.unit_id)
+            }
+
+            toast.success('Contrato renovado exitosamente', {
+                description: 'El contrato anterior quedó guardado en el historial como finalizado.'
+            })
+
+            if (activeTenantIdRef.current) {
+                await fetchTenantContracts(activeTenantIdRef.current)
+            } else if (autoFetch) {
+                await fetchContracts()
+            }
+
+            return data
+        } catch (err: unknown) {
+            console.error('Error renewing contract:', err)
+            const message = (err as { message?: string })?.message || 'Error al renovar el contrato'
+            toast.error(message)
             throw err
         }
     }
@@ -283,6 +393,7 @@ export function useContracts({ autoFetch = true }: { autoFetch?: boolean } = {})
         fetchTenantContracts,
         createContract,
         updateContract,
+        renewContract,
         deleteContract,
     }
 }
