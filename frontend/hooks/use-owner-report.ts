@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { startOfMonth, endOfMonth, format, parseISO, isValid } from 'date-fns';
+import { authFetch } from '@/lib/auth-fetch';
 
 export interface OwnerReportItem {
     ownerId: string;
@@ -536,7 +537,7 @@ export function useOwnerReport() {
                 </div>
             `;
 
-            const response = await fetch('/api/emails/send', {
+            const response = await authFetch('/api/emails/send', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

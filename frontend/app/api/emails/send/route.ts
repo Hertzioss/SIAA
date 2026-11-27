@@ -2,9 +2,13 @@ import { NextResponse } from 'next/server'
 import { sendEmail } from '@/lib/mail'
 import { generateEmailHtml } from '@/lib/email-templates'
 import { supabaseAdmin } from '@/lib/supabase-admin'
+import { requireAdminRequest } from '@/lib/server-auth'
 
 export async function POST(request: Request) {
     try {
+        const auth = await requireAdminRequest(request)
+        if (!auth.ok) return auth.response
+
         // Check if email sending is enabled in company settings
         const { data: company } = await supabaseAdmin
             .from('companies')

@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { Payment as BasePayment, PaymentStatus } from '@/types/payment';
 import { useSystemConfig } from '@/hooks/use-system-config';
+import { authFetch } from '@/lib/auth-fetch';
 
 export type PaymentStatusFilter = 'all' | PaymentStatus;
 
@@ -373,7 +374,7 @@ export function usePayments() {
             const pdfBase64 = await generatePaymentReceiptPDF(pdfData);
 
             // 4. Send to API
-            const res = await fetch('/api/payments/resend-receipt', {
+            const res = await authFetch('/api/payments/resend-receipt', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ id, pdfBase64 })
@@ -461,7 +462,7 @@ export function usePayments() {
                 }
             }
 
-            const res = await fetch('/api/payments/update-status', {
+            const res = await authFetch('/api/payments/update-status', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ id, status, notes, sendEmail, pdfBase64 })

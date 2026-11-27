@@ -3,9 +3,13 @@ import { supabaseAdmin } from '@/lib/supabase-admin'
 import { generatePassword } from '@/lib/utils-password'
 import { sendEmail } from '@/lib/mail'
 import { generateEmailHtml } from '@/lib/email-templates'
+import { requireAdminRequest } from '@/lib/server-auth'
 
 export async function POST(request: Request) {
     try {
+        const auth = await requireAdminRequest(request)
+        if (!auth.ok) return auth.response
+
         const body = await request.json()
         const { tenantId, email } = body
 

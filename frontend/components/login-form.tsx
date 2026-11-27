@@ -45,6 +45,11 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
 
       if (error) throw error
 
+      try {
+        localStorage.setItem('app_last_activity_at', String(Date.now()))
+      } catch {
+        // Ignore storage errors
+      }
 
       // setLoading(false)
       router.push('/dashboard')

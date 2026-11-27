@@ -24,6 +24,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Loader2, Eye, EyeOff } from "lucide-react"
 import { User } from "@/hooks/use-users"
 import { getUnlinkedTenants } from "@/actions/users"
+import { getAccessToken } from "@/lib/auth-fetch"
 
 const userSchema = z.object({
     fullName: z.string().min(2, "El nombre debe tener al menos 2 caracteres"),
@@ -68,11 +69,13 @@ export function UserDialog({ open, onOpenChange, user, mode, onSubmit }: UserDia
 
     useEffect(() => {
         if (open && mode === 'create') {
-            getUnlinkedTenants().then(res => {
-                if (res.success && res.data) {
-                    setUnlinkedTenants(res.data)
-                }
-            })
+            getAccessToken().then((token) =>
+                getUnlinkedTenants(token).then(res => {
+                    if (res.success && res.data) {
+                        setUnlinkedTenants(res.data)
+                    }
+                })
+            )
         }
     }, [open, mode])
 

@@ -2,6 +2,7 @@
 
 import { supabaseAdmin } from "@/lib/supabase-admin"
 import { revalidatePath } from "next/cache"
+import { requireAdminAction } from "@/lib/server-auth"
 
 export async function getCompany() {
     try {
@@ -21,17 +22,23 @@ export async function getCompany() {
     }
 }
 
-export async function updateCompany(data: {
-    name?: string
-    rif?: string
-    address?: string
-    phone?: string
-    email?: string
-    logo_url?: string | null
-    email_enabled?: boolean
-    timezone?: string
-}) {
+export async function updateCompany(
+    accessToken: string,
+    data: {
+        name?: string
+        rif?: string
+        address?: string
+        phone?: string
+        email?: string
+        logo_url?: string | null
+        email_enabled?: boolean
+        timezone?: string
+    }
+) {
     try {
+        const auth = await requireAdminAction(accessToken)
+        if (!auth.ok) return { success: false, error: auth.error }
+
         // Check if company exists
         const { data: existing } = await supabaseAdmin
             .from('companies')

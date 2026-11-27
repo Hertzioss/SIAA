@@ -4,9 +4,9 @@ import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import { supabase } from "@/lib/supabase"
-import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { CreditCard, History, Bell } from "lucide-react"
+import { SessionTimeoutGuard } from "@/components/session-timeout-guard"
 
 /**
  * Layout principal del portal de inquilinos.
@@ -25,7 +25,7 @@ export default function TenantLayout({ children }: { children: React.ReactNode }
                 return
             }
 
-            const role = session.user.user_metadata.role
+            const role = session.user.app_metadata?.role || session.user.user_metadata?.role
             const isSuperAdminEnv = process.env.NEXT_PUBLIC_SUPER_ADMIN_EMAIL === session.user.email
 
             // Solo inquilinos pueden acceder aquí
@@ -45,6 +45,7 @@ export default function TenantLayout({ children }: { children: React.ReactNode }
 
     return (
         <div className="min-h-screen bg-background flex flex-col">
+            <SessionTimeoutGuard timeoutMinutes={30} warningMinutes={2} />
             <header className="border-b bg-card">
                 <div className="container mx-auto px-4 py-4 flex flex-col sm:flex-row items-center justify-between gap-4">
                     <div className="flex items-center gap-2">

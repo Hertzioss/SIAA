@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase';
 import { Owner, OwnerBeneficiary, OwnerType, Property } from '@/types/owner';
 import { toast } from 'sonner';
 import { updateOwner as updateOwnerAction } from '@/actions/access';
+import { getAccessToken } from '@/lib/auth-fetch';
 
 
 type DbError = {
@@ -162,7 +163,8 @@ export function useOwners() {
             // Given OwnerDialog usage: handleSubmit calls onSubmit with { type, ...formData, beneficiaries }. It sends EVERYTHING.
             // So we are good.
 
-            const result = await updateOwnerAction(id, actionData as Parameters<typeof updateOwnerAction>[1])
+            const token = await getAccessToken()
+            const result = await updateOwnerAction(token, id, actionData as Parameters<typeof updateOwnerAction>[2])
 
             if (!result.success) {
                 throw new Error(result.error)

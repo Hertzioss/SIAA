@@ -6,6 +6,7 @@ import { format, parseISO, isValid } from 'date-fns'
 import { startOfMonth, endOfMonth } from 'date-fns'
 import { toast } from 'sonner'
 import { formatPaymentConcept } from '@/lib/utils'
+import { authFetch } from '@/lib/auth-fetch'
 
 export interface StatementPayment {
     date: string
@@ -296,7 +297,7 @@ export function useTenantStatement() {
                 </div>
             `
 
-            const response = await fetch('/api/emails/send', {
+            const response = await authFetch('/api/emails/send', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

@@ -4,12 +4,17 @@ import { supabaseAdmin } from "@/lib/supabase-admin"
 import { revalidatePath } from "next/cache"
 import { sendEmail } from "@/lib/mail"
 import { generateOwnerCredentialsTemplate } from "@/lib/email-templates"
+import { requireAdminAction } from "@/lib/server-auth"
+import { generatePassword } from "@/lib/utils-password"
 
 /**
  * Creates an auth user for an existing owner and links them.
  */
-export async function enableOwnerAccess(ownerId: string, email: string, password?: string) {
+export async function enableOwnerAccess(accessToken: string, ownerId: string, email: string, password?: string) {
     try {
+        const auth = await requireAdminAction(accessToken)
+        if (!auth.ok) return { success: false, error: auth.error }
+
         // 1. Get Owner to verify existence
         const { data: owner, error: ownerError } = await supabaseAdmin
             .from('owners')
@@ -23,14 +28,17 @@ export async function enableOwnerAccess(ownerId: string, email: string, password
             return { success: false, error: "El propietario ya tiene acceso habilitado" }
         }
 
-        // 2. Create Auth User
-        // Use provided password or generate a random one (though for UX provided is better)
-        const finalPassword = password || Math.random().toString(36).slice(-10) + "Aa1!"
+        // 2. Create Auth User with cryptographically secure password
+        const finalPassword = password?.trim() || generatePassword(14)
 
         const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
             email,
             password: finalPassword,
             email_confirm: true,
+            app_metadata: {
+                role: 'owner',
+                owner_id: ownerId
+            },
             user_metadata: {
                 full_name: owner.name,
                 role: 'owner',
@@ -79,8 +87,11 @@ export async function enableOwnerAccess(ownerId: string, email: string, password
 /**
  * Disable owner access (unlink and delete user)
  */
-export async function disableOwnerAccess(ownerId: string) {
+export async function disableOwnerAccess(accessToken: string, ownerId: string) {
     try {
+        const auth = await requireAdminAction(accessToken)
+        if (!auth.ok) return { success: false, error: auth.error }
+
         // 1. Get Owner
         const { data: owner } = await supabaseAdmin
             .from('owners')
@@ -114,8 +125,11 @@ export async function disableOwnerAccess(ownerId: string) {
  * Resets the password for an owner's account.
  * Generates a new random password and returns it.
  */
-export async function resetOwnerPassword(ownerId: string, password?: string) {
+export async function resetOwnerPassword(accessToken: string, ownerId: string, password?: string) {
     try {
+        const auth = await requireAdminAction(accessToken)
+        if (!auth.ok) return { success: false, error: auth.error }
+
         const { data: owner } = await supabaseAdmin
             .from('owners')
             .select('user_id, email, name')
@@ -124,8 +138,8 @@ export async function resetOwnerPassword(ownerId: string, password?: string) {
 
         if (!owner?.user_id) throw new Error("Acceso no habilitado para este propietario")
 
-        // Update password
-        const newPassword = password || Math.random().toString(36).slice(-10) + "Aa1!"
+        // Update password with cryptographically secure default
+        const newPassword = password?.trim() || generatePassword(14)
 
         const { error } = await supabaseAdmin.auth.admin.updateUserById(
             owner.user_id,
@@ -158,6 +172,7 @@ export async function resetOwnerPassword(ownerId: string, password?: string) {
  * Also handles beneficiaries update (full replacement).
  */
 export async function updateOwner(
+    accessToken: string,
     id: string,
     ownerData: {
         type: 'individual' | 'company'
@@ -171,6 +186,9 @@ export async function updateOwner(
     }
 ) {
     try {
+        const auth = await requireAdminAction(accessToken)
+        if (!auth.ok) return { success: false, error: auth.error }
+
         // 1. Get current owner to check for user_id and email changes
         const { data: currentOwner, error: fetchError } = await supabaseAdmin
             .from('owners')
@@ -235,11 +253,15 @@ export async function updateOwner(
             }
 
             // B. Create new user with new email
-            const newPassword = Math.random().toString(36).slice(-10) + "Aa1!"
+            const newPassword = generatePassword(14)
             const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
                 email: ownerData.email,
                 password: newPassword,
                 email_confirm: true,
+                app_metadata: {
+                    role: 'owner',
+                    owner_id: id
+                },
                 user_metadata: {
                     full_name: ownerData.name,
                     role: 'owner',

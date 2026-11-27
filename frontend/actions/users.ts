@@ -2,9 +2,14 @@
 
 import { supabaseAdmin } from "@/lib/supabase-admin"
 import { revalidatePath } from "next/cache"
+import { requireAdminAction } from "@/lib/server-auth"
+import { generatePassword } from "@/lib/utils-password"
 
-export async function getUsers() {
+export async function getUsers(accessToken: string) {
     try {
+        const auth = await requireAdminAction(accessToken)
+        if (!auth.ok) return { success: false, error: auth.error }
+
         // Fetch users from Auth API to get last_sign_in_at and metadata
         const { data: { users }, error } = await supabaseAdmin.auth.admin.listUsers({
             perPage: 1000 // Reasonable limit for now
@@ -17,7 +22,7 @@ export async function getUsers() {
             id: u.id,
             email: u.email,
             full_name: u.user_metadata?.full_name || 'Sin Nombre',
-            role: u.user_metadata?.role || 'user',
+            role: u.app_metadata?.role || u.user_metadata?.role || 'user',
             created_at: u.created_at,
             last_sign_in_at: u.last_sign_in_at
         }))
@@ -29,8 +34,11 @@ export async function getUsers() {
     }
 }
 
-export async function getUnlinkedTenants() {
+export async function getUnlinkedTenants(accessToken: string) {
     try {
+        const auth = await requireAdminAction(accessToken)
+        if (!auth.ok) return { success: false, error: auth.error }
+
         const { data, error } = await supabaseAdmin
             .from('tenants')
             .select('id, name, doc_id')
@@ -45,15 +53,25 @@ export async function getUnlinkedTenants() {
     }
 }
 
-export async function createUser(data: { email: string; fullName: string; role: 'admin' | 'operator' | 'tenant'; password?: string; tenantId?: string }) {
+export async function createUser(
+    accessToken: string,
+    data: { email: string; fullName: string; role: 'admin' | 'operator' | 'tenant'; password?: string; tenantId?: string }
+) {
     try {
+        const auth = await requireAdminAction(accessToken)
+        if (!auth.ok) return { success: false, error: auth.error }
+
         const { email, fullName, role, password, tenantId } = data
 
-        // 1. Create in Auth (Admin API)
+        // 1. Create in Auth (Admin API) with cryptographically secure fallback password and server-trusted app_metadata
         const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
             email,
-            password: password || 'TempPassword123!', // Default password calls for a robust flow, but this is a starter
+            password: password?.trim() || generatePassword(14),
             email_confirm: true,
+            app_metadata: {
+                role: role,
+                tenant_id: tenantId,
+            },
             user_metadata: {
                 full_name: fullName,
                 role: role,
@@ -74,7 +92,6 @@ export async function createUser(data: { email: string; fullName: string; role: 
 
             if (linkError) {
                 console.error('Error linking tenant to user:', linkError)
-                // We don't rollback the user creation here, but we should probably report it
             }
         }
 
@@ -88,8 +105,15 @@ export async function createUser(data: { email: string; fullName: string; role: 
     }
 }
 
-export async function updateUser(userId: string, data: { role: 'admin' | 'operator' | 'tenant'; password?: string }) {
+export async function updateUser(
+    accessToken: string,
+    userId: string,
+    data: { role: 'admin' | 'operator' | 'tenant'; password?: string }
+) {
     try {
+        const auth = await requireAdminAction(accessToken)
+        if (!auth.ok) return { success: false, error: auth.error }
+
         const { role, password } = data
 
         // 1. Update public table
@@ -100,8 +124,13 @@ export async function updateUser(userId: string, data: { role: 'admin' | 'operat
 
         if (publicError) throw publicError
 
-        // 2. Update Auth metadata and password if requested
-        const updateData: any = {
+        // 2. Update Auth app_metadata, user_metadata and password if requested
+        const updateData: {
+            app_metadata: { role: string }
+            user_metadata: { role: string }
+            password?: string
+        } = {
+            app_metadata: { role: role },
             user_metadata: { role: role }
         }
 
@@ -124,10 +153,14 @@ export async function updateUser(userId: string, data: { role: 'admin' | 'operat
     }
 }
 
-export async function deleteUser(userId: string) {
+export async function deleteUser(accessToken: string, userId: string) {
     try {
-        // 0. Check if this user is a tenant
-        // If so, we MUST NOT delete the tenant data or history, only unlink the user account.
+        const auth = await requireAdminAction(accessToken)
+        if (!auth.ok) return { success: false, error: auth.error }
+
+        if (userId === auth.data.user.id) {
+            return { success: false, error: 'No puedes eliminar tu propia cuenta de administrador' }
+        }
 
         // Unlink tenant from this user (set user_id to null)
         const { error: unlinkError } = await supabaseAdmin
@@ -137,8 +170,6 @@ export async function deleteUser(userId: string) {
 
         if (unlinkError) {
             console.error('Error unlinking tenant from user:', unlinkError)
-            // We might want to throw here if strict consistency is required, 
-            // but often we want to proceed with user deletion even if unlinking "fails" (e.g. if no rows matched)
         }
 
         // 1. Delete from Auth (Cascades to public.users via DB constraint)

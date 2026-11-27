@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { OwnerSidebar } from "@/components/owner-sidebar"
 import { SiteHeader } from "@/components/site-header"
+import { SessionTimeoutGuard } from "@/components/session-timeout-guard"
 import {
     SidebarInset,
     SidebarProvider,
@@ -27,7 +28,7 @@ export default function OwnerLayout({
                 return
             }
 
-            const role = session.user.user_metadata.role
+            const role = session.user.app_metadata?.role || session.user.user_metadata?.role
 
             if (role !== 'owner') {
                 // Not an owner, redirect out
@@ -51,21 +52,24 @@ export default function OwnerLayout({
     }
 
     return (
-        <SidebarProvider
-            style={
-                {
-                    "--sidebar-width": "calc(var(--spacing) * 72)",
-                    "--header-height": "calc(var(--spacing) * 12)",
-                } as React.CSSProperties
-            }
-        >
-            <OwnerSidebar variant="inset" />
-            <SidebarInset>
-                <SiteHeader />
-                <div className="flex flex-1 flex-col p-4 md:p-6">
-                    {children}
-                </div>
-            </SidebarInset>
-        </SidebarProvider>
+        <>
+            <SessionTimeoutGuard timeoutMinutes={30} warningMinutes={2} />
+            <SidebarProvider
+                style={
+                    {
+                        "--sidebar-width": "calc(var(--spacing) * 72)",
+                        "--header-height": "calc(var(--spacing) * 12)",
+                    } as React.CSSProperties
+                }
+            >
+                <OwnerSidebar variant="inset" />
+                <SidebarInset>
+                    <SiteHeader />
+                    <div className="flex flex-1 flex-col p-4 md:p-6">
+                        {children}
+                    </div>
+                </SidebarInset>
+            </SidebarProvider>
+        </>
     );
 }

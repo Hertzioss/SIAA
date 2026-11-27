@@ -3,9 +3,13 @@ import { supabaseAdmin } from '@/lib/supabase-admin'
 import { generatePassword } from '@/lib/utils-password'
 import { sendEmail as sendEmailFn } from '@/lib/mail'
 import { generateEmailHtml } from '@/lib/email-templates'
+import { requireAdminRequest } from '@/lib/server-auth'
 
 export async function POST(request: Request) {
     try {
+        const auth = await requireAdminRequest(request)
+        if (!auth.ok) return auth.response
+
         const body = await request.json()
         const { email, name, tenantId, sendEmail = true } = body
 
@@ -30,6 +34,7 @@ export async function POST(request: Request) {
             // User already exists (e.g., previously linked tenant) — reuse their ID
             // Update their metadata to point to this tenant
             await supabaseAdmin.auth.admin.updateUserById(existingUser.id, {
+                app_metadata: { role: 'tenant', tenant_id: tenantId },
                 user_metadata: { full_name: name, role: 'tenant', tenant_id: tenantId }
             })
             authUserId = existingUser.id
@@ -39,6 +44,7 @@ export async function POST(request: Request) {
                 email,
                 password,
                 email_confirm: true,
+                app_metadata: { role: 'tenant', tenant_id: tenantId },
                 user_metadata: { full_name: name, role: 'tenant', tenant_id: tenantId }
             })
 

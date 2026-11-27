@@ -1,13 +1,17 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
+import { requireAdminRequest } from '@/lib/server-auth'
 
 /**
  * POST /api/tenants/debug-link
  * Diagnostic endpoint: given an email, shows what auth user and tenant records exist
- * to identify mismatches.
+ * to identify mismatches. Restricted to authenticated admins only.
  */
 export async function POST(request: Request) {
     try {
+        const auth = await requireAdminRequest(request)
+        if (!auth.ok) return auth.response
+
         const { email } = await request.json()
         if (!email) return NextResponse.json({ error: 'Missing email' }, { status: 400 })
 

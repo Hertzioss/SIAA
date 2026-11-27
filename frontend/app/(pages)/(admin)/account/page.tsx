@@ -16,6 +16,7 @@ import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
 import { SecurityForm } from "@/components/security-form"
 import { getCompany, updateCompany } from "@/actions/company"
+import { authFetch, getAccessToken } from "@/lib/auth-fetch"
 import { supabase } from "@/lib/supabase"
 import { v4 as uuidv4 } from 'uuid'
 
@@ -125,7 +126,8 @@ export default function AccountPage() {
     const handleSaveProfile = async () => {
         setLoading(true)
         try {
-            const res = await updateCompany({
+            const token = await getAccessToken()
+            const res = await updateCompany(token, {
                 name: profileData.name,
                 rif: profileData.rif,
                 address: profileData.address,
@@ -154,7 +156,8 @@ export default function AccountPage() {
     const handleSaveEmailSettings = async () => {
         setSavingEmail(true)
         try {
-            const res = await updateCompany({ email_enabled: emailEnabled })
+            const token = await getAccessToken()
+            const res = await updateCompany(token, { email_enabled: emailEnabled })
             if (res.success) {
                 toast.success("Configuración de email guardada")
             } else {
@@ -171,7 +174,7 @@ export default function AccountPage() {
         if (!testEmail) return
         setSendingTest(true)
         try {
-            const res = await fetch('/api/emails/send', {
+            const res = await authFetch('/api/emails/send', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

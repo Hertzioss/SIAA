@@ -84,6 +84,7 @@ import { useContracts, Contract, ContractInsert, ContractUpdate } from "@/hooks/
 import { differenceInCalendarDays, differenceInYears, format, isValid } from "date-fns"
 import { es } from "date-fns/locale"
 import { parseLocalDate, formatCurrency } from "@/lib/utils"
+import { authFetch } from "@/lib/auth-fetch"
 import Link from "next/link"
 
 interface TenantSubmitData {
@@ -454,7 +455,7 @@ export function TenantDialog({
             if (!email || !tenant) return
             try {
                 setLoading(true)
-                const res = await fetch("/api/tenants/reset-password", {
+                const res = await authFetch("/api/tenants/reset-password", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ email, tenantId: tenant.id }),
@@ -476,7 +477,7 @@ export function TenantDialog({
         if (!email || !tenant || !manualPassword) return
         try {
             setLoading(true)
-            const res = await fetch("/api/tenants/reset-password", {
+            const res = await authFetch("/api/tenants/reset-password", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -502,7 +503,7 @@ export function TenantDialog({
         if (!email || !tenant) return
         try {
             setLoading(true)
-            const res = await fetch("/api/tenants/create-user", {
+            const res = await authFetch("/api/tenants/create-user", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({

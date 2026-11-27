@@ -1,5 +1,9 @@
 # Memoria de cambios
 
+## 2026-11-27
+
+- Convención de marca/nomenclatura: no utilizar las siglas `SIAA` en interfaz, recibos, reportes, correos, documentación ni textos orientados al cliente/usuario. Regla permanente añadida en `AGENTS.md`. Archivos: `AGENTS.md`, `MEMORY.md`.
+
 ## 2026-11-26
 
 - Estandarización de abreviación de Bolívares a **`Bs`** (eliminando `VES` de UI, recibos, reportes, exportaciones y documentación; regla permanente en `AGENTS.md`). Helpers `isBolivares` y `formatCurrencyLabel` en `frontend/lib/utils.ts`. Archivos: `AGENTS.md`, `frontend/lib/utils.ts`, `frontend/app/(pages)/(tenants)/payment-form/page.tsx`, `frontend/components/tenants/payment-form.tsx`, `frontend/components/tenants/payment-history-list.tsx`, `frontend/app/(pages)/(admin)/payments/page.tsx`, `frontend/components/payments/payment-action-dialog.tsx`, `frontend/components/payments/payment-edit-dialog.tsx`, `frontend/components/payment-receipt.tsx`, `frontend/components/expense-receipt.tsx`, `frontend/components/expenses/expense-dialog.tsx`, `frontend/components/expenses/income-dialog.tsx`, `frontend/components/expenses/owner-incomes-view.tsx`, `frontend/app/(pages)/(admin)/expenses/page.tsx`, `frontend/components/owners/owner-accounts-list.tsx`, `frontend/app/(pages)/owners/expenses/page.tsx`, `frontend/app/(pages)/owners/expenses-report/page.tsx`, `frontend/app/(pages)/owners/income/page.tsx`, `frontend/app/(pages)/(admin)/reports/tenants/page.tsx`, `frontend/app/(pages)/(admin)/reports/owners/page.tsx`, `Docs/MANUAL_ADMIN.md`, `Docs/MANUAL_TENANT.md`, `README.md`.

@@ -11,6 +11,7 @@ import { toast } from "sonner"
 import { ContractDialog } from "@/components/contracts/contract-dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { parseLocalDate } from "@/lib/utils"
+import { authFetch } from "@/lib/auth-fetch"
 
 import { useProperties } from "@/hooks/use-properties"
 import { useTenants } from "@/hooks/use-tenants"
@@ -209,7 +210,7 @@ function ContractsContent() {
         }
 
         toast.promise(
-            fetch('/api/emails/send', {
+            authFetch('/api/emails/send', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

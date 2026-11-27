@@ -22,6 +22,7 @@ import { toast } from "sonner"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { OwnerAccountsList } from "./owner-accounts-list"
 import { enableOwnerAccess, disableOwnerAccess, resetOwnerPassword } from "@/actions/access"
+import { getAccessToken } from "@/lib/auth-fetch"
 import { supabase } from "@/lib/supabase"
 import { v4 as uuidv4 } from "uuid"
 import Image from "next/image"
@@ -255,7 +256,8 @@ export function OwnerDialog({
 
         setAccessLoading(true)
         try {
-            const res = await enableOwnerAccess(owner.id, owner.email, manualPassword || undefined)
+            const token = await getAccessToken()
+            const res = await enableOwnerAccess(token, owner.id, owner.email, manualPassword || undefined)
             if (res.success && res.data) {
                 toast.success("Acceso habilitado correctamente", {
                     description: `Contraseña: ${res.data.password}`,
@@ -283,7 +285,8 @@ export function OwnerDialog({
         if (!owner?.id) return
         setAccessLoading(true)
         try {
-            const res = await disableOwnerAccess(owner.id)
+            const token = await getAccessToken()
+            const res = await disableOwnerAccess(token, owner.id)
             if (res.success) {
                 toast.success("Acceso deshabilitado")
                 setManualPassword("")
@@ -301,7 +304,8 @@ export function OwnerDialog({
         if (!owner?.id) return
         setAccessLoading(true)
         try {
-            const res = await resetOwnerPassword(owner.id, manualPassword || undefined)
+            const token = await getAccessToken()
+            const res = await resetOwnerPassword(token, owner.id, manualPassword || undefined)
             if (res.success && res.data) {
                 toast.success("Contraseña actualizada", {
                     description: `Nueva contraseña: ${res.data.password}`,

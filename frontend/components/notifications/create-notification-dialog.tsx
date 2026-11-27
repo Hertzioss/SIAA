@@ -60,6 +60,7 @@ import {
     CommandList,
 } from "@/components/ui/command"
 import { cn } from "@/lib/utils"
+import { authFetch } from "@/lib/auth-fetch"
 import { Tenant } from "@/types/tenant"
 
 type NotificationType = "info" | "alert" | "payment" | "contract"
@@ -266,7 +267,7 @@ export function CreateNotificationDialog({
                     .select("email, name")
                     .single()
                 if (company?.email) {
-                    await fetch("/api/emails/send", {
+                    await authFetch("/api/emails/send", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({

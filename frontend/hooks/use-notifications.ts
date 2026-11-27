@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
+import { authFetch } from '@/lib/auth-fetch';
 
 export interface Notification {
     id: string;
@@ -304,7 +305,7 @@ export function useNotifications() {
             // 2. Send Email (Async)
             if (recipientsData.length > 0) {
                 try {
-                    const res = await fetch('/api/emails/send', {
+                    const res = await authFetch('/api/emails/send', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({

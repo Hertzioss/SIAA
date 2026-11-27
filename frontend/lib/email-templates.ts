@@ -1,12 +1,38 @@
+export function escapeHtml(value: string): string {
+    return value
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;')
+}
+
+/**
+ * Neutraliza vectores de XSS/inyección peligrosa en cuerpos HTML de correo
+ * preservando el formato legítimo (tablas de estado de cuenta, párrafos, saltos).
+ */
+function sanitizeEmailBody(html: string): string {
+    return html
+        .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, '')
+        .replace(/<iframe[\s\S]*?>[\s\S]*?<\/iframe>/gi, '')
+        .replace(/<object[\s\S]*?>[\s\S]*?<\/object>/gi, '')
+        .replace(/<embed[\s\S]*?>/gi, '')
+        .replace(/\son[a-z]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+        .replace(/javascript\s*:/gi, '')
+}
+
 export const generateEmailHtml = (title: string, message: string, recipientName: string = 'Inquilino') => {
-    // Basic clean modern template
+    const safeTitle = escapeHtml(title || '')
+    const safeRecipient = escapeHtml(recipientName || 'Inquilino')
+    const safeMessage = sanitizeEmailBody(message || '')
+
     return `
 <!DOCTYPE html>
 <html>
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${title}</title>
+    <title>${safeTitle}</title>
     <style>
         body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #f4f4f5; margin: 0; padding: 0; }
         .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; margin-top: 20px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
@@ -24,9 +50,9 @@ export const generateEmailHtml = (title: string, message: string, recipientName:
             <h1>Escritorio Legal</h1>
         </div>
         <div class="content">
-            <p>Hola <strong>${recipientName}</strong>,</p>
+            <p>Hola <strong>${safeRecipient}</strong>,</p>
             
-            ${message.split('\n').map(line => line ? `<p>${line}</p>` : '').join('')}
+            ${safeMessage.split('\n').map(line => line ? `<p>${line}</p>` : '').join('')}
             
             <p style="margin-top: 32px; font-size: 14px; color: #666;">
                 Atentamente,<br>
@@ -43,48 +69,16 @@ export const generateEmailHtml = (title: string, message: string, recipientName:
     `;
 };
 
-export const generateOwnerCredentialsEmail = (name: string, email: string, password: string, isReset: boolean = false) => {
-    const title = isReset ? 'Restablecimiento de Contraseña' : 'Bienvenido al Portal de Propietarios'
-    const subjectPrefix = isReset ? 'Nueva Contraseña' : 'Credenciales de Acceso'
-
-    // Custom logic to show "Your account has been created" vs "Your password has been reset"
-    const content = isReset
-        ? `
-        <p>Hola <strong>${name}</strong>,</p>
-        <p>Su contraseña para acceder al Portal de Propietarios ha sido actualizada exitosamente.</p>
-        <p>A continuación encontrará sus nuevas credenciales de acceso:</p>
-        <div style="background-color: #f4f4f5; padding: 16px; border-radius: 6px; margin: 16px 0;">
-            <p style="margin: 0; font-family: monospace;">Usuario: <strong>${email}</strong></p>
-            <p style="margin: 8px 0 0 0; font-family: monospace;">Contraseña: <strong>${password}</strong></p>
-        </div>
-        <p>Le recomendamos cambiar esta contraseña una vez ingrese al sistema.</p>
-        <p>Puede acceder al portal en cualquier momento haciendo clic en el siguiente enlace:</p>
-        <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/owners/login" style="display: inline-block; background-color: #1e3a8a; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 500; margin-top: 16px;">Ir al Portal</a>
-        `
-        : `
-        <p>Hola <strong>${name}</strong>,</p>
-        <p>Le damos la bienvenida al <strong>Portal de Propietarios</strong>.</p>
-        <p>Se ha creado una cuenta para que pueda acceder al Portal de Propietarios, donde podrá visualizar el estado de sus inmuebles, contratos y pagos.</p>
-        <p>Sus credenciales de acceso son:</p>
-        <div style="background-color: #f4f4f5; padding: 16px; border-radius: 6px; margin: 16px 0;">
-            <p style="margin: 0; font-family: monospace;">Usuario: <strong>${email}</strong></p>
-            <p style="margin: 8px 0 0 0; font-family: monospace;">Contraseña: <strong>${password}</strong></p>
-        </div>
-        <p>Puede acceder al portal haciendo clic en el siguiente botón:</p>
-        <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/owners/login" style="display: inline-block; background-color: #1e3a8a; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 500; margin-top: 16px;">Acceder al Portal</a>
-        `
-
-    return generateEmailHtml(title, content, name) // We are abusing the 'message' param slightly by passing HTML, but our generateEmailHtml needs adjustment to allow HTML or we just wrap it.
-    // Wait, generateEmailHtml iterates lines. That might break my HTML block.
-    // I should create a new standalone template function to be safe and clean.
-}
-
-// Standalone template for credentials to avoid line-splitting issues in the generic one
 export const generateOwnerCredentialsTemplate = (name: string, email: string, password: string, isReset: boolean = false) => {
     const title = isReset ? 'Restablecimiento de Contraseña' : 'Bienvenido al Portal de Propietarios'
     const intro = isReset
         ? 'Su contraseña ha sido actualizada. A continuación sus nuevas credenciales:'
         : 'Se ha creado su cuenta de acceso. A continuación sus credenciales:'
+
+    const safeName = escapeHtml(name || '')
+    const safeEmail = escapeHtml(email || '')
+    const safePassword = escapeHtml(password || '')
+    const appUrl = escapeHtml(process.env.NEXT_PUBLIC_APP_URL || 'https://escritorio.team')
 
     return `
 <!DOCTYPE html>
@@ -114,22 +108,22 @@ export const generateOwnerCredentialsTemplate = (name: string, email: string, pa
         </div>
         <div class="content">
             <h2 style="margin-top: 0; font-size: 20px; font-weight: 600;">${title}</h2>
-            <p>Hola ${name},</p>
+            <p>Hola ${safeName},</p>
             <p>${intro}</p>
             
             <div class="credentials">
                 <div style="margin-bottom: 16px;">
                     <div class="label">Usuario / Email</div>
-                    <div class="value">${email}</div>
+                    <div class="value">${safeEmail}</div>
                 </div>
                 <div>
                     <div class="label">Contraseña</div>
-                    <div class="value">${password}</div>
+                    <div class="value">${safePassword}</div>
                 </div>
             </div>
 
             <div style="text-align: center;">
-                <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/owners/login" class="button">Acceder al Portal</a>
+                <a href="${appUrl}/owners/login" class="button">Acceder al Portal</a>
             </div>
             
             <p style="font-size: 14px; margin-top: 32px; color: #52525b;">Recomendamos cambiar su contraseña después de iniciar sesión por primera vez.</p>

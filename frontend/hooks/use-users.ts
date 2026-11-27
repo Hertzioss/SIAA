@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { getUsers, createUser, updateUser, deleteUser } from '@/actions/users'
+import { getAccessToken } from '@/lib/auth-fetch'
 import { toast } from 'sonner'
 
 export type User = {
@@ -17,7 +18,8 @@ export function useUsers() {
 
     const fetchUsers = useCallback(async () => {
         setLoading(true)
-        const res = await getUsers()
+        const token = await getAccessToken()
+        const res = await getUsers(token)
         if (res.success && res.data) {
             setUsers(res.data as User[])
         } else {
@@ -31,7 +33,8 @@ export function useUsers() {
     }, [fetchUsers])
 
     const addUser = async (data: { email: string; fullName: string; role: 'admin' | 'operator' | 'tenant', password?: string, tenantId?: string }) => {
-        const res = await createUser(data)
+        const token = await getAccessToken()
+        const res = await createUser(token, data)
         if (res.success) {
             toast.success('Usuario creado correctamente', { description: `Se ha enviado una invitación a ${data.email}` })
             fetchUsers()
@@ -47,7 +50,8 @@ export function useUsers() {
     }
 
     const updateUserAction = async (userId: string, data: { role: 'admin' | 'operator' | 'tenant', password?: string }) => {
-        const res = await updateUser(userId, data)
+        const token = await getAccessToken()
+        const res = await updateUser(token, userId, data)
         if (res.success) {
             toast.success('Usuario actualizado', { description: 'Los permisos y datos han sido modificados.' })
             fetchUsers()
@@ -59,7 +63,8 @@ export function useUsers() {
     }
 
     const removeUser = async (userId: string) => {
-        const res = await deleteUser(userId)
+        const token = await getAccessToken()
+        const res = await deleteUser(token, userId)
         if (res.success) {
             toast.success('Usuario eliminado', { description: 'El acceso ha sido revocado permanentemente.' })
             fetchUsers()

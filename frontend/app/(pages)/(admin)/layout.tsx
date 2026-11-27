@@ -8,6 +8,7 @@ import { Loader2 } from 'lucide-react'
 import { AppSidebar } from "@/components/app-sidebar"
 import { SiteHeader } from "@/components/site-header"
 import { TopBanner } from "@/components/top-banner"
+import { SessionTimeoutGuard } from "@/components/session-timeout-guard"
 import {
     SidebarInset,
     SidebarProvider,
@@ -27,17 +28,31 @@ export default function AdminLayout({
 
             if (!session) {
                 router.push('/signin')
-            } else {
-                const role = session.user.user_metadata.role
-                const isSuperAdminEnv = process.env.NEXT_PUBLIC_SUPER_ADMIN_EMAIL === session.user.email
+                return
+            }
 
-                if (role === 'tenant' && !isSuperAdminEnv) {
-                    router.push('/payment-form')
-                } else if (role === 'owner' && !isSuperAdminEnv) {
-                    router.push('/owners/dashboard')
-                } else {
-                    setLoading(false)
-                }
+            const isSuperAdminEnv = process.env.NEXT_PUBLIC_SUPER_ADMIN_EMAIL === session.user.email
+            // Prefer server-trusted app_metadata.role or public.users.role over user_metadata
+            let role: string | undefined =
+                session.user.app_metadata?.role || session.user.user_metadata?.role
+
+            if (!isSuperAdminEnv && !session.user.app_metadata?.role) {
+                const { data: dbUser } = await supabase
+                    .from('users')
+                    .select('role')
+                    .eq('id', session.user.id)
+                    .maybeSingle()
+                if (dbUser?.role) role = dbUser.role
+            }
+
+            if (isSuperAdminEnv || role === 'admin' || role === 'operator') {
+                setLoading(false)
+            } else if (role === 'tenant') {
+                router.push('/payment-form')
+            } else if (role === 'owner') {
+                router.push('/owners/dashboard')
+            } else {
+                router.push('/signin')
             }
         }
 
@@ -54,6 +69,7 @@ export default function AdminLayout({
 
     return (
         <div className="flex flex-col min-h-screen">
+            <SessionTimeoutGuard timeoutMinutes={30} warningMinutes={2} />
             <TopBanner />
             <SidebarProvider
                 style={

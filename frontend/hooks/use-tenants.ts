@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Tenant } from '@/types/tenant';
 import { toast } from 'sonner';
+import { authFetch } from '@/lib/auth-fetch';
 
 
 interface DbError {
@@ -158,7 +159,7 @@ export function useTenants() {
             // Create User Account & Send Email (Async)
             if (tenant.email) {
                 try {
-                    await fetch('/api/tenants/create-user', {
+                    await authFetch('/api/tenants/create-user', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
@@ -259,7 +260,7 @@ export function useTenants() {
             // Sync with auth system if the email or name changed
             if (currentTenant?.user_id && (tenantData.email || tenantData.name)) {
                 try {
-                    await fetch('/api/tenants/update-user', {
+                    await authFetch('/api/tenants/update-user', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
@@ -365,7 +366,7 @@ export function useTenants() {
             // 6. Delete Auth User (if exists)
             if (tenantData?.user_id) {
                 try {
-                    await fetch('/api/tenants/delete-user', {
+                    await authFetch('/api/tenants/delete-user', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ userId: tenantData.user_id })

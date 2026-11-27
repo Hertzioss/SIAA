@@ -1,13 +1,17 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
+import { requireAdminRequest } from '@/lib/server-auth'
 
 /**
  * POST /api/tenants/sync-users
  * Matches every tenant (by email) to their auth user and updates user_id.
  * Safe to run multiple times.
  */
-export async function POST() {
+export async function POST(request: Request) {
     try {
+        const auth = await requireAdminRequest(request)
+        if (!auth.ok) return auth.response
+
         // 1. Fetch all tenants that have an email
         const { data: tenants, error: tenantError } = await supabaseAdmin
             .from('tenants')

@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase'
 import { toast } from 'sonner'
 import { v4 as uuidv4 } from 'uuid'
 import { useSystemConfig } from '@/hooks/use-system-config'
+import { authFetch } from '@/lib/auth-fetch'
 
 import { PaymentInsert, PaymentWithDetails, MonthlyBalance } from '@/types/payment'
 
@@ -170,7 +171,7 @@ export function useTenantPayments() {
                             pdfBase64 = await generatePaymentReceiptPDF(pdfData);
                         }
 
-                        await fetch('/api/payments/update-status', {
+                        await authFetch('/api/payments/update-status', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
